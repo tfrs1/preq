@@ -1,2 +1,3 @@
-bitctl
-.vscode/
+prctl
+.history/
+.prctlcfg

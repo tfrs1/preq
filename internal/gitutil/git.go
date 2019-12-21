@@ -1,13 +1,14 @@
-package git
+package gitutil
 
 import (
+	"errors"
 	"os"
 
 	"gopkg.in/src-d/go-git.v4"
 )
 
 var (
-	ErrCannotGetLocalRepository = errors.new("cannot get local repository")
+	ErrCannotGetLocalRepository = errors.New("cannot get local repository")
 )
 
 func GetRepos() ([]string, error) {
