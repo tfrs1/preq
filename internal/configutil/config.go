@@ -7,6 +7,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
@@ -34,8 +35,6 @@ func Load() {
 	}
 
 	viper.SetConfigType("toml")
-	viper.SetDefault("bitbucket.user", "")
-	viper.SetDefault("bitbucket.token", "")
 
 	// TODO: Create ~/.config/.prctl dir
 
@@ -46,4 +45,26 @@ func Load() {
 
 	loadConfig(hdCfgPath)
 	loadConfig(".prctlcfg")
+}
+
+func GetStringFlagOrDie(cmd *cobra.Command, flag string) string {
+	s := GetStringFlag(cmd, flag)
+	if s == "" {
+		log.Fatal("string empty")
+	}
+
+	return s
+}
+
+func GetStringFlagOrDefault(cmd *cobra.Command, flag, d string) string {
+	s := GetStringFlag(cmd, flag)
+	if s == "" {
+		return d
+	}
+
+	return s
+}
+
+func GetStringFlag(cmd *cobra.Command, flag string) string {
+	return cmd.Flags().Lookup(flag).Value.String()
 }

@@ -11,6 +11,31 @@ var (
 	ErrCannotGetLocalRepository = errors.New("cannot get local repository")
 )
 
+func GetBranch() (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", ErrCannotGetLocalRepository
+	}
+
+	r, err := git.PlainOpen(wd)
+	if err != nil {
+		return "", ErrCannotGetLocalRepository
+	}
+
+	headRef, err := r.Head()
+	if err != nil {
+		return "", ErrCannotGetLocalRepository
+	}
+
+	return headRef.Name().Short(), nil
+
+	// for _, re := range remotes {
+	// 	repos = append(repos, re.Config().URLs...)
+	// }
+
+	// // return repos, nil
+}
+
 func GetRepos() ([]string, error) {
 	var repos []string
 	wd, err := os.Getwd()
@@ -33,7 +58,6 @@ func GetRepos() ([]string, error) {
 	}
 
 	return repos, nil
-
 }
 
 func GetRepo() (string, error) {
