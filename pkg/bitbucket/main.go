@@ -2,9 +2,9 @@ package client
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/go-resty/resty/v2"
+	log "github.com/sirupsen/logrus"
 )
 
 type client struct {

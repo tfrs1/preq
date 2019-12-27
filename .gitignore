@@ -1,3 +1,4 @@
 prctl
 .history/
 .prctlcfg
+dist/

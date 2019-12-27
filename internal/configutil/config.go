@@ -1,12 +1,12 @@
 package configutil
 
 import (
-	"log"
 	"os"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
