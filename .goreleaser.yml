@@ -29,3 +29,18 @@ changelog:
     exclude:
     - '^docs:'
     - '^test:'
+
+# Homebrew
+brews:
+  - name: prctl
+    github:
+      owner: tfrs1
+      name: prctl-homebrew-tap
+    # commit_author:
+    #   name: tfrs1
+    #   email: tfrs1@users.noreply.github.com
+    folder: Formula
+    # homepage: https://example.com
+    # description: "Here be description"
+    test: |
+      system "#{bin}/program --version"
