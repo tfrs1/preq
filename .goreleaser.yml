@@ -30,6 +30,9 @@ changelog:
     - '^docs:'
     - '^test:'
 
+release:
+  prerelease: auto
+
 # Homebrew
 brews:
   - name: prctl
