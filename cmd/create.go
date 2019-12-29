@@ -6,6 +6,7 @@ import (
 	client "prctl/pkg/bitbucket"
 	"strings"
 
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -24,6 +25,13 @@ func init() {
 	rootCmd.AddCommand(createCmd)
 }
 
+var (
+	ErrMissingRepository        = errors.New("repository is missing")
+	ErrMissingDestination       = errors.New("destination is missing")
+	ErrMissingBitbucketUsername = errors.New("butbucket username is missing")
+	ErrMissingBitbucketPassword = errors.New("butbucket password is missing")
+)
+
 var createCmd = &cobra.Command{
 	Use:     "create",
 	Aliases: []string{"cr"},
@@ -31,13 +39,19 @@ var createCmd = &cobra.Command{
 	Long:    `Creates a pull request on the web service hosting your origin respository`,
 	Run: func(cmd *cobra.Command, args []string) {
 		c := client.New(&client.ClientOptions{
-			Username: viper.GetString("bitbucket.username"),
-			Password: viper.GetString("bitbucket.password"),
+			Username: configutil.GetStringOrDie(
+				viper.GetString("bitbucket.username"),
+				ErrMissingBitbucketUsername,
+			),
+			Password: configutil.GetStringOrDie(
+				viper.GetString("bitbucket.password"),
+				ErrMissingBitbucketPassword,
+			),
 		})
 
 		var (
-			repo        = configutil.GetStringFlagOrDie(cmd, "repository")
-			destination = configutil.GetStringFlagOrDie(cmd, "destination")
+			repo        = configutil.GetStringFlagOrDie(cmd, "repository", ErrMissingRepository)
+			destination = configutil.GetStringFlagOrDie(cmd, "destination", ErrMissingDestination)
 			owner       string
 			repoName    string
 		)

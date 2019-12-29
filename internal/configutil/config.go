@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	ErrHomeDirNotFound = errors.New("unable to determine the home direcotry")
+	ErrHomeDirNotFound = errors.New("unable to determine the home directory")
 )
 
 func loadConfig(filename string) {
@@ -47,24 +47,32 @@ func Load() {
 	loadConfig(".prctlcfg")
 }
 
-func GetStringFlagOrDie(cmd *cobra.Command, flag string) string {
-	s := GetStringFlag(cmd, flag)
+func GetStringFlagOrDie(cmd *cobra.Command, flag string, err error) string {
+	s, cmdErr := cmd.Flags().GetString(flag)
+	if cmdErr != nil || s == "" {
+		e := err
+		if cmdErr != nil {
+			e = errors.Wrap(cmdErr, err.Error())
+		}
+		log.Fatal(e)
+	}
+
+	return s
+}
+
+func GetStringOrDie(s string, err error) string {
 	if s == "" {
-		log.Fatal("string empty")
+		log.Fatal(err)
 	}
 
 	return s
 }
 
 func GetStringFlagOrDefault(cmd *cobra.Command, flag, d string) string {
-	s := GetStringFlag(cmd, flag)
-	if s == "" {
+	s, err := cmd.Flags().GetString(flag)
+	if err != nil {
 		return d
 	}
 
 	return s
-}
-
-func GetStringFlag(cmd *cobra.Command, flag string) string {
-	return cmd.Flags().Lookup(flag).Value.String()
 }
