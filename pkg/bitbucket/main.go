@@ -1,6 +1,7 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/go-resty/resty/v2"
@@ -95,7 +96,24 @@ func (c *client) GetPullRequests(o *GetPullRequestsOptions) *[]*PullRequest {
 	return prs
 }
 
-func (c *client) CreatePullRequest(o *CreatePullRequestOptions) *PullRequest {
+func verifyCreatePullRequestOptions(o *CreatePullRequestOptions) error {
+	if o.Source == "" {
+		return errors.New("missing source branch")
+	}
+
+	if o.Destination == "" {
+		return errors.New("missing destination branch")
+	}
+
+	return nil
+}
+
+func (c *client) CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error) {
+	err := verifyCreatePullRequestOptions(o)
+	if err != nil {
+		return nil, err
+	}
+
 	r, err := resty.New().R().
 		SetBasicAuth(c.username, c.password).
 		SetHeader("content-type", "application/json").
@@ -126,5 +144,5 @@ func (c *client) CreatePullRequest(o *CreatePullRequestOptions) *PullRequest {
 		log.Fatal(string(r.Body()))
 	}
 
-	return &PullRequest{}
+	return &PullRequest{}, nil
 }

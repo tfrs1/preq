@@ -1,13 +1,14 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
 	"prctl/internal/configutil"
 	"prctl/internal/gitutil"
 	client "prctl/pkg/bitbucket"
 	"strings"
 
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -58,17 +59,19 @@ var createCmd = &cobra.Command{
 
 		v := strings.Split(repo, "/")
 		if len(v) != 2 {
-			log.Fatal("repo must be in form owner/repo")
+			fmt.Println("repository must be in the form of 'owner/repo'")
+			os.Exit(3)
 		}
 		owner, repoName = v[0], v[1]
 
 		branch, err := gitutil.GetBranch()
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+			os.Exit(3)
 		}
 		source := configutil.GetStringFlagOrDefault(cmd, "source", branch)
 
-		c.CreatePullRequest(&client.CreatePullRequestOptions{
+		_, err = c.CreatePullRequest(&client.CreatePullRequestOptions{
 			Repository: &client.Repository{
 				Owner: owner,
 				Name:  repoName,
@@ -77,5 +80,10 @@ var createCmd = &cobra.Command{
 			Source:      source,
 			Destination: destination,
 		})
+
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(3)
+		}
 	},
 }

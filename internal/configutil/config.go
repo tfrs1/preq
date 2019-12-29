@@ -1,6 +1,7 @@
 package configutil
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/mitchellh/go-homedir"
@@ -54,7 +55,8 @@ func GetStringFlagOrDie(cmd *cobra.Command, flag string, err error) string {
 		if cmdErr != nil {
 			e = errors.Wrap(cmdErr, err.Error())
 		}
-		log.Fatal(e)
+		fmt.Println(e)
+		os.Exit(3)
 	}
 
 	return s
@@ -62,7 +64,8 @@ func GetStringFlagOrDie(cmd *cobra.Command, flag string, err error) string {
 
 func GetStringOrDie(s string, err error) string {
 	if s == "" {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(3)
 	}
 
 	return s
