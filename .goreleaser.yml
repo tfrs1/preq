@@ -9,9 +9,8 @@ before:
 builds:
 - env:
   - CGO_ENABLED=0
-# # env_files:
-#   # use only one or release will fail!
-#   github_token: ~/.config/goreleaser/github_token
+  ldflags:
+    - -s -w -X prctl/cmd.version={{.Version}} -X prctl/cmd.commit={{.Commit}} -X prctl/cmd.date={{.Date}}
 archives:
 - replacements:
     darwin: Darwin
