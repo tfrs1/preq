@@ -73,7 +73,7 @@ func GetStringOrDie(s string, err error) string {
 
 func GetStringFlagOrDefault(cmd *cobra.Command, flag, d string) string {
 	s, err := cmd.Flags().GetString(flag)
-	if err != nil {
+	if err != nil || s == "" {
 		return d
 	}
 
