@@ -26,4 +26,4 @@ jobs:
           args: release --rm-dist
           # key: ${{ secrets.YOUR_PRIVATE_KEY }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.HOMEBREW_GITHUB_TOKEN }}
