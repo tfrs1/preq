@@ -4,7 +4,10 @@ name: goreleaser
 #   push:
 #     branches:
 #       - master
-on: [push]
+on:
+  push:
+    tags:
+      - v*
 
 jobs:
   goreleaser:
