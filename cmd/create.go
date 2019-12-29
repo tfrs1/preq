@@ -12,22 +12,23 @@ import (
 )
 
 func init() {
-	prCmd.Flags().StringP("destination", "d", "", "destination branch of your pull request")
-	prCmd.Flags().StringP("source", "s", "", "destination branch of your pull request (default checked out branch)")
-	prCmd.Flags().StringP("repository", "r", "", "repository in form of owner/repo")
+	createCmd.Flags().StringP("destination", "d", "", "destination branch of your pull request")
+	createCmd.Flags().StringP("source", "s", "", "destination branch of your pull request (default checked out branch)")
+	createCmd.Flags().StringP("repository", "r", "", "repository in form of owner/repo")
 	// TODO: Shorthand names for providers?
-	prCmd.Flags().StringP("provider", "p", "", "repository host, e.g. bitbucket")
+	createCmd.Flags().StringP("provider", "p", "", "repository host, e.g. bitbucket")
 	// TODO: Lookup last commit message
-	prCmd.Flags().StringP("title", "t", "Title missing", "repository host, e.g. bitbucket")
+	createCmd.Flags().StringP("title", "t", "Title missing", "repository host, e.g. bitbucket")
 	// TODO: Open default editor for description?
-	prCmd.Flags().String("description", "", "repository host, e.g. bitbucket")
-	rootCmd.AddCommand(prCmd)
+	createCmd.Flags().String("description", "", "repository host, e.g. bitbucket")
+	rootCmd.AddCommand(createCmd)
 }
 
-var prCmd = &cobra.Command{
-	Use:   "pr",
-	Short: "Create pull request",
-	Long:  `Creates a pull request on the web service hosting your origin respository`,
+var createCmd = &cobra.Command{
+	Use:     "create",
+	Aliases: []string{"cr"},
+	Short:   "Create pull request",
+	Long:    `Creates a pull request on the web service hosting your origin respository`,
 	Run: func(cmd *cobra.Command, args []string) {
 		c := client.New(&client.ClientOptions{
 			Username: viper.GetString("bitbucket.username"),
