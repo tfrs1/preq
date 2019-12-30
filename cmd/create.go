@@ -18,11 +18,11 @@ func init() {
 	createCmd.Flags().StringP("source", "s", "", "destination branch of your pull request (default checked out branch)")
 	createCmd.Flags().StringP("repository", "r", "", "repository in form of owner/repo")
 	// TODO: Shorthand names for providers?
-	createCmd.Flags().StringP("provider", "p", "", "repository host, e.g. bitbucket")
+	createCmd.Flags().StringP("provider", "p", "", "repository host, values - (bitbucket-cloud)")
 	// TODO: Lookup last commit message
-	createCmd.Flags().StringP("title", "t", "Title missing", "repository host, e.g. bitbucket")
+	createCmd.Flags().StringP("title", "t", "Created with prctl", "the title of the pull request")
 	// TODO: Open default editor for description?
-	createCmd.Flags().String("description", "", "repository host, e.g. bitbucket")
+	createCmd.Flags().String("description", "", "the description of the pull request")
 	rootCmd.AddCommand(createCmd)
 }
 
