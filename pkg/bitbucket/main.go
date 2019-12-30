@@ -3,9 +3,16 @@ package client
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/go-resty/resty/v2"
 	log "github.com/sirupsen/logrus"
+)
+
+var (
+	ErrUnknownRepositoryProvider = errors.New(strings.TrimSpace(`
+		unknown repository provider, expected (bitbucket-cloud)
+	`))
 )
 
 type client struct {
@@ -44,9 +51,25 @@ type bbError struct {
 	Message string
 }
 
+type RepositoryProvider string
+
+const (
+	RepositoryProvider_BITBUCKET_CLOUD = "bitbucket-cloud"
+)
+
+func ParseRepositoryProvider(s string) (RepositoryProvider, error) {
+	switch s {
+	case "bitbucket.org", "bitbucket-cloud":
+		return RepositoryProvider_BITBUCKET_CLOUD, nil
+	}
+
+	return "", ErrUnknownRepositoryProvider
+}
+
 type Repository struct {
-	Owner string
-	Name  string
+	Provider RepositoryProvider
+	Owner    string
+	Name     string
 }
 
 type PullRequestState string

@@ -27,11 +27,47 @@ func init() {
 }
 
 var (
-	ErrMissingRepository        = errors.New("repository is missing")
-	ErrMissingDestination       = errors.New("destination is missing")
-	ErrMissingBitbucketUsername = errors.New("butbucket username is missing")
-	ErrMissingBitbucketPassword = errors.New("butbucket password is missing")
+	ErrMissingRepository               = errors.New("repository is missing")
+	ErrMissingDestination              = errors.New("destination is missing")
+	ErrMissingBitbucketUsername        = errors.New("butbucket username is missing")
+	ErrMissingBitbucketPassword        = errors.New("butbucket password is missing")
+	ErrSomeRepoParamsMissing           = errors.New("must specify both provider and repository, or none")
+	ErrRepositoryMustBeInFormOwnerRepo = errors.New("repository must be in the form of 'owner/repo'")
 )
+
+func getRepo(cmd *cobra.Command) (*client.Repository, error) {
+	var (
+		repo     = configutil.GetStringFlagOrDefault(cmd, "repository", "")
+		provider = configutil.GetStringFlagOrDefault(cmd, "provider", "")
+	)
+
+	if repo != "" && provider != "" {
+		v := strings.Split(repo, "/")
+		if len(v) != 2 {
+			return nil, ErrRepositoryMustBeInFormOwnerRepo
+		}
+
+		p, err := client.ParseRepositoryProvider(provider)
+		if err != nil {
+			return nil, err
+		}
+
+		return &client.Repository{
+			Provider: p,
+			Owner:    v[0],
+			Name:     v[1],
+		}, nil
+	} else if repo == "" && provider == "" {
+		defaultRepo, err := gitutil.GetRepo()
+		if err != nil {
+			return nil, err
+		}
+
+		return defaultRepo, nil
+	} else {
+		return nil, ErrSomeRepoParamsMissing
+	}
+}
 
 var createCmd = &cobra.Command{
 	Use:     "create",
@@ -50,32 +86,23 @@ var createCmd = &cobra.Command{
 			),
 		})
 
-		var (
-			repo        = configutil.GetStringFlagOrDie(cmd, "repository", ErrMissingRepository)
-			destination = configutil.GetStringFlagOrDie(cmd, "destination", ErrMissingDestination)
-			owner       string
-			repoName    string
-		)
-
-		v := strings.Split(repo, "/")
-		if len(v) != 2 {
-			fmt.Println("repository must be in the form of 'owner/repo'")
-			os.Exit(3)
-		}
-		owner, repoName = v[0], v[1]
-
-		branch, err := gitutil.GetBranch()
+		repo, err := getRepo(cmd)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(3)
 		}
-		source := configutil.GetStringFlagOrDefault(cmd, "source", branch)
+
+		defaultSourceBranch, err := gitutil.GetBranch()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(3)
+		}
+
+		source := configutil.GetStringFlagOrDefault(cmd, "source", defaultSourceBranch)
+		destination := configutil.GetStringFlagOrDie(cmd, "destination", fmt.Errorf("must specify destination"))
 
 		_, err = c.CreatePullRequest(&client.CreatePullRequestOptions{
-			Repository: &client.Repository{
-				Owner: owner,
-				Name:  repoName,
-			},
+			Repository:  repo,
 			Title:       cmd.Flags().Lookup("title").Value.String(),
 			Source:      source,
 			Destination: destination,

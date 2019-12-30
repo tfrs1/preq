@@ -3,12 +3,15 @@ package gitutil
 import (
 	"errors"
 	"os"
+	client "prctl/pkg/bitbucket"
+	"regexp"
 
 	"gopkg.in/src-d/go-git.v4"
 )
 
 var (
-	ErrCannotGetLocalRepository = errors.New("cannot get local repository")
+	ErrCannotGetLocalRepository            = errors.New("cannot get local repository")
+	ErrUnableToDetermineRepositoryProvider = errors.New("unable to determine repository provider")
 )
 
 func GetBranch() (string, error) {
@@ -28,15 +31,9 @@ func GetBranch() (string, error) {
 	}
 
 	return headRef.Name().Short(), nil
-
-	// for _, re := range remotes {
-	// 	repos = append(repos, re.Config().URLs...)
-	// }
-
-	// // return repos, nil
 }
 
-func GetRepos() ([]string, error) {
+func getRepos() ([]string, error) {
 	var repos []string
 	wd, err := os.Getwd()
 	if err != nil {
@@ -60,11 +57,30 @@ func GetRepos() ([]string, error) {
 	return repos, nil
 }
 
-func GetRepo() (string, error) {
-	repos, err := GetRepos()
-	if err != nil {
-		return "", err
+func parseRepositoryString(repoString string) (*client.Repository, error) {
+	r := regexp.MustCompile(`git@(.*):(.*)/(.*)\.git`)
+	m := r.FindStringSubmatch(repoString)
+	if len(m) != 4 {
+		return nil, ErrUnableToDetermineRepositoryProvider
 	}
 
-	return repos[0], nil
+	p, err := client.ParseRepositoryProvider(m[1])
+	if err != nil {
+		return nil, err
+	}
+
+	return &client.Repository{
+		Provider: p,
+		Owner:    m[2],
+		Name:     m[3],
+	}, nil
+}
+
+func GetRepo() (*client.Repository, error) {
+	repos, err := getRepos()
+	if err != nil {
+		return nil, err
+	}
+
+	return parseRepositoryString(repos[0])
 }
