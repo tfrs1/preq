@@ -71,8 +71,12 @@ func GetStringOrDie(s string, err error) string {
 	return s
 }
 
-func GetStringFlagOrDefault(cmd *cobra.Command, flag, d string) string {
-	s, err := cmd.Flags().GetString(flag)
+type FlagSet interface {
+	GetString(string) (string, error)
+}
+
+func GetStringFlagOrDefault(fs FlagSet, flag, d string) string {
+	s, err := fs.GetString(flag)
 	if err != nil || s == "" {
 		return d
 	}

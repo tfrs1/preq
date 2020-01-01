@@ -37,8 +37,8 @@ var (
 
 func getRepo(cmd *cobra.Command) (*client.Repository, error) {
 	var (
-		repo     = configutil.GetStringFlagOrDefault(cmd, "repository", "")
-		provider = configutil.GetStringFlagOrDefault(cmd, "provider", "")
+		repo     = configutil.GetStringFlagOrDefault(cmd.Flags(), "repository", "")
+		provider = configutil.GetStringFlagOrDefault(cmd.Flags(), "provider", "")
 	)
 
 	if repo != "" && provider != "" {
@@ -98,8 +98,8 @@ var createCmd = &cobra.Command{
 			os.Exit(3)
 		}
 
-		source := configutil.GetStringFlagOrDefault(cmd, "source", defaultSourceBranch)
-		destination := configutil.GetStringFlagOrDefault(cmd, "destination", "")
+		source := configutil.GetStringFlagOrDefault(cmd.Flags(), "source", defaultSourceBranch)
+		destination := configutil.GetStringFlagOrDefault(cmd.Flags(), "destination", "")
 		if destination == "" {
 			destination, err = gitutil.GetClosestBranch([]string{"master", "develop"})
 			if err != nil {
