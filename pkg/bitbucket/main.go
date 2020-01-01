@@ -1,9 +1,11 @@
 package client
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	log "github.com/sirupsen/logrus"
@@ -57,6 +59,35 @@ const (
 	RepositoryProvider_BITBUCKET_CLOUD = "bitbucket-cloud"
 )
 
+type bitbucketPullRequest struct {
+	ID          int
+	Title       string
+	Description string
+	CreatedOn   time.Time `json:"created_on"`
+	UpdatedOn   time.Time `json:"update_on"`
+	State       PullRequestState
+	Author      struct {
+		DisplayName string `json:"display_name"`
+		UUID        string
+		Nickname    string
+	}
+	Links struct {
+		HTML struct {
+			Href string
+		}
+	}
+	Destination struct {
+		Branch struct {
+			Name string
+		}
+	}
+	Source struct {
+		Branch struct {
+			Name string
+		}
+	}
+}
+
 func ParseRepositoryProvider(s string) (RepositoryProvider, error) {
 	switch s {
 	case "bitbucket.org", "bitbucket-cloud":
@@ -94,7 +125,14 @@ type CreatePullRequestOptions struct {
 	CloseBranch bool
 }
 
-type PullRequest struct{}
+type PullRequest struct {
+	ID          string
+	Title       string
+	URL         string
+	State       PullRequestState
+	Source      string
+	Destination string
+}
 
 func (c *client) GetPullRequests(o *GetPullRequestsOptions) *[]*PullRequest {
 	rc := resty.New()
@@ -166,6 +204,18 @@ func (c *client) CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, e
 	if r.IsError() {
 		log.Fatal(string(r.Body()))
 	}
+	pr := &bitbucketPullRequest{}
+	err = json.Unmarshal(r.Body(), pr)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	return &PullRequest{}, nil
+	return &PullRequest{
+		ID:          string(pr.ID),
+		Title:       pr.Title,
+		URL:         pr.Links.HTML.Href,
+		State:       pr.State,
+		Source:      pr.Source.Branch.Name,
+		Destination: pr.Destination.Branch.Name,
+	}, nil
 }

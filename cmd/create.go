@@ -99,9 +99,16 @@ var createCmd = &cobra.Command{
 		}
 
 		source := configutil.GetStringFlagOrDefault(cmd, "source", defaultSourceBranch)
-		destination := configutil.GetStringFlagOrDie(cmd, "destination", fmt.Errorf("must specify destination"))
+		destination := configutil.GetStringFlagOrDefault(cmd, "destination", "")
+		if destination == "" {
+			destination, err = gitutil.GetClosestBranch([]string{"master", "develop"})
+			if err != nil {
+				fmt.Println("destinatin branch and specified and cannot be automatically resolved")
+				os.Exit(3)
+			}
+		}
 
-		_, err = c.CreatePullRequest(&client.CreatePullRequestOptions{
+		pr, err := c.CreatePullRequest(&client.CreatePullRequestOptions{
 			Repository:  repo,
 			Title:       cmd.Flags().Lookup("title").Value.String(),
 			Source:      source,
@@ -112,5 +119,8 @@ var createCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(3)
 		}
+
+		fmt.Println(fmt.Sprintf("Created a pull request: %s -> %s", pr.Source, pr.Destination))
+		fmt.Println("  ", pr.URL)
 	},
 }
