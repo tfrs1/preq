@@ -56,7 +56,7 @@ type bbError struct {
 type RepositoryProvider string
 
 const (
-	RepositoryProvider_BITBUCKET_CLOUD = "bitbucket-cloud"
+	RepositoryProvider_BITBUCKET_CLOUD = RepositoryProvider("bitbucket-cloud")
 )
 
 type bitbucketPullRequest struct {

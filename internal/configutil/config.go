@@ -2,40 +2,83 @@ package configutil
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"prctl/internal/fs"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var (
-	ErrHomeDirNotFound = errors.New("unable to determine the home directory")
-)
-
-func loadConfig(filename string) {
-	if info, err := os.Stat(filename); err == nil && !info.IsDir() {
-		f, err := os.Open(filename)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = viper.MergeConfig(f)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+type FlagSet interface {
+	GetString(string) (string, error)
 }
 
-func Load() {
-	hdCfgPath, err := homedir.Expand("~/.config/prctl/config.toml")
+type configMerger interface {
+	MergeConfig(io.Reader) error
+}
+
+var (
+	ErrHomeDirNotFound = errors.New("unable to determine the home directory")
+	ErrConfigFileIsDir = errors.New("configuration file is a directory")
+)
+
+var mergeConfig = func(in io.Reader, cm configMerger) error {
+	err := cm.MergeConfig(in)
 	if err != nil {
-		log.Fatal(ErrHomeDirNotFound)
+		return err
 	}
 
-	viper.SetConfigType("toml")
+	return nil
+}
+
+var fileExists = func(filename string, fs fs.Filesystem) error {
+	info, err := fs.Stat(filename)
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		return ErrConfigFileIsDir
+	}
+
+	return nil
+}
+
+var loadFile = func(filename string, fs fs.Filesystem) (io.Reader, error) {
+	err := fileExists(filename, fs)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := fs.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	return f, nil
+}
+
+var loadConfig = func(filename string) error {
+	f, err := loadFile(filename, fs.OS{})
+	if err != nil {
+		return err
+	}
+
+	return mergeConfig(f, viper.GetViper())
+}
+
+var getGlobalConfigPath = func() (string, error) {
+	return homedir.Expand("~/.config/prctl/config.toml")
+}
+
+func Load() error {
+	hdCfgPath, err := getGlobalConfigPath()
+	if err != nil {
+		return ErrHomeDirNotFound
+	}
 
 	// TODO: Create ~/.config/.prctl dir
 
@@ -44,22 +87,15 @@ func Load() {
 	// 	log.Fatal(err)
 	// }
 
-	loadConfig(hdCfgPath)
-	loadConfig(".prctlcfg")
-}
-
-func GetStringFlagOrDie(cmd *cobra.Command, flag string, err error) string {
-	s, cmdErr := cmd.Flags().GetString(flag)
-	if cmdErr != nil || s == "" {
-		e := err
-		if cmdErr != nil {
-			e = errors.Wrap(cmdErr, err.Error())
+	configs := []string{hdCfgPath, ".prctlcfg"}
+	for _, v := range configs {
+		err := loadConfig(v)
+		if err != nil {
+			return err
 		}
-		fmt.Println(e)
-		os.Exit(3)
 	}
 
-	return s
+	return nil
 }
 
 func GetStringOrDie(s string, err error) string {
@@ -71,10 +107,6 @@ func GetStringOrDie(s string, err error) string {
 	return s
 }
 
-type FlagSet interface {
-	GetString(string) (string, error)
-}
-
 func GetStringFlagOrDefault(fs FlagSet, flag, d string) string {
 	s, err := fs.GetString(flag)
 	if err != nil || s == "" {
@@ -82,4 +114,8 @@ func GetStringFlagOrDefault(fs FlagSet, flag, d string) string {
 	}
 
 	return s
+}
+
+func init() {
+	viper.SetConfigType("toml")
 }
