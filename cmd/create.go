@@ -58,7 +58,7 @@ func getRepo(cmd *cobra.Command) (*client.Repository, error) {
 			Name:     v[1],
 		}, nil
 	} else if repo == "" && provider == "" {
-		defaultRepo, err := gitutil.GetRepo()
+		defaultRepo, err := gitutil.GetRemoteInfo()
 		if err != nil {
 			return nil, err
 		}
@@ -92,7 +92,7 @@ var createCmd = &cobra.Command{
 			os.Exit(3)
 		}
 
-		defaultSourceBranch, err := gitutil.GetBranch()
+		defaultSourceBranch, err := gitutil.GetCurrentBranch()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(3)

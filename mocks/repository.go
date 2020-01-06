@@ -6,24 +6,47 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
-type Repository struct {
+type GoGitRepository struct {
 	HeadValue    *plumbing.Reference
 	Err          error
 	RemotesValue []*git.Remote
 }
 
-func (r Repository) Head() (*plumbing.Reference, error) {
+func (r GoGitRepository) Head() (*plumbing.Reference, error) {
 	return r.HeadValue, r.Err
 }
 
-func (r Repository) Remotes() ([]*git.Remote, error) {
+func (r GoGitRepository) Remotes() ([]*git.Remote, error) {
 	return r.RemotesValue, r.Err
 }
 
-func (r Repository) Reference(plumbing.ReferenceName, bool) (*plumbing.Reference, error) {
+func (r GoGitRepository) Reference(plumbing.ReferenceName, bool) (*plumbing.Reference, error) {
+	return &plumbing.Reference{}, r.Err
+}
+
+func (r GoGitRepository) CommitObject(plumbing.Hash) (*object.Commit, error) {
 	return nil, nil
 }
 
-func (r Repository) CommitObject(plumbing.Hash) (*object.Commit, error) {
-	return nil, nil
+type GitRepository struct {
+	ErrorValue         error
+	CurrentBranchValue string
+	RemoteURLsValue    []string
+	BranchCommitValue  *object.Commit
+}
+
+func (r *GitRepository) GetCheckedOutBranchShortName() (string, error) {
+	return r.CurrentBranchValue, r.ErrorValue
+}
+
+func (r *GitRepository) BranchCommit(string) (*object.Commit, error) {
+	return r.BranchCommitValue, r.ErrorValue
+}
+
+func (r *GitRepository) CurrentCommit() (*object.Commit, error) {
+	return nil, r.ErrorValue
+}
+
+func (r *GitRepository) GetRemoteURLs() ([]string, error) {
+	return r.RemoteURLsValue, r.ErrorValue
 }

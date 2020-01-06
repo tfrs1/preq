@@ -6,8 +6,6 @@ import (
 	"regexp"
 
 	"github.com/pkg/errors"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
@@ -22,18 +20,7 @@ var getWorkingDir = func(fs fs.Filesystem) (string, error) {
 	return fs.Getwd()
 }
 
-var openRepo = func(path string) (*git.Repository, error) {
-	return git.PlainOpen(path)
-}
-
-type repository interface {
-	Head() (*plumbing.Reference, error)
-	Remotes() ([]*git.Remote, error)
-	Reference(plumbing.ReferenceName, bool) (*plumbing.Reference, error)
-	CommitObject(plumbing.Hash) (*object.Commit, error)
-}
-
-var getLocalRepo = func() (repository, error) {
+var openLocalRepo = func() (gitRepository, error) {
 	wd, err := getWorkingDir(fs.OS{})
 	if err != nil {
 		return nil, errors.Wrap(err, ErrCannotGetLocalRepository.Error())
@@ -44,49 +31,26 @@ var getLocalRepo = func() (repository, error) {
 		return nil, errors.Wrap(err, ErrCannotGetLocalRepository.Error())
 	}
 
-	return r, nil
+	return &repository{r: r}, nil
 }
 
-var getCheckedOutBranchShortName = func(r repository) (string, error) {
-	headRef, err := r.Head()
+func GetCurrentBranch() (string, error) {
+	r, err := openLocalRepo()
 	if err != nil {
 		return "", err
 	}
 
-	return headRef.Name().Short(), nil
+	return r.GetCheckedOutBranchShortName()
 }
 
-func GetBranch() (string, error) {
-	r, err := getLocalRepo()
-	if err != nil {
-		return "", err
-	}
-
-	return getCheckedOutBranchShortName(r)
-}
-
-var getRemoteURLs = func(r repository) ([]string, error) {
-	var repoURLs []string
-	remotes, err := r.Remotes()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, re := range remotes {
-		repoURLs = append(repoURLs, re.Config().URLs...)
-	}
-
-	return repoURLs, nil
-}
-
-var getRepos = func() ([]*client.Repository, error) {
+var getRemoteInfoList = func() ([]*client.Repository, error) {
 	var repos []*client.Repository
-	r, err := getLocalRepo()
+	r, err := openLocalRepo()
 	if err != nil {
 		return nil, err
 	}
 
-	repoURLs, err := getRemoteURLs(r)
+	repoURLs, err := r.GetRemoteURLs()
 	if err != nil {
 		return nil, err
 	}
@@ -135,8 +99,8 @@ var parseRepositoryString = func(repoString string) (*client.Repository, error) 
 	}, nil
 }
 
-func GetRepo() (*client.Repository, error) {
-	repos, err := getRepos()
+func GetRemoteInfo() (*client.Repository, error) {
+	repos, err := getRemoteInfoList()
 	if err != nil {
 		return nil, err
 	}
@@ -144,62 +108,64 @@ func GetRepo() (*client.Repository, error) {
 	return repos[0], nil
 }
 
-// TODO: Find a better name
-func GetClosestBranch(branches []string) (string, error) {
-	// TODO: What is the history branches? Use BFS for looking up history. Perhaps git.GetLog()?
-	r, err := getLocalRepo()
-	if err != nil {
-		return "", err
-	}
+type branchCommitMap map[string]*object.Commit
 
-	head, err := r.Head()
-	if err != nil {
-		return "", err
-	}
-
-	c, err := r.CommitObject(head.Hash())
-	if err != nil {
-		return "", err
-	}
-
-	type branchWrapper struct {
-		c *object.Commit
-		n string
-	}
-
-	cSlice := make([]branchWrapper, 0, len(branches))
+var getBranchCommits = func(r gitRepository, branches []string) (branchCommitMap, error) {
+	cSlice := make(branchCommitMap)
 	for _, v := range branches {
-		bRef, err := r.Reference(plumbing.NewBranchReferenceName(v), false)
+		bCommit, err := r.BranchCommit(v)
 		if err != nil {
 			continue
 		}
 
-		bCommit, err := r.CommitObject(bRef.Hash())
-		if err != nil {
-			continue
-		}
-
-		cSlice = append(cSlice, branchWrapper{bCommit, v})
+		cSlice[v] = bCommit
 	}
 
 	if len(cSlice) == 0 {
-		return "", ErrCannotFindAnyBranchReference
+		return nil, ErrCannotFindAnyBranchReference
 	}
 
-	// TODO: Implement --log-depth flag
+	return cSlice, nil
+}
+
+// TODO: Find a more appropriate name
+func walkHistory(c *object.Commit, goalMap branchCommitMap, depth int) (string, error) {
 	p := c
-	for i := 0; i < 10; i++ {
-		p, err = p.Parent(0)
+	for i := 0; i < depth; i++ {
+		p, err := p.Parent(0)
 		if err != nil {
 			return "", err
 		}
 
-		for _, v := range cSlice {
-			if v.c.Hash == p.Hash {
-				return v.n, nil
+		for b, v := range goalMap {
+			if v.Hash == p.Hash {
+				return b, nil
 			}
 		}
 	}
 
 	return "", ErrAncestorCommitNotFound
+}
+
+// GetClosestBranch documentation
+// TODO: Find a better name
+func GetClosestBranch(branches []string) (string, error) {
+	// TODO: What is the history branches? Use BFS for looking up history. Perhaps git.GetLog()?
+	r, err := openLocalRepo()
+	if err != nil {
+		return "", err
+	}
+
+	c, err := r.CurrentCommit()
+	if err != nil {
+		return "", err
+	}
+
+	cSlice, err := getBranchCommits(r, branches)
+	if err != nil {
+		return "", err
+	}
+
+	// TODO: Implement --log-depth flag
+	return walkHistory(c, cSlice, 10)
 }

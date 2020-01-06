@@ -9,10 +9,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/config"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
-func Test_getLocalRepo(t *testing.T) {
+func Test_openLocalRepo(t *testing.T) {
 	oldGetWorkingDir := getWorkingDir
 	oldOpenRepo := openRepo
 
@@ -20,7 +20,7 @@ func Test_getLocalRepo(t *testing.T) {
 		vErr := errors.New("wd err")
 		getWorkingDir = func(fs.Filesystem) (string, error) { return "", vErr }
 
-		_, err := getLocalRepo()
+		_, err := openLocalRepo()
 		assert.Error(t, err)
 	})
 
@@ -29,7 +29,7 @@ func Test_getLocalRepo(t *testing.T) {
 		getWorkingDir = func(fs.Filesystem) (string, error) { return "", nil }
 		openRepo = func(string) (*git.Repository, error) { return nil, vErr }
 
-		_, err := getLocalRepo()
+		_, err := openLocalRepo()
 		assert.Error(t, err)
 	})
 
@@ -37,7 +37,7 @@ func Test_getLocalRepo(t *testing.T) {
 		getWorkingDir = func(fs.Filesystem) (string, error) { return "", nil }
 		openRepo = func(string) (*git.Repository, error) { return &git.Repository{}, nil }
 
-		_, err := getLocalRepo()
+		_, err := openLocalRepo()
 		assert.NoError(t, err)
 	})
 
@@ -45,125 +45,94 @@ func Test_getLocalRepo(t *testing.T) {
 	openRepo = oldOpenRepo
 }
 
-func Test_getCheckedOutBranchShortName(t *testing.T) {
-	vErr := errors.New("branch err")
-	_, err := getCheckedOutBranchShortName(mocks.Repository{
-		Err: vErr,
-	})
-	assert.EqualError(t, err, vErr.Error())
-}
-
-func TestGetBranch(t *testing.T) {
-	oldGetLocalRepo := getLocalRepo
-	oldGetCheckedOutBranchShortName := getCheckedOutBranchShortName
+func TestGetCurrentBranch(t *testing.T) {
+	oldOpenLocalRepo := openLocalRepo
 
 	t.Run("fails when cannot get repo", func(t *testing.T) {
 		vErr := errors.New("repo err")
-		getLocalRepo = func() (repository, error) { return nil, vErr }
+		openLocalRepo = func() (gitRepository, error) { return nil, vErr }
 
-		_, err := GetBranch()
+		_, err := GetCurrentBranch()
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	t.Run("fails when cannot get branch", func(t *testing.T) {
 		vErr := errors.New("branch err")
-		getLocalRepo = func() (repository, error) {
-			return mocks.Repository{Err: nil}, nil
-		}
-		getCheckedOutBranchShortName = func(repository) (string, error) {
-			return "", vErr
+		openLocalRepo = func() (gitRepository, error) {
+			return &mocks.GitRepository{ErrorValue: vErr}, nil
 		}
 
-		_, err := GetBranch()
+		_, err := GetCurrentBranch()
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	t.Run("succeeds otherwise", func(t *testing.T) {
 		v := "branch-name"
-		getLocalRepo = func() (repository, error) {
-			return mocks.Repository{Err: nil}, nil
-		}
-		getCheckedOutBranchShortName = func(repository) (string, error) {
-			return v, nil
+		openLocalRepo = func() (gitRepository, error) {
+			return &mocks.GitRepository{CurrentBranchValue: v}, nil
 		}
 
-		r, err := GetBranch()
+		r, err := GetCurrentBranch()
 		assert.Equal(t, v, r)
 		assert.NoError(t, err)
 	})
 
-	getLocalRepo = oldGetLocalRepo
-	getCheckedOutBranchShortName = oldGetCheckedOutBranchShortName
+	openLocalRepo = oldOpenLocalRepo
 }
 
-func Test_getRemoteURLs(t *testing.T) {
-	t.Run("fails when cannot get remotes", func(t *testing.T) {
-		vErr := errors.New("remotes err")
-		_, err := getRemoteURLs(mocks.Repository{Err: vErr})
-		assert.EqualError(t, err, vErr.Error())
-	})
-
-	t.Run("succeeds otherwise", func(t *testing.T) {
-		urls, err := getRemoteURLs(mocks.Repository{
-			RemotesValue: []*git.Remote{
-				git.NewRemote(nil, &config.RemoteConfig{
-					URLs: []string{"url"},
-				}),
-			},
-		})
-		assert.Equal(t, 1, len(urls))
-		assert.NoError(t, err)
-		assert.Contains(t, urls, "url")
-	})
-}
-
-func Test_getRepos(t *testing.T) {
-	oldGetLocalRepo := getLocalRepo
-	oldGetRemoteURLs := getRemoteURLs
+func Test_getRemoteInfoList(t *testing.T) {
+	oldopenLocalRepo := openLocalRepo
 	oldParseRepositoryString := parseRepositoryString
 
 	t.Run("fails when cannot get repo", func(t *testing.T) {
 		vErr := errors.New("repo err")
-		getLocalRepo = func() (repository, error) { return nil, vErr }
-		_, err := getRepos()
+		openLocalRepo = func() (gitRepository, error) { return nil, vErr }
+
+		_, err := getRemoteInfoList()
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	t.Run("fails when cannot get remote", func(t *testing.T) {
 		vErr := errors.New("remote err")
-		getLocalRepo = func() (repository, error) { return nil, nil }
-		getRemoteURLs = func(r repository) ([]string, error) { return nil, vErr }
-		_, err := getRepos()
+		openLocalRepo = func() (gitRepository, error) {
+			return &mocks.GitRepository{
+				ErrorValue: vErr,
+			}, nil
+		}
+
+		_, err := getRemoteInfoList()
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	t.Run("fails when cannot parse", func(t *testing.T) {
 		vErr := errors.New("parse err")
-		getLocalRepo = func() (repository, error) { return nil, nil }
-		getRemoteURLs = func(r repository) ([]string, error) {
-			return []string{"url"}, nil
+		openLocalRepo = func() (gitRepository, error) {
+			return &mocks.GitRepository{
+				RemoteURLsValue: []string{"url"},
+			}, nil
 		}
 		parseRepositoryString = func(repoString string) (*client.Repository, error) { return nil, vErr }
-		_, err := getRepos()
+
+		_, err := getRemoteInfoList()
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	t.Run("succeeds otherwise", func(t *testing.T) {
-		getLocalRepo = func() (repository, error) { return nil, nil }
-		getRemoteURLs = func(r repository) ([]string, error) {
-			return []string{"url"}, nil
+		openLocalRepo = func() (gitRepository, error) {
+			return &mocks.GitRepository{
+				RemoteURLsValue: []string{"url"},
+			}, nil
 		}
 		parseRepositoryString = func(repoString string) (*client.Repository, error) {
 			return &client.Repository{}, nil
 		}
 
-		repos, err := getRepos()
+		repos, err := getRemoteInfoList()
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(repos))
 	})
 
-	getLocalRepo = oldGetLocalRepo
-	getRemoteURLs = oldGetRemoteURLs
+	openLocalRepo = oldopenLocalRepo
 	parseRepositoryString = oldParseRepositoryString
 }
 
@@ -173,7 +142,7 @@ func Test_parseRemoteRepositoryURI(t *testing.T) {
 		assert.EqualError(t, err, ErrUnableToParseRemoteRepositoryURI.Error())
 	})
 
-	t.Run("succeds on Bitbucket cloud SSH URI", func(t *testing.T) {
+	t.Run("succeeds on Bitbucket cloud SSH URI", func(t *testing.T) {
 		v, err := extractRepositoryTokens("git@provider:owner/repo.git")
 		assert.NoError(t, err)
 		assert.Equal(t, 3, len(v))
@@ -233,49 +202,85 @@ func Test_parseRepositoryString(t *testing.T) {
 	parseRepositoryProvider = oldParseRepositoryProvider
 }
 
-func TestGetRepo(t *testing.T) {
-	oldGetRepos := getRepos
+func TestGetRemoteInfo(t *testing.T) {
+	oldGetRepos := getRemoteInfoList
 
 	t.Run("", func(t *testing.T) {
 		vErr := errors.New("repos err")
-		getRepos = func() ([]*client.Repository, error) { return nil, vErr }
-		_, err := GetRepo()
+		getRemoteInfoList = func() ([]*client.Repository, error) { return nil, vErr }
+		_, err := GetRemoteInfo()
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	t.Run("", func(t *testing.T) {
-		getRepos = func() ([]*client.Repository, error) {
+		getRemoteInfoList = func() ([]*client.Repository, error) {
 			return []*client.Repository{&client.Repository{}}, nil
 		}
 
-		repos, err := GetRepo()
+		repos, err := GetRemoteInfo()
 		assert.NoError(t, err)
 		assert.NotNil(t, repos)
 	})
 
-	getRepos = oldGetRepos
+	getRemoteInfoList = oldGetRepos
+}
+
+func Test_getBranchCommits(t *testing.T) {
+	t.Run("fail when no goals", func(t *testing.T) {
+		_, err := getBranchCommits(nil, []string{})
+		assert.EqualError(t, err, ErrCannotFindAnyBranchReference.Error())
+	})
+
+	t.Run("fail when cannot find any branch commits", func(t *testing.T) {
+		vErr := errors.New("branch err")
+		r := &mocks.GitRepository{ErrorValue: vErr}
+
+		_, err := getBranchCommits(r, []string{""})
+		assert.EqualError(t, err, ErrCannotFindAnyBranchReference.Error())
+	})
+
+	t.Run("fail when cannot find any branch commits", func(t *testing.T) {
+		r := &mocks.GitRepository{BranchCommitValue: &object.Commit{}}
+
+		res, err := getBranchCommits(r, []string{""})
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(res))
+	})
 }
 
 func TestGetClosestBranch(t *testing.T) {
-	oldGetLocalRepo := getLocalRepo
+	oldOpenLocalRepo := openLocalRepo
+	oldGetBranchCommits := getBranchCommits
 
 	t.Run("", func(t *testing.T) {
 		vErr := errors.New("repo err")
-		getLocalRepo = func() (repository, error) { return nil, vErr }
+		openLocalRepo = func() (gitRepository, error) { return nil, vErr }
+
 		_, err := GetClosestBranch([]string{})
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	t.Run("", func(t *testing.T) {
 		vErr := errors.New("head err")
-		getLocalRepo = func() (repository, error) {
-			return mocks.Repository{
-				Err: vErr,
-			}, nil
+		openLocalRepo = func() (gitRepository, error) {
+			return &mocks.GitRepository{ErrorValue: vErr}, nil
 		}
+
 		_, err := GetClosestBranch([]string{})
 		assert.EqualError(t, err, vErr.Error())
 	})
 
-	getLocalRepo = oldGetLocalRepo
+	t.Run("", func(t *testing.T) {
+		vErr := errors.New("branch commits err")
+		openLocalRepo = func() (gitRepository, error) {
+			return &mocks.GitRepository{}, nil
+		}
+		getBranchCommits = func(r gitRepository, branches []string) (branchCommitMap, error) { return nil, vErr }
+
+		_, err := GetClosestBranch([]string{})
+		assert.EqualError(t, err, vErr.Error())
+	})
+
+	openLocalRepo = oldOpenLocalRepo
+	getBranchCommits = oldGetBranchCommits
 }
