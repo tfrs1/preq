@@ -10,7 +10,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func init() {
@@ -29,8 +28,6 @@ func init() {
 var (
 	ErrMissingRepository               = errors.New("repository is missing")
 	ErrMissingDestination              = errors.New("destination is missing")
-	ErrMissingBitbucketUsername        = errors.New("bitbucket username is missing")
-	ErrMissingBitbucketPassword        = errors.New("bitbucket password is missing")
 	ErrSomeRepoParamsMissing           = errors.New("must specify both provider and repository, or none")
 	ErrRepositoryMustBeInFormOwnerRepo = errors.New("repository must be in the form of 'owner/repo'")
 )
@@ -75,16 +72,11 @@ var createCmd = &cobra.Command{
 	Short:   "Create pull request",
 	Long:    `Creates a pull request on the web service hosting your origin respository`,
 	Run: func(cmd *cobra.Command, args []string) {
-		c := client.New(&client.ClientOptions{
-			Username: configutil.GetStringOrDie(
-				viper.GetString("bitbucket.username"),
-				ErrMissingBitbucketUsername,
-			),
-			Password: configutil.GetStringOrDie(
-				viper.GetString("bitbucket.password"),
-				ErrMissingBitbucketPassword,
-			),
-		})
+		c, err := client.DefaultClient()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(3)
+		}
 
 		repo, err := getRepo(cmd)
 		if err != nil {

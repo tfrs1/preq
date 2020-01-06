@@ -9,12 +9,15 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 var (
 	ErrUnknownRepositoryProvider = errors.New(strings.TrimSpace(`
 		unknown repository provider, expected (bitbucket-cloud)
 	`))
+	ErrMissingBitbucketUsername = errors.New("bitbucket username is missing")
+	ErrMissingBitbucketPassword = errors.New("bitbucket password is missing")
 )
 
 type client struct {
@@ -32,6 +35,22 @@ func New(o *ClientOptions) *client {
 		username: o.Username,
 		password: o.Password,
 	}
+}
+
+func DefaultClient() (*client, error) {
+	username := viper.GetString("bitbucket.username")
+	if username == "" {
+		return nil, ErrMissingBitbucketUsername
+	}
+	password := viper.GetString("bitbucket.password")
+	if password == "" {
+		return nil, ErrMissingBitbucketPassword
+	}
+
+	return New(&ClientOptions{
+		Username: username,
+		Password: password,
+	}), nil
 }
 
 type bbPRSourceBranchOptions struct {

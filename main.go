@@ -14,6 +14,7 @@ func main() {
 		os.Exit(3)
 	}
 
+	// TODO: Execute doesn't really have a return value when using Run command config option?
 	err = cmd.Execute()
 	if err != nil {
 		fmt.Println(err)
