@@ -29,8 +29,8 @@ func init() {
 var (
 	ErrMissingRepository               = errors.New("repository is missing")
 	ErrMissingDestination              = errors.New("destination is missing")
-	ErrMissingBitbucketUsername        = errors.New("butbucket username is missing")
-	ErrMissingBitbucketPassword        = errors.New("butbucket password is missing")
+	ErrMissingBitbucketUsername        = errors.New("bitbucket username is missing")
+	ErrMissingBitbucketPassword        = errors.New("bitbucket password is missing")
 	ErrSomeRepoParamsMissing           = errors.New("must specify both provider and repository, or none")
 	ErrRepositoryMustBeInFormOwnerRepo = errors.New("repository must be in the form of 'owner/repo'")
 )
@@ -103,7 +103,7 @@ var createCmd = &cobra.Command{
 		if destination == "" {
 			destination, err = gitutil.GetClosestBranch([]string{"master", "develop"})
 			if err != nil {
-				fmt.Println("destinatin branch and specified and cannot be automatically resolved")
+				fmt.Println("destination branch and specified and cannot be automatically resolved")
 				os.Exit(3)
 			}
 		}
