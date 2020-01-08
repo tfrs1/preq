@@ -3,6 +3,7 @@ module prctl
 go 1.12
 
 require (
+	github.com/AlecAivazis/survey/v2 v2.0.5
 	github.com/go-resty/resty/v2 v2.1.0
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0

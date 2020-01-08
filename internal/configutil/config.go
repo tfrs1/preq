@@ -61,13 +61,11 @@ var loadFile = func(filename string, fs fs.Filesystem) (io.Reader, error) {
 	return f, nil
 }
 
-var loadConfig = func(filename string) error {
+var loadConfig = func(filename string) {
 	f, err := loadFile(filename, fs.OS{})
-	if err != nil {
-		return err
+	if err == nil {
+		mergeConfig(f, viper.GetViper())
 	}
-
-	return mergeConfig(f, viper.GetViper())
 }
 
 var getGlobalConfigPath = func() (string, error) {
@@ -89,10 +87,7 @@ func Load() error {
 
 	configs := []string{hdCfgPath, ".prctlcfg"}
 	for _, v := range configs {
-		err := loadConfig(v)
-		if err != nil {
-			return err
-		}
+		loadConfig(v)
 	}
 
 	return nil
