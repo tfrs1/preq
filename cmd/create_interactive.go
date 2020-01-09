@@ -66,6 +66,14 @@ func fillInteractiveParams(params *createCmdParams) error {
 			},
 			Validate: survey.Required,
 		},
+		{
+			Name: "title",
+			Prompt: &survey.Input{
+				Message: "Title",
+				Default: params.Title,
+			},
+			Validate: survey.Required,
+		},
 	}
 
 	err := survey.Ask(qs, params)

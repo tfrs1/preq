@@ -19,10 +19,11 @@ func init() {
 	// TODO: Shorthand names for providers?
 	createCmd.Flags().StringP("provider", "p", "", "repository host, values - (bitbucket-cloud)")
 	// TODO: Lookup last commit message
-	createCmd.Flags().StringP("title", "t", "Created with prctl", "the title of the pull request")
+	createCmd.Flags().StringP("title", "t", "", "the title of the pull request (default last commit message)")
 	// TODO: Open default editor for description?
 	createCmd.Flags().String("description", "", "the description of the pull request")
 	createCmd.Flags().BoolP("interactive", "i", false, "the description of the pull request")
+	createCmd.Flags().Bool("no-close", false, "do not close source branch")
 	rootCmd.AddCommand(createCmd)
 }
 
@@ -31,6 +32,7 @@ var (
 	ErrMissingProvider                 = errors.New("provider is missing")
 	ErrMissingSource                   = errors.New("source is missing")
 	ErrMissingDestination              = errors.New("destination is missing")
+	ErrMissingTitle                    = errors.New("title is missing")
 	ErrSomeRepoParamsMissing           = errors.New("must specify both provider and repository, or none")
 	ErrRepositoryMustBeInFormOwnerRepo = errors.New("repository must be in the form of 'owner/repo'")
 )
@@ -41,6 +43,8 @@ func fillFlagParams(cmd *cobra.Command, params *createCmdParams) error {
 		provider    = configutil.GetStringFlagOrDefault(cmd.Flags(), "provider", "")
 		source      = configutil.GetStringFlagOrDefault(cmd.Flags(), "source", params.Source)
 		destination = configutil.GetStringFlagOrDefault(cmd.Flags(), "destination", params.Destination)
+		title       = configutil.GetStringFlagOrDefault(cmd.Flags(), "title", params.Title)
+		close       = configutil.GetBoolFlagOrDefault(cmd.Flags(), "no-close", params.CloseBranch)
 	)
 
 	if (repo == "" && provider != "") || (repo != "" && provider == "") {
@@ -57,8 +61,10 @@ func fillFlagParams(cmd *cobra.Command, params *createCmdParams) error {
 		params.Repository = repo
 	}
 
+	params.Title = title
 	params.Source = source
 	params.Destination = destination
+	params.CloseBranch = close
 
 	return nil
 }
@@ -74,6 +80,11 @@ func fillDefaultParams(params *createCmdParams) {
 		params.Destination = destination
 	}
 
+	title, err := gitutil.GetCurrentCommitMessage()
+	if err == nil {
+		params.Title = title
+	}
+
 	defaultRepo, err := gitutil.GetRemoteInfo()
 	if err == nil {
 		params.Repository = fmt.Sprintf("%s/%s", defaultRepo.Owner, defaultRepo.Name)
@@ -87,6 +98,7 @@ type createCmdParams struct {
 	Source      string
 	Destination string
 	Title       string
+	CloseBranch bool
 }
 
 func (c *createCmdParams) Validate() error {
@@ -101,6 +113,9 @@ func (c *createCmdParams) Validate() error {
 	}
 	if c.Provider == "" {
 		return ErrMissingProvider
+	}
+	if c.Title == "" {
+		return ErrMissingTitle
 	}
 	return nil
 }
@@ -152,7 +167,8 @@ var createCmd = &cobra.Command{
 				Owner:    r[0],
 				Name:     r[1],
 			},
-			Title:       cmd.Flags().Lookup("title").Value.String(),
+			CloseBranch: true,
+			Title:       params.Title,
 			Source:      params.Source,
 			Destination: params.Destination,
 		})

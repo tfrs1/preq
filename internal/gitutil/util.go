@@ -43,6 +43,20 @@ func GetCurrentBranch() (string, error) {
 	return r.GetCheckedOutBranchShortName()
 }
 
+func GetCurrentCommitMessage() (string, error) {
+	r, err := openLocalRepo()
+	if err != nil {
+		return "", err
+	}
+
+	c, err := r.CurrentCommit()
+	if err != nil {
+		return "", err
+	}
+
+	return c.Message, nil
+}
+
 var getRemoteInfoList = func() ([]*client.Repository, error) {
 	var repos []*client.Repository
 	r, err := openLocalRepo()

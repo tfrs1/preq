@@ -61,10 +61,16 @@ type bbPRSourceOptions struct {
 	Branch bbPRSourceBranchOptions `json:"branch,omitempty"`
 }
 
+type bbPROptionsReviewer struct {
+	UUID string
+}
+
 type bbPROptions struct {
-	Title       string            `json:"title,omitempty"`
-	Source      bbPRSourceOptions `json:"source,omitempty"`
-	Destination bbPRSourceOptions `json:"destination,omitempty"`
+	Title             string            `json:"title,omitempty"`
+	Source            bbPRSourceOptions `json:"source,omitempty"`
+	Destination       bbPRSourceOptions `json:"destination,omitempty"`
+	CloseSourceBranch bool              `json:"close_source_branch,omitempty"`
+	Reviewers         []bbPROptionsReviewer
 }
 
 type bbError struct {
@@ -105,6 +111,7 @@ type bitbucketPullRequest struct {
 			Name string
 		}
 	}
+	CloseSourceBranch bool `json:"close_source_branch"`
 }
 
 func ParseRepositoryProvider(s string) (RepositoryProvider, error) {
@@ -153,6 +160,18 @@ type PullRequest struct {
 	Destination string
 }
 
+type Reviewer struct {
+	DisplayName string `json:"display_name"`
+	UUID        string
+	Nickname    string
+	Type        string
+	AccountID   string `json:"account_id"`
+}
+
+type defaultReviewersResponse struct {
+	Values []*Reviewer
+}
+
 func (c *client) GetPullRequests(o *GetPullRequestsOptions) *[]*PullRequest {
 	rc := resty.New()
 	r, err := rc.R().
@@ -188,17 +207,52 @@ func verifyCreatePullRequestOptions(o *CreatePullRequestOptions) error {
 	return nil
 }
 
+func (c *client) GetDefaultReviewers(o *CreatePullRequestOptions) ([]*Reviewer, error) {
+	r, err := resty.New().R().
+		SetBasicAuth(c.username, c.password).
+		SetError(bbError{}).
+		Get(fmt.Sprintf(
+			"https://api.bitbucket.org/2.0/repositories/%s/%s/default-reviewers",
+			o.Repository.Owner,
+			o.Repository.Name,
+		))
+
+	if err != nil {
+		return nil, err
+	}
+
+	pr := &defaultReviewersResponse{}
+	err = json.Unmarshal(r.Body(), pr)
+	if err != nil {
+		return nil, err
+	}
+
+	return pr.Values, nil
+}
+
 func (c *client) CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error) {
 	err := verifyCreatePullRequestOptions(o)
 	if err != nil {
 		return nil, err
 	}
 
+	dr, err := c.GetDefaultReviewers(o)
+	if err != nil {
+		return nil, err
+	}
+
+	ddr := make([]bbPROptionsReviewer, 0, len(dr))
+	for _, v := range dr {
+		ddr = append(ddr, bbPROptionsReviewer{UUID: v.UUID})
+	}
+
 	r, err := resty.New().R().
 		SetBasicAuth(c.username, c.password).
 		SetHeader("content-type", "application/json").
 		SetBody(bbPROptions{
-			Title: o.Title,
+			Title:             o.Title,
+			CloseSourceBranch: o.CloseBranch,
+			Reviewers:         ddr,
 			Source: bbPRSourceOptions{
 				Branch: bbPRSourceBranchOptions{
 					Name: o.Source,

@@ -14,6 +14,7 @@ import (
 
 type FlagSet interface {
 	GetString(string) (string, error)
+	GetBool(string) (bool, error)
 }
 
 type configMerger interface {
@@ -100,6 +101,15 @@ func GetStringOrDie(s string, err error) string {
 	}
 
 	return s
+}
+
+func GetBoolFlagOrDefault(fs FlagSet, flag string, d bool) bool {
+	v, err := fs.GetBool(flag)
+	if err != nil {
+		return d
+	}
+
+	return v
 }
 
 func GetStringFlagOrDefault(fs FlagSet, flag, d string) string {
