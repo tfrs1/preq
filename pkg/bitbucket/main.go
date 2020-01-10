@@ -62,15 +62,15 @@ type bbPRSourceOptions struct {
 }
 
 type bbPROptionsReviewer struct {
-	UUID string
+	UUID string `json:"uuid"`
 }
 
 type bbPROptions struct {
-	Title             string            `json:"title,omitempty"`
-	Source            bbPRSourceOptions `json:"source,omitempty"`
-	Destination       bbPRSourceOptions `json:"destination,omitempty"`
-	CloseSourceBranch bool              `json:"close_source_branch,omitempty"`
-	Reviewers         []bbPROptionsReviewer
+	Title             string                `json:"title,omitempty"`
+	Source            bbPRSourceOptions     `json:"source,omitempty"`
+	Destination       bbPRSourceOptions     `json:"destination,omitempty"`
+	CloseSourceBranch bool                  `json:"close_source_branch,omitempty"`
+	Reviewers         []bbPROptionsReviewer `json:"reviewers"`
 }
 
 type bbError struct {
@@ -207,6 +207,27 @@ func verifyCreatePullRequestOptions(o *CreatePullRequestOptions) error {
 	return nil
 }
 
+type User struct {
+	UUID string `json:"uuid"`
+}
+
+func (c *client) GetCurrentUser() (*User, error) {
+	r, err := resty.New().R().
+		SetBasicAuth(c.username, c.password).
+		SetError(bbError{}).
+		Get("https://api.bitbucket.org/2.0/user")
+	if err != nil {
+		return nil, err
+	}
+
+	user := User{}
+	err = json.Unmarshal(r.Body(), &user)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (c *client) GetDefaultReviewers(o *CreatePullRequestOptions) ([]*Reviewer, error) {
 	r, err := resty.New().R().
 		SetBasicAuth(c.username, c.password).
@@ -240,10 +261,16 @@ func (c *client) CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, e
 	if err != nil {
 		return nil, err
 	}
+	u, err := c.GetCurrentUser()
+	if err != nil {
+		return nil, err
+	}
 
 	ddr := make([]bbPROptionsReviewer, 0, len(dr))
 	for _, v := range dr {
-		ddr = append(ddr, bbPROptionsReviewer{UUID: v.UUID})
+		if v.UUID != u.UUID {
+			ddr = append(ddr, bbPROptionsReviewer{UUID: v.UUID})
+		}
 	}
 
 	r, err := resty.New().R().
