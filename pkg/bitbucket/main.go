@@ -23,6 +23,7 @@ var (
 type client struct {
 	username string
 	password string
+	uuid     string
 }
 
 type ClientOptions struct {
@@ -46,11 +47,13 @@ func DefaultClient() (*client, error) {
 	if password == "" {
 		return nil, ErrMissingBitbucketPassword
 	}
+	uuid := viper.GetString("bitbucket.uuid")
 
-	return New(&ClientOptions{
-		Username: username,
-		Password: password,
-	}), nil
+	return &client{
+		username: username,
+		password: password,
+		uuid:     uuid,
+	}, nil
 }
 
 type bbPRSourceBranchOptions struct {
@@ -62,7 +65,8 @@ type bbPRSourceOptions struct {
 }
 
 type bbPROptionsReviewer struct {
-	UUID string `json:"uuid"`
+	UUID     string `json:"uuid"`
+	Username string `json:"username"`
 }
 
 type bbPROptions struct {
@@ -161,6 +165,7 @@ type PullRequest struct {
 }
 
 type Reviewer struct {
+	Username    string `json:"username"`
 	DisplayName string `json:"display_name"`
 	UUID        string
 	Nickname    string
@@ -261,14 +266,19 @@ func (c *client) CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, e
 	if err != nil {
 		return nil, err
 	}
-	u, err := c.GetCurrentUser()
-	if err != nil {
-		return nil, err
+
+	uuid := c.uuid
+	if uuid == "" {
+		u, err := c.GetCurrentUser()
+		if err != nil {
+			return nil, err
+		}
+		uuid = u.UUID
 	}
 
 	ddr := make([]bbPROptionsReviewer, 0, len(dr))
 	for _, v := range dr {
-		if v.UUID != u.UUID {
+		if v.UUID != uuid {
 			ddr = append(ddr, bbPROptionsReviewer{UUID: v.UUID})
 		}
 	}
