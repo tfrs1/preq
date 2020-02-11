@@ -19,8 +19,9 @@ func (m *mockConfigMerger) MergeConfig(in io.Reader) error {
 }
 
 type mockFlagSet struct {
-	value string
-	err   error
+	value     string
+	boolValue bool
+	err       error
 }
 
 func (m *mockFlagSet) GetString(f string) (string, error) {
@@ -28,7 +29,7 @@ func (m *mockFlagSet) GetString(f string) (string, error) {
 }
 
 func (m *mockFlagSet) GetBool(f string) (bool, error) {
-	return false, m.err
+	return m.boolValue, m.err
 }
 
 func Test_mergeConfig(t *testing.T) {
@@ -150,7 +151,7 @@ func TestLoad(t *testing.T) {
 func TestGetStringFlagOrDefault(t *testing.T) {
 	t.Run("returns flag value when defined", func(t *testing.T) {
 		v := GetStringFlagOrDefault(
-			&mockFlagSet{"value", nil},
+			&mockFlagSet{value: "value", err: nil},
 			"flag",
 			"",
 		)
@@ -159,7 +160,7 @@ func TestGetStringFlagOrDefault(t *testing.T) {
 
 	t.Run("returns default value on error", func(t *testing.T) {
 		v := GetStringFlagOrDefault(
-			&mockFlagSet{"", errors.New("error")},
+			&mockFlagSet{value: "", err: errors.New("error")},
 			"flag",
 			"default",
 		)
@@ -168,7 +169,7 @@ func TestGetStringFlagOrDefault(t *testing.T) {
 
 	t.Run("returns default value on empty string", func(t *testing.T) {
 		v := GetStringFlagOrDefault(
-			&mockFlagSet{"", nil},
+			&mockFlagSet{value: "", err: nil},
 			"flag",
 			"default",
 		)
@@ -176,7 +177,22 @@ func TestGetStringFlagOrDefault(t *testing.T) {
 	})
 }
 
-func TestGetStringOrDie(t *testing.T) {
-	v := "value"
-	assert.Equal(t, v, GetStringOrDie(v, nil))
+func TestGetBoolFlagOrDefault(t *testing.T) {
+	t.Run("returns flag value when defined", func(t *testing.T) {
+		v := GetBoolFlagOrDefault(
+			&mockFlagSet{boolValue: false, err: nil},
+			"flag",
+			true,
+		)
+		assert.Equal(t, false, v)
+	})
+
+	t.Run("returns default value on error", func(t *testing.T) {
+		v := GetBoolFlagOrDefault(
+			&mockFlagSet{boolValue: true, err: errors.New("error")},
+			"flag",
+			false,
+		)
+		assert.Equal(t, false, v)
+	})
 }

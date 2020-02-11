@@ -1,9 +1,7 @@
 package configutil
 
 import (
-	"fmt"
 	"io"
-	"os"
 	"prctl/internal/fs"
 
 	"github.com/mitchellh/go-homedir"
@@ -100,15 +98,6 @@ func Load() error {
 	}
 
 	return nil
-}
-
-func GetStringOrDie(s string, err error) string {
-	if s == "" {
-		fmt.Println(err)
-		os.Exit(3)
-	}
-
-	return s
 }
 
 func GetBoolFlagOrDefault(fs FlagSet, flag string, d bool) bool {
