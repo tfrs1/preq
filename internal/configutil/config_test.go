@@ -27,6 +27,10 @@ func (m *mockFlagSet) GetString(f string) (string, error) {
 	return m.value, m.err
 }
 
+func (m *mockFlagSet) GetBool(f string) (bool, error) {
+	return false, m.err
+}
+
 func Test_mergeConfig(t *testing.T) {
 	t.Run("returns nil when merge succeeds", func(t *testing.T) {
 		err := mergeConfig(nil, &mockConfigMerger{nil})
@@ -88,18 +92,18 @@ func Test_loadConfig(t *testing.T) {
 	oldLoadFile := loadFile
 	oldMergeConfig := mergeConfig
 
-	t.Run("succeds when file is loaded and merged", func(t *testing.T) {
+	t.Run("succeeds when file is loaded and merged", func(t *testing.T) {
 		loadFile = func(string, fs.Filesystem) (io.Reader, error) { return nil, nil }
 		mergeConfig = func(io.Reader, configMerger) error { return nil }
 		err := loadConfig("")
 		assert.Equal(t, nil, err)
 	})
 
-	t.Run("fails when file loading fails", func(t *testing.T) {
+	t.Run("doesn't throw error for missing files", func(t *testing.T) {
 		vErr := errors.New("load err")
 		loadFile = func(string, fs.Filesystem) (io.Reader, error) { return nil, vErr }
 		err := loadConfig("")
-		assert.EqualError(t, err, vErr.Error())
+		assert.Equal(t, nil, err)
 	})
 
 	t.Run("fails when merge fails", func(t *testing.T) {
