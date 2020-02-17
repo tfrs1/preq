@@ -33,6 +33,7 @@ type GitRepository struct {
 	CurrentBranchValue string
 	RemoteURLsValue    []string
 	BranchCommitValue  *object.Commit
+	Commit             *object.Commit
 }
 
 func (r *GitRepository) GetCheckedOutBranchShortName() (string, error) {
@@ -44,7 +45,7 @@ func (r *GitRepository) BranchCommit(string) (*object.Commit, error) {
 }
 
 func (r *GitRepository) CurrentCommit() (*object.Commit, error) {
-	return nil, r.ErrorValue
+	return r.Commit, r.ErrorValue
 }
 
 func (r *GitRepository) GetRemoteURLs() ([]string, error) {

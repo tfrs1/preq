@@ -284,3 +284,37 @@ func TestGetClosestBranch(t *testing.T) {
 	openLocalRepo = oldOpenLocalRepo
 	getBranchCommits = oldGetBranchCommits
 }
+
+func TestGetCurrentCommitMessage(t *testing.T) {
+	oldOpenLocalRepo := openLocalRepo
+
+	t.Run("fails when cannot open repo", func(t *testing.T) {
+		vErr := errors.New("repo err")
+		openLocalRepo = func() (gitRepository, error) { return nil, vErr }
+		_, err := GetCurrentCommitMessage()
+		assert.EqualError(t, err, vErr.Error())
+	})
+
+	t.Run("fails when cannot get commit", func(t *testing.T) {
+		vErr := errors.New("commit err")
+		openLocalRepo = func() (gitRepository, error) {
+			return &mocks.GitRepository{
+				ErrorValue: vErr,
+			}, nil
+		}
+		_, err := GetCurrentCommitMessage()
+		assert.EqualError(t, err, vErr.Error())
+	})
+
+	t.Run("succeeds otherwise", func(t *testing.T) {
+		msg := "message"
+		openLocalRepo = func() (gitRepository, error) {
+			return &mocks.GitRepository{Commit: &object.Commit{Message: msg}}, nil
+		}
+		val, err := GetCurrentCommitMessage()
+		assert.NoError(t, err)
+		assert.Equal(t, msg, val)
+	})
+
+	openLocalRepo = oldOpenLocalRepo
+}
