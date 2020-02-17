@@ -10,6 +10,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"github.com/tidwall/gjson"
 )
 
 var (
@@ -38,7 +39,13 @@ func New(o *ClientOptions) *client {
 	}
 }
 
-func DefaultClient() (*client, error) {
+type clientConfiguration struct {
+	username string
+	password string
+	uuid     string
+}
+
+func getDefaultConfiguration() (*clientConfiguration, error) {
 	username := viper.GetString("bitbucket.username")
 	if username == "" {
 		return nil, ErrMissingBitbucketUsername
@@ -49,10 +56,23 @@ func DefaultClient() (*client, error) {
 	}
 	uuid := viper.GetString("bitbucket.uuid")
 
-	return &client{
+	return &clientConfiguration{
 		username: username,
 		password: password,
 		uuid:     uuid,
+	}, nil
+}
+
+func DefaultClient() (*client, error) {
+	config, err := getDefaultConfiguration()
+	if err != nil {
+		return nil, err
+	}
+
+	return &client{
+		username: config.username,
+		password: config.password,
+		uuid:     config.uuid,
 	}, nil
 }
 
@@ -133,6 +153,24 @@ type Repository struct {
 	Name     string
 }
 
+type RepositoryOptions struct {
+	Provider           string
+	FullRepositoryName string
+}
+
+func NewRepositoryFromOptions(options *RepositoryOptions) (*Repository, error) {
+	r := strings.Split(options.FullRepositoryName, "/")
+	if len(r) != 2 {
+		return nil, errors.New("invalid repo name")
+	}
+
+	return &Repository{
+		Provider: RepositoryProvider(options.Provider),
+		Owner:    r[0],
+		Name:     r[1],
+	}, nil
+}
+
 type PullRequestState string
 
 const (
@@ -145,6 +183,7 @@ const (
 type GetPullRequestsOptions struct {
 	Repository *Repository
 	State      PullRequestState
+	Next       string
 }
 
 type CreatePullRequestOptions struct {
@@ -162,6 +201,8 @@ type PullRequest struct {
 	State       PullRequestState
 	Source      string
 	Destination string
+	Created     time.Time
+	Updated     time.Time
 }
 
 type Reviewer struct {
@@ -177,27 +218,62 @@ type defaultReviewersResponse struct {
 	Values []*Reviewer
 }
 
-func (c *client) GetPullRequests(o *GetPullRequestsOptions) *[]*PullRequest {
+type PullRequestList struct {
+	PageLenght uint           `json:"pagelen"`
+	Page       uint           `json:"page"`
+	Size       uint           `json:"size"`
+	NextURL    string         `json:"next"`
+	Values     []*PullRequest `json:"values"`
+}
+
+func (c *client) GetPullRequests(o *GetPullRequestsOptions) (*PullRequestList, error) {
+	url := fmt.Sprintf(
+		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests",
+		o.Repository.Owner,
+		o.Repository.Name,
+	)
+
+	if o.Next != "" {
+		url = o.Next
+	}
+
 	rc := resty.New()
 	r, err := rc.R().
 		SetBasicAuth(c.username, c.password).
 		SetQueryParam("state", string(o.State)).
 		SetError(bbError{}).
-		Get(fmt.Sprintf(
-			"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests",
-			o.Repository.Owner,
-			o.Repository.Name,
-		))
+		Get(url)
 
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	if r.IsError() {
-		log.Fatal(string(r.Body()))
+		return nil, errors.New(string(r.Body()))
 	}
 
-	prs := new([]*PullRequest)
-	return prs
+	var pr PullRequestList
+	parsed := gjson.ParseBytes(r.Body())
+	pr.PageLenght = uint(parsed.Get("pagelen").Uint())
+	pr.Page = uint(parsed.Get("page").Uint())
+	pr.Size = uint(parsed.Get("size").Uint())
+	pr.NextURL = parsed.Get("next").String()
+	result := parsed.Get("values")
+	result.ForEach(func(key, value gjson.Result) bool {
+		pr.Values = append(pr.Values, &PullRequest{
+			ID:          value.Get("id").String(),
+			Title:       value.Get("title").String(),
+			URL:         value.Get("links.html.href").String(),
+			State:       PullRequestState(value.Get("state").String()),
+			Source:      value.Get("source.branch.name").String(),
+			Destination: value.Get("destination.branch.name").String(),
+			Created:     value.Get("created_on").Time(),
+			Updated:     value.Get("updated_on").Time(),
+		})
+
+		return true
+	})
+
+	return &pr, nil
 }
 
 func verifyCreatePullRequestOptions(o *CreatePullRequestOptions) error {
