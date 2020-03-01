@@ -21,7 +21,7 @@ var (
 	ErrMissingBitbucketPassword = errors.New("bitbucket password is missing")
 )
 
-type client struct {
+type Client struct {
 	username string
 	password string
 	uuid     string
@@ -32,8 +32,8 @@ type ClientOptions struct {
 	Password string
 }
 
-func New(o *ClientOptions) *client {
-	return &client{
+func New(o *ClientOptions) *Client {
+	return &Client{
 		username: o.Username,
 		password: o.Password,
 	}
@@ -63,13 +63,13 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 	}, nil
 }
 
-func DefaultClient() (*client, error) {
+func DefaultClient() (*Client, error) {
 	config, err := getDefaultConfiguration()
 	if err != nil {
 		return nil, err
 	}
 
-	return &client{
+	return &Client{
 		username: config.username,
 		password: config.password,
 		uuid:     config.uuid,
@@ -186,6 +186,16 @@ type GetPullRequestsOptions struct {
 	Next       string
 }
 
+type DeclinePullRequestOptions struct {
+	Repository *Repository
+	ID         string
+}
+
+type ApprovePullRequestOptions struct {
+	Repository *Repository
+	ID         string
+}
+
 type CreatePullRequestOptions struct {
 	Repository  *Repository
 	Title       string
@@ -226,7 +236,7 @@ type PullRequestList struct {
 	Values     []*PullRequest `json:"values"`
 }
 
-func (c *client) GetPullRequests(o *GetPullRequestsOptions) (*PullRequestList, error) {
+func (c *Client) GetPullRequests(o *GetPullRequestsOptions) (*PullRequestList, error) {
 	url := fmt.Sprintf(
 		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests",
 		o.Repository.Owner,
@@ -276,6 +286,73 @@ func (c *client) GetPullRequests(o *GetPullRequestsOptions) (*PullRequestList, e
 	return &pr, nil
 }
 
+func unmarshalPR(data []byte) (*PullRequest, error) {
+	pr := &bitbucketPullRequest{}
+	err := json.Unmarshal(data, pr)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PullRequest{
+		ID:          string(pr.ID),
+		Title:       pr.Title,
+		URL:         pr.Links.HTML.Href,
+		State:       pr.State,
+		Source:      pr.Source.Branch.Name,
+		Destination: pr.Destination.Branch.Name,
+	}, nil
+}
+
+func (c *Client) post(url string) (*resty.Response, error) {
+	rc := resty.New()
+	r, err := rc.R().
+		SetBasicAuth(c.username, c.password).
+		SetError(bbError{}).
+		Post(url)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if r.IsError() {
+		return nil, errors.New(string(r.Body()))
+	}
+
+	return r, nil
+}
+
+func (c *Client) DeclinePullRequest(o *DeclinePullRequestOptions) (*PullRequest, error) {
+	url := fmt.Sprintf(
+		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/decline",
+		o.Repository.Owner,
+		o.Repository.Name,
+		o.ID,
+	)
+
+	r, err := c.post(url)
+	if err != nil {
+		return nil, err
+	}
+
+	return unmarshalPR(r.Body())
+}
+
+func (c *Client) ApprovePullRequest(o *ApprovePullRequestOptions) (*PullRequest, error) {
+	url := fmt.Sprintf(
+		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/approve",
+		o.Repository.Owner,
+		o.Repository.Name,
+		o.ID,
+	)
+
+	r, err := c.post(url)
+	if err != nil {
+		return nil, err
+	}
+
+	return unmarshalPR(r.Body())
+}
+
 func verifyCreatePullRequestOptions(o *CreatePullRequestOptions) error {
 	if o.Source == "" {
 		return errors.New("missing source branch")
@@ -292,7 +369,7 @@ type User struct {
 	UUID string `json:"uuid"`
 }
 
-func (c *client) GetCurrentUser() (*User, error) {
+func (c *Client) GetCurrentUser() (*User, error) {
 	r, err := resty.New().R().
 		SetBasicAuth(c.username, c.password).
 		SetError(bbError{}).
@@ -309,7 +386,7 @@ func (c *client) GetCurrentUser() (*User, error) {
 	return &user, nil
 }
 
-func (c *client) GetDefaultReviewers(o *CreatePullRequestOptions) ([]*Reviewer, error) {
+func (c *Client) GetDefaultReviewers(o *CreatePullRequestOptions) ([]*Reviewer, error) {
 	r, err := resty.New().R().
 		SetBasicAuth(c.username, c.password).
 		SetError(bbError{}).
@@ -332,7 +409,7 @@ func (c *client) GetDefaultReviewers(o *CreatePullRequestOptions) ([]*Reviewer, 
 	return pr.Values, nil
 }
 
-func (c *client) CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error) {
+func (c *Client) CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error) {
 	err := verifyCreatePullRequestOptions(o)
 	if err != nil {
 		return nil, err
