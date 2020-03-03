@@ -37,7 +37,7 @@ brews:
   - name: preq
     github:
       owner: tfrs1
-      name: preq-homebrew-tap
+      name: homebrew-tap
     # commit_author:
     #   name: tfrs1
     #   email: tfrs1@users.noreply.github.com

@@ -8,7 +8,7 @@
 
 Homebrew tap
 ```bash
-brew install tfrs1/tfrs1/preq
+brew install tfrs1/tap/preq
 ```
 
 ### Linux
