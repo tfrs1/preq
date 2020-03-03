@@ -1,8 +1,8 @@
 package gitutil
 
 import (
-	"prctl/internal/fs"
-	client "prctl/pkg/bitbucket"
+	"preq/internal/fs"
+	client "preq/pkg/bitbucket"
 	"regexp"
 
 	"github.com/pkg/errors"

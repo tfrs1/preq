@@ -1,7 +1,7 @@
 package gitutil
 
 import (
-	"prctl/mocks"
+	"preq/mocks"
 	"testing"
 
 	"github.com/pkg/errors"

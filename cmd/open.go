@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"prctl/internal/configutil"
-	"prctl/internal/gitutil"
+	"preq/internal/configutil"
+	"preq/internal/gitutil"
 	"runtime"
 	"strings"
 

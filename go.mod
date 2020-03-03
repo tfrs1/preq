@@ -1,4 +1,4 @@
-module prctl
+module preq
 
 go 1.12
 

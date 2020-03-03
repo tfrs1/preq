@@ -13,8 +13,8 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:     "prctl",
-	Short:   "prctl command-line utility for pull requests",
+	Use:     "preq",
+	Short:   "preq command-line utility for pull requests",
 	Long:    `Command-line utility for all your pull request needs.`,
 	Version: fmt.Sprintf("%v, commit %v, built at %v", version, commit, date),
 	Run:     func(cmd *cobra.Command, args []string) {},

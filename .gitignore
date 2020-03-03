@@ -1,4 +1,4 @@
-prctl
+preq
 .history/
-.prctlcfg
+.preqcfg
 dist/

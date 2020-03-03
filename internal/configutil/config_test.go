@@ -2,8 +2,8 @@ package configutil
 
 import (
 	"io"
-	"prctl/internal/fs"
-	"prctl/mocks"
+	"preq/internal/fs"
+	"preq/mocks"
 	"testing"
 
 	"github.com/pkg/errors"

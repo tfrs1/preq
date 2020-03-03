@@ -1,6 +1,6 @@
-# `prctl` - command-line utility for all your pull request needs
+# `preq` - command-line utility for all your pull request needs
 
-`prctl` tries to be useful and smart about creating your pull requests. It attempts to determine all parameters from Git repository in the working directory where the command is executed. All parameters can be, of course, overridden using flags.
+`preq` tries to be useful and smart about creating your pull requests. It attempts to determine all parameters from Git repository in the working directory where the command is executed. All parameters can be, of course, overridden using flags.
 
 ## Installation
 
@@ -8,18 +8,18 @@
 
 Homebrew tap
 ```bash
-brew install tfrs1/tfrs1/prctl
+brew install tfrs1/tfrs1/preq
 ```
 
 ### Linux
 
-Linux builds can be found in [releases](https://github.com/tfrs1/prctl/releases).
+Linux builds can be found in [releases](https://github.com/tfrs1/preq/releases).
 
 ## Usage
 
-`prctl` is meant to be used in synthesis with Git. `prctl` determines many parameters from the working directory if it is also a Git repository. Of course, all parameters can be explicitly defined if needed.
+`preq` is meant to be used in synthesis with Git. `preq` determines many parameters from the working directory if it is also a Git repository. Of course, all parameters can be explicitly defined if needed.
 
-For example, `prctl` can find out the Git origin provider, the repository name, and the source branch for the `create` command.
+For example, `preq` can find out the Git origin provider, the repository name, and the source branch for the `create` command.
 
 Most of the commands support support the following optional so they will be omitted from command specific documentation.
 
@@ -44,7 +44,7 @@ The create command supports the following flags, but none of them are required. 
 
 #### Default reviewers
 
-Default reviewer will be automatically added to the pull requests created with `prctl`. Your user will be automatically excluded from the reviewers list, but in order to do that `prctl` has to make an additional to fetch your user ID. This makes the create command much slower and requires additional token permissions. In order to fix this, you can your UUID to the configuration like so
+Default reviewer will be automatically added to the pull requests created with `preq`. Your user will be automatically excluded from the reviewers list, but in order to do that `preq` has to make an additional to fetch your user ID. This makes the create command much slower and requires additional token permissions. In order to fix this, you can your UUID to the configuration like so
 
 ```toml
 [bitbucket]
@@ -73,12 +73,12 @@ Flags:
 
 Example
 ```bash
-prctl open
+preq open
 ```
 
 ## Configuration
 
-toml in `.prctlcfg` for per dir config or `~/.config/prctl/config.toml` for global.
+toml in `.preqcfg` for per dir config or `~/.config/preq/config.toml` for global.
 
 ### Example config
 ```toml

@@ -3,10 +3,10 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"prctl/internal/configutil"
-	"prctl/internal/gitutil"
-	"prctl/internal/systemcode"
-	client "prctl/pkg/bitbucket"
+	"preq/internal/configutil"
+	"preq/internal/gitutil"
+	"preq/internal/systemcode"
+	client "preq/pkg/bitbucket"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"

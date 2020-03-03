@@ -2,7 +2,7 @@ package configutil
 
 import (
 	"io"
-	"prctl/internal/fs"
+	"preq/internal/fs"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
@@ -73,7 +73,7 @@ var loadConfig = func(filename string) error {
 }
 
 var getGlobalConfigPath = func() (string, error) {
-	return homedir.Expand("~/.config/prctl/config.toml")
+	return homedir.Expand("~/.config/preq/config.toml")
 }
 
 func Load() error {
@@ -82,14 +82,14 @@ func Load() error {
 		return ErrHomeDirNotFound
 	}
 
-	// TODO: Create ~/.config/.prctl dir
+	// TODO: Create ~/.config/.preq dir
 
 	// // configPath := filepath.Join(hd, configName)
 	// if err := viper.SafeWriteConfigAs(configPath); err != nil {
 	// 	log.Fatal(err)
 	// }
 
-	configs := []string{hdCfgPath, ".prctlcfg"}
+	configs := []string{hdCfgPath, ".preqcfg"}
 	for _, v := range configs {
 		err = loadConfig(v)
 		if err != nil {

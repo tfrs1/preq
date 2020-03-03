@@ -10,7 +10,7 @@ builds:
 - env:
   - CGO_ENABLED=0
   ldflags:
-    - -s -w -X prctl/cmd.version={{.Version}} -X prctl/cmd.commit={{.Commit}} -X prctl/cmd.date={{.Date}}
+    - -s -w -X preq/cmd.version={{.Version}} -X preq/cmd.commit={{.Commit}} -X preq/cmd.date={{.Date}}
 archives:
 - replacements:
     darwin: Darwin
@@ -34,10 +34,10 @@ release:
 
 # Homebrew
 brews:
-  - name: prctl
+  - name: preq
     github:
       owner: tfrs1
-      name: prctl-homebrew-tap
+      name: preq-homebrew-tap
     # commit_author:
     #   name: tfrs1
     #   email: tfrs1@users.noreply.github.com

@@ -1,9 +1,9 @@
 package gitutil
 
 import (
-	"prctl/internal/fs"
-	"prctl/mocks"
-	client "prctl/pkg/bitbucket"
+	"preq/internal/fs"
+	"preq/mocks"
+	client "preq/pkg/bitbucket"
 	"testing"
 
 	"github.com/pkg/errors"

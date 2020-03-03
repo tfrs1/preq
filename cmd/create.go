@@ -3,9 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"prctl/internal/configutil"
-	"prctl/internal/gitutil"
-	client "prctl/pkg/bitbucket"
+	"preq/internal/configutil"
+	"preq/internal/gitutil"
+	client "preq/pkg/bitbucket"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"

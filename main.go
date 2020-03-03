@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
-	"prctl/cmd"
-	"prctl/internal/configutil"
+	"preq/cmd"
+	"preq/internal/configutil"
 )
 
 func main() {
