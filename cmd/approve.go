@@ -49,10 +49,10 @@ func fillFlagApproveCmdParams(cmd *cobra.Command, params *approveCmdParams) erro
 }
 
 var approveCmd = &cobra.Command{
-	Use:     "approve",
+	Use:     "approve [ID]",
 	Aliases: []string{"ap"},
 	Short:   "Approve pull request",
-	Long:    `Approves a pull requests on the web service hosting your origin respository`,
+	Long:    `Approves a pull requests on the web service hosting your origin repository`,
 	Args:    cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		id := ""

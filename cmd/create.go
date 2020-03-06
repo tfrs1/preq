@@ -129,7 +129,7 @@ var createCmd = &cobra.Command{
 	Use:     "create",
 	Aliases: []string{"cr"},
 	Short:   "Create pull request",
-	Long:    `Creates a pull request on the web service hosting your origin respository`,
+	Long:    `Creates a pull request on the web service hosting your origin repository`,
 	Run: func(cmd *cobra.Command, args []string) {
 		c, err := client.DefaultClient()
 		if err != nil {

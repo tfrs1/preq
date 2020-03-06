@@ -119,10 +119,10 @@ func promptPullRequestMultiSelect(prList *client.PullRequestList) map[string]*pr
 }
 
 var declineCmd = &cobra.Command{
-	Use:     "decline",
+	Use:     "decline [ID]",
 	Aliases: []string{"del", "dec", "d"},
 	Short:   "Decline pull request",
-	Long:    `Declines a pull requests on the web service hosting your origin respository`,
+	Long:    `Declines a pull requests on the web service hosting your origin repository`,
 	Args:    cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		id := ""

@@ -80,11 +80,11 @@ func openInBrowser(url string) {
 }
 
 var openCmd = &cobra.Command{
-	Use:     "open",
+	Use:     "open [ID]",
 	Aliases: []string{"op"},
 	Args:    cobra.MaximumNArgs(1),
 	Short:   "List pull requests",
-	Long:    `Lists all pull requests on the web service hosting your origin respository`,
+	Long:    `Lists all pull requests on the web service hosting your origin repository`,
 	Run: func(cmd *cobra.Command, args []string) {
 		id := ""
 		if len(args) > 0 {

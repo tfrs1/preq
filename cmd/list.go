@@ -56,7 +56,7 @@ var listCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
 	Short:   "List pull requests",
-	Long:    `Lists all pull requests on the web service hosting your origin respository`,
+	Long:    `Lists all pull requests on the web service hosting your origin repository`,
 	Run: func(cmd *cobra.Command, args []string) {
 		c, err := client.DefaultClient()
 		if err != nil {
