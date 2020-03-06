@@ -55,13 +55,13 @@ Default reviewer will be automatically added to the pull requests created with `
 
 #### Git repository example
 ```bash
-prtcl create -d master
+preq create -d master
 ```
 In the future the `destination` flag will also be optional, and it will default to either `master` or `develop` depending on which is the closest parent. This will also be configurable per Git repository.
 
 #### Full command example
 ```bash
-prtcl create -p bitbucket-cloud -r owner/repo -s develop -d master
+preq create -p bitbucket-cloud -r owner/repo -s develop -d master
 ```
 
 ### Open
