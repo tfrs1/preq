@@ -83,8 +83,8 @@ var openCmd = &cobra.Command{
 	Use:     "open [ID]",
 	Aliases: []string{"op"},
 	Args:    cobra.MaximumNArgs(1),
-	Short:   "List pull requests",
-	Long:    `Lists all pull requests on the web service hosting your origin repository`,
+	Short:   "Open pull requests",
+	Long:    `Opens all pull requests on the web service hosting your origin repository`,
 	Run: func(cmd *cobra.Command, args []string) {
 		id := ""
 		if len(args) > 0 {
@@ -126,6 +126,10 @@ var openCmd = &cobra.Command{
 			}
 
 			selectedPR := promptPullRequestSelect(prList)
+			if selectedPR == nil {
+				os.Exit(systemcode.ErrorCodeGeneric)
+			}
+
 			url = fmt.Sprintf("https://bitbucket.org/%s/pull-requests/%s", params.Repository, selectedPR.ID)
 		}
 
@@ -140,13 +144,13 @@ var openCmd = &cobra.Command{
 func promptPullRequestSelect(prList *client.PullRequestList) *promptPullRequest {
 	prs := getPromptPullRequestSilce(prList)
 
-	answer := ""
+	var answer string
 	options := make([]string, 0, len(prs))
 	for _, v := range prs {
 		options = append(options, v.Title)
 	}
 	prompt := &survey.Select{
-		Message:  "Decline pull requests",
+		Message:  "Open pull request page",
 		Options:  options,
 		PageSize: 10,
 	}

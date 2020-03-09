@@ -99,7 +99,7 @@ Merge strategy?
 - Add other commands (decline, accept, merge, info, etc.)
 - Add other providers (GitHub, GitLab, etc.)
 - Add interactive mode (--interactive)
-
+- Docker image
 
 ## Contributing
 

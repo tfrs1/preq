@@ -34,7 +34,7 @@ func init() {
 	// TODO: Open default editor for description?
 	createCmd.Flags().String("description", "", "the description of the pull request")
 	createCmd.Flags().BoolP("interactive", "i", false, "the description of the pull request")
-	createCmd.Flags().Bool("no-close", false, "do not close source branch")
+	createCmd.Flags().Bool("close", true, "do not close source branch")
 	createCmd.Flags().Bool("wip", false, "mark the pull request as Work-In-Progress")
 	rootCmd.AddCommand(createCmd)
 }
@@ -46,8 +46,8 @@ func fillFlagParams(cmd *cobra.Command, params *createCmdParams) error {
 		source      = configutil.GetStringFlagOrDefault(cmd.Flags(), "source", params.Source)
 		destination = configutil.GetStringFlagOrDefault(cmd.Flags(), "destination", params.Destination)
 		title       = configutil.GetStringFlagOrDefault(cmd.Flags(), "title", params.Title)
-		close       = configutil.GetBoolFlagOrDefault(cmd.Flags(), "no-close", params.CloseBranch)
-		wip         = configutil.GetBoolFlagOrDefault(cmd.Flags(), "work-in-progress", params.WorkInProgress)
+		close       = configutil.GetBoolFlagOrDefault(cmd.Flags(), "close", params.CloseBranch)
+		wip         = configutil.GetBoolFlagOrDefault(cmd.Flags(), "wip", params.WorkInProgress)
 	)
 
 	if (repo == "" && provider != "") || (repo != "" && provider == "") {
@@ -177,7 +177,7 @@ var createCmd = &cobra.Command{
 				Owner:    r[0],
 				Name:     r[1],
 			},
-			CloseBranch: true,
+			CloseBranch: params.CloseBranch,
 			Title:       title,
 			Source:      params.Source,
 			Destination: params.Destination,
