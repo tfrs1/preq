@@ -1,4 +1,4 @@
-package systemcode
+package systemcodes
 
 var (
 	ErrorCodeGeneric = 103

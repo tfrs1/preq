@@ -1,4 +1,4 @@
-package gitutil
+package gitutils
 
 import (
 	"preq/internal/fs"
@@ -11,7 +11,7 @@ import (
 
 var (
 	ErrCannotGetLocalRepository         = errors.New("cannot get local repository")
-	ErrUnableToParseRemoteRepositoryURI = errors.New("unabled to parse remote repository URI")
+	ErrUnableToParseRemoteRepositoryURI = errors.New("unable to parse remote repository URI")
 	ErrAncestorCommitNotFound           = errors.New("ancestor commit not found")
 	ErrCannotFindAnyBranchReference     = errors.New("cannot find any branch reference")
 )
@@ -164,7 +164,7 @@ func walkHistory(c *object.Commit, goalMap branchCommitMap, depth int) (string, 
 // GetClosestBranch documentation
 // TODO: Find a better name
 func GetClosestBranch(branches []string) (string, error) {
-	// TODO: What is the history branches? Use BFS for looking up history. Perhaps git.GetLog()?
+	// TODO: What if the history branches? Use BFS for looking up history. Perhaps git.GetLog()?
 	r, err := openLocalRepo()
 	if err != nil {
 		return "", err

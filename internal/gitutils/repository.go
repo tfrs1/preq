@@ -1,4 +1,4 @@
-package gitutil
+package gitutils
 
 import (
 	"gopkg.in/src-d/go-git.v4"

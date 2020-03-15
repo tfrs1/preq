@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -21,7 +22,14 @@ var (
 	ErrMissingBitbucketPassword = errors.New("bitbucket password is missing")
 )
 
-type Client struct {
+type Client interface {
+	DeclinePullRequest(o *DeclinePullRequestOptions) (*PullRequest, error)
+	GetPullRequests(o *GetPullRequestsOptions) (*PullRequestList, error)
+	CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error)
+	ApprovePullRequest(o *ApprovePullRequestOptions) (*PullRequest, error)
+}
+
+type BitbucketCloudClient struct {
 	username string
 	password string
 	uuid     string
@@ -32,8 +40,8 @@ type ClientOptions struct {
 	Password string
 }
 
-func New(o *ClientOptions) *Client {
-	return &Client{
+func New(o *ClientOptions) Client {
+	return &BitbucketCloudClient{
 		username: o.Username,
 		password: o.Password,
 	}
@@ -63,13 +71,13 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 	}, nil
 }
 
-func DefaultClient() (*Client, error) {
+func DefaultClient() (Client, error) {
 	config, err := getDefaultConfiguration()
 	if err != nil {
 		return nil, err
 	}
 
-	return &Client{
+	return &BitbucketCloudClient{
 		username: config.username,
 		password: config.password,
 		uuid:     config.uuid,
@@ -104,9 +112,25 @@ type bbError struct {
 
 type RepositoryProvider string
 
-const (
-	RepositoryProvider_BITBUCKET_CLOUD = RepositoryProvider("bitbucket-cloud")
-)
+func (rp RepositoryProvider) IsValid() bool {
+	v := reflect.ValueOf(*RepositoryProviderEnum)
+
+	for i := 0; i < v.NumField(); i++ {
+		if rp == v.Field(i).Interface() {
+			return true
+		}
+	}
+
+	return false
+}
+
+type list struct {
+	BITBUCKET_CLOUD RepositoryProvider
+}
+
+var RepositoryProviderEnum = &list{
+	BITBUCKET_CLOUD: RepositoryProvider("bitbucket-cloud"),
+}
 
 type bitbucketPullRequest struct {
 	ID          int
@@ -141,7 +165,7 @@ type bitbucketPullRequest struct {
 func ParseRepositoryProvider(s string) (RepositoryProvider, error) {
 	switch s {
 	case "bitbucket.org", "bitbucket-cloud":
-		return RepositoryProvider_BITBUCKET_CLOUD, nil
+		return RepositoryProviderEnum.BITBUCKET_CLOUD, nil
 	}
 
 	return "", ErrUnknownRepositoryProvider
@@ -154,7 +178,7 @@ type Repository struct {
 }
 
 type RepositoryOptions struct {
-	Provider           string
+	Provider           RepositoryProvider
 	FullRepositoryName string
 }
 
@@ -236,7 +260,7 @@ type PullRequestList struct {
 	Values     []*PullRequest `json:"values"`
 }
 
-func (c *Client) GetPullRequests(o *GetPullRequestsOptions) (*PullRequestList, error) {
+func (c *BitbucketCloudClient) GetPullRequests(o *GetPullRequestsOptions) (*PullRequestList, error) {
 	url := fmt.Sprintf(
 		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests",
 		o.Repository.Owner,
@@ -303,7 +327,7 @@ func unmarshalPR(data []byte) (*PullRequest, error) {
 	}, nil
 }
 
-func (c *Client) post(url string) (*resty.Response, error) {
+func (c *BitbucketCloudClient) post(url string) (*resty.Response, error) {
 	rc := resty.New()
 	r, err := rc.R().
 		SetBasicAuth(c.username, c.password).
@@ -321,7 +345,7 @@ func (c *Client) post(url string) (*resty.Response, error) {
 	return r, nil
 }
 
-func (c *Client) DeclinePullRequest(o *DeclinePullRequestOptions) (*PullRequest, error) {
+func (c *BitbucketCloudClient) DeclinePullRequest(o *DeclinePullRequestOptions) (*PullRequest, error) {
 	url := fmt.Sprintf(
 		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/decline",
 		o.Repository.Owner,
@@ -337,7 +361,7 @@ func (c *Client) DeclinePullRequest(o *DeclinePullRequestOptions) (*PullRequest,
 	return unmarshalPR(r.Body())
 }
 
-func (c *Client) ApprovePullRequest(o *ApprovePullRequestOptions) (*PullRequest, error) {
+func (c *BitbucketCloudClient) ApprovePullRequest(o *ApprovePullRequestOptions) (*PullRequest, error) {
 	url := fmt.Sprintf(
 		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/approve",
 		o.Repository.Owner,
@@ -369,7 +393,7 @@ type User struct {
 	UUID string `json:"uuid"`
 }
 
-func (c *Client) GetCurrentUser() (*User, error) {
+func (c *BitbucketCloudClient) GetCurrentUser() (*User, error) {
 	r, err := resty.New().R().
 		SetBasicAuth(c.username, c.password).
 		SetError(bbError{}).
@@ -386,7 +410,7 @@ func (c *Client) GetCurrentUser() (*User, error) {
 	return &user, nil
 }
 
-func (c *Client) GetDefaultReviewers(o *CreatePullRequestOptions) ([]*Reviewer, error) {
+func (c *BitbucketCloudClient) GetDefaultReviewers(o *CreatePullRequestOptions) ([]*Reviewer, error) {
 	r, err := resty.New().R().
 		SetBasicAuth(c.username, c.password).
 		SetError(bbError{}).
@@ -409,7 +433,7 @@ func (c *Client) GetDefaultReviewers(o *CreatePullRequestOptions) ([]*Reviewer, 
 	return pr.Values, nil
 }
 
-func (c *Client) CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error) {
+func (c *BitbucketCloudClient) CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error) {
 	err := verifyCreatePullRequestOptions(o)
 	if err != nil {
 		return nil, err

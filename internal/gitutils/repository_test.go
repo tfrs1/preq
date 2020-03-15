@@ -1,4 +1,4 @@
-package gitutil
+package gitutils
 
 import (
 	"preq/mocks"

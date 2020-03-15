@@ -1,4 +1,4 @@
-package gitutil
+package gitutils
 
 import (
 	"preq/internal/fs"
@@ -167,7 +167,7 @@ func Test_parseRepositoryString(t *testing.T) {
 		vErr := errors.New("provider err")
 		extractRepositoryTokens = func(uri string) ([]string, error) { return []string{""}, nil }
 		parseRepositoryProvider = func(p string) (client.RepositoryProvider, error) {
-			return client.RepositoryProvider_BITBUCKET_CLOUD, vErr
+			return client.RepositoryProviderEnum.BITBUCKET_CLOUD, vErr
 		}
 
 		_, err := parseRepositoryString("")
@@ -178,7 +178,7 @@ func Test_parseRepositoryString(t *testing.T) {
 		vErr := errors.New("provider err")
 		extractRepositoryTokens = func(uri string) ([]string, error) { return []string{""}, nil }
 		parseRepositoryProvider = func(p string) (client.RepositoryProvider, error) {
-			return client.RepositoryProvider_BITBUCKET_CLOUD, vErr
+			return client.RepositoryProviderEnum.BITBUCKET_CLOUD, vErr
 		}
 
 		_, err := parseRepositoryString("")
@@ -188,12 +188,12 @@ func Test_parseRepositoryString(t *testing.T) {
 	t.Run("succeeds otherwise", func(t *testing.T) {
 		extractRepositoryTokens = func(uri string) ([]string, error) { return []string{"", "owner", "repo"}, nil }
 		parseRepositoryProvider = func(p string) (client.RepositoryProvider, error) {
-			return client.RepositoryProvider_BITBUCKET_CLOUD, nil
+			return client.RepositoryProviderEnum.BITBUCKET_CLOUD, nil
 		}
 
 		v, err := parseRepositoryString("")
 		assert.NoError(t, err)
-		assert.Equal(t, client.RepositoryProvider_BITBUCKET_CLOUD, v.Provider)
+		assert.Equal(t, client.RepositoryProviderEnum.BITBUCKET_CLOUD, v.Provider)
 		assert.Equal(t, "owner", v.Owner)
 		assert.Equal(t, "repo", v.Name)
 	})

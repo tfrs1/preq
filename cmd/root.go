@@ -3,6 +3,13 @@ package cmd
 import (
 	"fmt"
 
+	approvecmd "preq/cmd/approve"
+	createcmd "preq/cmd/create"
+	declinecmd "preq/cmd/decline"
+	listcmd "preq/cmd/list"
+	opencmd "preq/cmd/open"
+	updatecmd "preq/cmd/update"
+
 	"github.com/spf13/cobra"
 )
 
@@ -20,11 +27,17 @@ var rootCmd = &cobra.Command{
 	Run:     func(cmd *cobra.Command, args []string) {},
 }
 
-func Execute() error {
-	err := rootCmd.Execute()
-	if err != nil {
-		return err
-	}
+func Execute() {
+	rootCmd.AddCommand(createcmd.New())
+	rootCmd.AddCommand(approvecmd.New())
+	rootCmd.AddCommand(declinecmd.New())
+	rootCmd.AddCommand(listcmd.New())
+	rootCmd.AddCommand(opencmd.New())
+	rootCmd.AddCommand(updatecmd.New())
 
-	return nil
+	rootCmd.PersistentFlags().StringP("repository", "r", "", "repository in form of owner/repo")
+	// TODO: Shorthand names for providers?
+	rootCmd.PersistentFlags().StringP("provider", "p", "", "repository host, values - (bitbucket-cloud)")
+
+	rootCmd.Execute()
 }

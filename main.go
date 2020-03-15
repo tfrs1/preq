@@ -4,20 +4,15 @@ import (
 	"fmt"
 	"os"
 	"preq/cmd"
-	"preq/internal/configutil"
+	"preq/internal/configutils"
 )
 
 func main() {
-	err := configutil.Load()
+	err := configutils.Load()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(3)
 	}
 
-	// TODO: Execute doesn't really have a return value when using Run command config option?
-	err = cmd.Execute()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(3)
-	}
+	cmd.Execute()
 }

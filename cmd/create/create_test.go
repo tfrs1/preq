@@ -1,4 +1,4 @@
-package cmd
+package cmdcreate
 
 // func Test_getRepo(t *testing.T) {
 // 	type args struct {
