@@ -3,7 +3,7 @@ package decline
 import (
 	"preq/internal/errcodes"
 	"preq/mocks"
-	client "preq/pkg/bitbucket"
+	"preq/pkg/client"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

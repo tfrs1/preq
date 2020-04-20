@@ -1,6 +1,6 @@
 package mocks
 
-import client "preq/pkg/bitbucket"
+import "preq/pkg/client"
 
 type Client struct {
 	ErrorValue error

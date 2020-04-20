@@ -7,8 +7,9 @@ import (
 	"os"
 	"preq/cmd/paramutils"
 	"preq/cmd/utils"
+	"preq/internal/clientutils"
 	"preq/internal/systemcodes"
-	client "preq/pkg/bitbucket"
+	"preq/pkg/client"
 
 	"github.com/gosuri/uilive"
 	"github.com/gosuri/uitable"
@@ -26,7 +27,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c, err := client.DefaultClient()
+	c, err := clientutils.ClientFactory{}.DefaultClient()
 	if err != nil {
 		return err
 	}

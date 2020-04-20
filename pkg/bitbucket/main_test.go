@@ -1,4 +1,4 @@
-package client
+package bitbucket
 
 // func TestASD(t *testing.T) {
 // 	c := New()

@@ -2,7 +2,7 @@ package gitutils
 
 import (
 	"preq/internal/fs"
-	client "preq/pkg/bitbucket"
+	"preq/pkg/client"
 	"regexp"
 
 	"github.com/pkg/errors"

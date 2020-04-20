@@ -3,7 +3,7 @@ package gitutils
 import (
 	"preq/internal/fs"
 	"preq/mocks"
-	client "preq/pkg/bitbucket"
+	"preq/pkg/client"
 	"testing"
 
 	"github.com/pkg/errors"

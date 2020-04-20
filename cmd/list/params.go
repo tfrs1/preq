@@ -6,7 +6,7 @@ import (
 	"preq/internal/configutils"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
-	client "preq/pkg/bitbucket"
+	"preq/pkg/client"
 	"strings"
 
 	"github.com/spf13/cobra"

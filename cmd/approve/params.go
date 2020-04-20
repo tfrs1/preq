@@ -11,7 +11,7 @@ import (
 	"preq/cmd/paramutils"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
-	client "preq/pkg/bitbucket"
+	"preq/pkg/client"
 	"strings"
 )
 

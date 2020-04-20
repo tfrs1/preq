@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"preq/cmd/paramutils"
 	"preq/cmd/utils"
-	client "preq/pkg/bitbucket"
+	"preq/internal/clientutils"
+	"preq/pkg/client"
 
 	"github.com/spf13/cobra"
 )
@@ -21,7 +22,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cl, err := client.DefaultClient()
+	cl, err := clientutils.ClientFactory{}.DefaultClient()
 	if err != nil {
 		return err
 	}

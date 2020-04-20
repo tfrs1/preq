@@ -6,8 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"preq/cmd/utils"
+	"preq/internal/clientutils"
 	"preq/internal/systemcodes"
-	client "preq/pkg/bitbucket"
+	"preq/pkg/client"
 	"runtime"
 
 	"github.com/spf13/cobra"
@@ -37,7 +38,7 @@ func execute(args *cmdArgs, params *openCmdParams) error {
 	if args.ID != "" {
 		url = fmt.Sprintf("https://bitbucket.org/%s/pull-requests/%s", params.Repository, args.ID)
 	} else if params.Interactive {
-		cl, err := client.DefaultClient()
+		cl, err := clientutils.ClientFactory{}.DefaultClient()
 		if err != nil {
 			return err
 		}

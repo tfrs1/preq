@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
-	client "preq/pkg/bitbucket"
+	"preq/pkg/client"
 	"strings"
 
 	"github.com/spf13/pflag"

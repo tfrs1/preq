@@ -15,7 +15,7 @@ func runCmd(cmd *cobra.Command, args []string) {
 	fmt.Println(cmd.Flags().Changed("wip"))
 
 	// TODO: Implement update command
-	// cl, err := client.DefaultClient()
+	// cl, err := clientutils.ClientFactory{}.DefaultClient()
 	// if err != nil {
 	// 	fmt.Println(err)
 	// 	os.Exit(systemcodes.ErrorCodeGeneric)

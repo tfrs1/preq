@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"preq/internal/systemcodes"
-	client "preq/pkg/bitbucket"
+	"preq/pkg/client"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
