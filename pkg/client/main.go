@@ -38,16 +38,20 @@ func (rp RepositoryProvider) IsValid() bool {
 
 type list struct {
 	BITBUCKET_CLOUD RepositoryProvider
+	GITHUB          RepositoryProvider
 }
 
 var RepositoryProviderEnum = &list{
 	BITBUCKET_CLOUD: RepositoryProvider("bitbucket-cloud"),
+	GITHUB:          RepositoryProvider("github"),
 }
 
 func ParseRepositoryProvider(s string) (RepositoryProvider, error) {
 	switch s {
 	case "bitbucket.org", "bitbucket-cloud":
 		return RepositoryProviderEnum.BITBUCKET_CLOUD, nil
+	case "github.com", "github":
+		return RepositoryProviderEnum.GITHUB, nil
 	}
 
 	return "", ErrUnknownRepositoryProvider

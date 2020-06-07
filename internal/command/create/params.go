@@ -2,7 +2,7 @@ package cmdcreate
 
 import (
 	"fmt"
-	"preq/cmd/paramutils"
+	"preq/internal/command/paramutils"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
 	"strings"

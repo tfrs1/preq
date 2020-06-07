@@ -3,8 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
-	"preq/cmd"
 	"preq/internal/configutils"
+
+	"preq/internal/command"
 )
 
 func main() {
@@ -14,5 +15,5 @@ func main() {
 		os.Exit(3)
 	}
 
-	cmd.Execute()
+	command.Execute()
 }

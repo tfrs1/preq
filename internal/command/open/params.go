@@ -1,7 +1,7 @@
 package open
 
 import (
-	"preq/cmd/paramutils"
+	"preq/internal/command/paramutils"
 
 	"github.com/spf13/cobra"
 )

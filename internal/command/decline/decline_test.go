@@ -2,7 +2,7 @@ package decline
 
 import (
 	"errors"
-	"preq/cmd/utils"
+	"preq/internal/command/utils"
 	"preq/mocks"
 	"preq/pkg/client"
 	"testing"

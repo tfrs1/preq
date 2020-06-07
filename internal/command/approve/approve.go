@@ -2,9 +2,9 @@ package approve
 
 import (
 	"fmt"
-	"preq/cmd/paramutils"
-	"preq/cmd/utils"
 	"preq/internal/clientutils"
+	"preq/internal/command/paramutils"
+	"preq/internal/command/utils"
 	"preq/pkg/client"
 
 	"github.com/spf13/cobra"
@@ -22,7 +22,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cl, err := clientutils.ClientFactory{}.DefaultClient()
+	cl, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
 	if err != nil {
 		return err
 	}

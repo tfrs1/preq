@@ -2,7 +2,7 @@ package list
 
 import (
 	"fmt"
-	"preq/cmd/paramutils"
+	"preq/internal/command/paramutils"
 	"preq/internal/configutils"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"

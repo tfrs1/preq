@@ -1,14 +1,14 @@
-package cmd
+package command
 
 import (
 	"fmt"
 
-	approvecmd "preq/cmd/approve"
-	createcmd "preq/cmd/create"
-	declinecmd "preq/cmd/decline"
-	listcmd "preq/cmd/list"
-	opencmd "preq/cmd/open"
-	updatecmd "preq/cmd/update"
+	approvecmd "preq/internal/command/approve"
+	createcmd "preq/internal/command/create"
+	declinecmd "preq/internal/command/decline"
+	listcmd "preq/internal/command/list"
+	opencmd "preq/internal/command/open"
+	updatecmd "preq/internal/command/update"
 
 	"github.com/spf13/cobra"
 )

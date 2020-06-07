@@ -1,14 +1,14 @@
 package approve
 
 // import (
-// 	"preq/cmd/paramutils"
+// 	"preq/internal/command/paramutils"
 // )
 
 // package decline
 
 import (
 	"fmt"
-	"preq/cmd/paramutils"
+	"preq/internal/command/paramutils"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
 	"preq/pkg/client"

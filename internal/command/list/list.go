@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"preq/cmd/paramutils"
-	"preq/cmd/utils"
 	"preq/internal/clientutils"
+	"preq/internal/command/paramutils"
+	"preq/internal/command/utils"
 	"preq/internal/systemcodes"
 	"preq/pkg/client"
 
@@ -27,7 +27,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c, err := clientutils.ClientFactory{}.DefaultClient()
+	c, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
 	if err != nil {
 		return err
 	}

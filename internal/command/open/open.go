@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"preq/cmd/utils"
 	"preq/internal/clientutils"
+	"preq/internal/command/utils"
 	"preq/internal/systemcodes"
 	"preq/pkg/client"
 	"runtime"
@@ -38,7 +38,7 @@ func execute(args *cmdArgs, params *openCmdParams) error {
 	if args.ID != "" {
 		url = fmt.Sprintf("https://bitbucket.org/%s/pull-requests/%s", params.Repository, args.ID)
 	} else if params.Interactive {
-		cl, err := clientutils.ClientFactory{}.DefaultClient()
+		cl, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
 		if err != nil {
 			return err
 		}
