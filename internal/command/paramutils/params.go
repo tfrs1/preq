@@ -56,8 +56,8 @@ func FillDefaultRepositoryParams(params *RepositoryParams) {
 
 func FillFlagRepositoryParams(flags FlagSet, params *RepositoryParams) {
 	var (
-		repo     = flags.GetStringOrDefault("repository", "")
-		provider = flags.GetStringOrDefault("provider", "")
+		repo     = flags.GetStringOrDefault("repository", params.Name)
+		provider = flags.GetStringOrDefault("provider", string(params.Provider))
 	)
 
 	params.Name = repo

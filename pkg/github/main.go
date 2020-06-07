@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"preq/pkg/client"
 	"strings"
-	"time"
 
 	"github.com/go-resty/resty/v2"
 	log "github.com/sirupsen/logrus"
@@ -105,44 +104,6 @@ type bbError struct {
 	Message string
 }
 
-type githubPullRequest struct {
-	Number      int
-	Title       string
-	Description string
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"update_at"`
-	State       client.PullRequestState
-	// Author      struct {
-	// 	DisplayName string `json:"display_name"`
-	// 	UUID        string
-	// 	Nickname    string
-	// }
-	Links struct {
-		HTML struct {
-			Href string
-		}
-	} `json:"_links"`
-	Head struct {
-		Ref string
-	}
-	Base struct {
-		Ref string
-	}
-}
-
-type Reviewer struct {
-	Username    string `json:"username"`
-	DisplayName string `json:"display_name"`
-	UUID        string
-	Nickname    string
-	Type        string
-	AccountID   string `json:"account_id"`
-}
-
-type defaultReviewersResponse struct {
-	Values []*Reviewer
-}
-
 // type PullRequestList struct {
 // 	PageLength uint                  `json:"pagelen"`
 // 	Page       uint                  `json:"page"`
@@ -203,7 +164,7 @@ func (c *GithubCloudClient) GetPullRequests(o *client.GetPullRequestsOptions) (*
 }
 
 func unmarshalPR(data []byte) (*client.PullRequest, error) {
-	pr := &githubPullRequest{}
+	pr := &PullRequest{}
 	err := json.Unmarshal(data, pr)
 	if err != nil {
 		return nil, err
@@ -213,7 +174,7 @@ func unmarshalPR(data []byte) (*client.PullRequest, error) {
 		ID:          string(pr.Number),
 		Title:       pr.Title,
 		URL:         pr.Links.HTML.Href,
-		State:       pr.State,
+		State:       client.PullRequestState(pr.State),
 		Source:      pr.Head.Ref,
 		Destination: pr.Base.Ref,
 	}, nil
@@ -339,7 +300,7 @@ func (c *GithubCloudClient) CreatePullRequest(o *client.CreatePullRequestOptions
 	if r.IsError() {
 		log.Fatal(string(r.Body()))
 	}
-	pr := &githubPullRequest{}
+	pr := &PullRequest{}
 	err = json.Unmarshal(r.Body(), pr)
 	if err != nil {
 		log.Fatal(err)
@@ -349,7 +310,7 @@ func (c *GithubCloudClient) CreatePullRequest(o *client.CreatePullRequestOptions
 		ID:          string(pr.Number),
 		Title:       pr.Title,
 		URL:         pr.Links.HTML.Href,
-		State:       pr.State,
+		State:       client.PullRequestState(pr.State),
 		Source:      pr.Head.Ref,
 		Destination: pr.Base.Ref,
 	}, nil
