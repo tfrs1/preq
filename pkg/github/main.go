@@ -95,6 +95,7 @@ type ghPROptions struct {
 	Head                string `json:"head,omitempty"`
 	Base                string `json:"base,omitempty"`
 	Body                string `json:"body,omitempty"`
+	State               string `json:"state,omitempty"`
 	MaintainerCanModify bool   `json:"maintainer_can_modify,omitempty`
 	Draft               bool   `json:"draft,omitempty"`
 }
@@ -199,14 +200,18 @@ func (c *GithubCloudClient) post(url string) (*resty.Response, error) {
 }
 
 func (c *GithubCloudClient) DeclinePullRequest(o *client.DeclinePullRequestOptions) (*client.PullRequest, error) {
-	url := fmt.Sprintf(
-		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/decline",
-		o.Repository.Owner,
-		o.Repository.Name,
-		o.ID,
-	)
-
-	r, err := c.post(url)
+	r, err := resty.New().R().
+		SetAuthToken(c.token).
+		SetBody(ghPROptions{
+			State: "closed",
+		}).
+		SetError(bbError{}).
+		Patch(fmt.Sprintf(
+			"https://api.github.com/repos/%s/%s/pulls/%s",
+			o.Repository.Owner,
+			o.Repository.Name,
+			o.ID,
+		))
 	if err != nil {
 		return nil, err
 	}

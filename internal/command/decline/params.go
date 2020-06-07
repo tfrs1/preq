@@ -39,8 +39,8 @@ func fillDefaultDeclineCmdParams(params *cmdParams) {
 
 func fillFlagDeclineCmdParams(flags paramutils.FlagSet, params *cmdParams) {
 	var (
-		repo     = flags.GetStringOrDefault("repository", "")
-		provider = flags.GetStringOrDefault("provider", "")
+		repo     = flags.GetStringOrDefault("repository", params.Repository)
+		provider = flags.GetStringOrDefault("provider", string(params.Provider))
 	)
 
 	params.Repository = repo
