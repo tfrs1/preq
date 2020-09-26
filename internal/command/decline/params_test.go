@@ -28,7 +28,7 @@ func Test_fillDefaultDeclineCmdParams(t *testing.T) {
 		defer func() { getRemoteInfo = old }()
 		getRemoteInfo = func() (*client.Repository, error) {
 			return &client.Repository{
-				Provider: client.RepositoryProviderEnum.BITBUCKET_CLOUD,
+				Provider: client.RepositoryProviderEnum.BITBUCKET,
 				Name:     "repo-name",
 				Owner:    "owner",
 			}, nil
@@ -36,7 +36,7 @@ func Test_fillDefaultDeclineCmdParams(t *testing.T) {
 
 		params := cmdParams{}
 		fillDefaultDeclineCmdParams(&params)
-		assert.Equal(t, params.Provider, client.RepositoryProviderEnum.BITBUCKET_CLOUD)
+		assert.Equal(t, params.Provider, client.RepositoryProviderEnum.BITBUCKET)
 		assert.Equal(t, params.Repository, "owner/repo-name")
 	})
 }
@@ -85,7 +85,7 @@ func Test_validateFlagDeclineCmdParams(t *testing.T) {
 	t.Run("succeeds with valid repo and provider", func(t *testing.T) {
 		params := &cmdParams{
 			Repository: "owner/repo-name",
-			Provider:   client.RepositoryProviderEnum.BITBUCKET_CLOUD,
+			Provider:   client.RepositoryProviderEnum.BITBUCKET,
 		}
 		err := validateFlagDeclineCmdParams(params)
 		assert.Equal(t, nil, err)
@@ -99,13 +99,13 @@ func Test_fillFlagDeclineCmdParams(t *testing.T) {
 		fillFlagDeclineCmdParams(
 			&mocks.PreqFlagSetMock{StringMap: map[string]interface{}{
 				"repository": repo,
-				"provider":   string(client.RepositoryProviderEnum.BITBUCKET_CLOUD),
+				"provider":   string(client.RepositoryProviderEnum.BITBUCKET),
 			}},
 			&params,
 		)
 
 		assert.Equal(t, params.Repository, repo)
-		assert.Equal(t, params.Provider, client.RepositoryProviderEnum.BITBUCKET_CLOUD)
+		assert.Equal(t, params.Provider, client.RepositoryProviderEnum.BITBUCKET)
 	})
 
 	t.Run("fills with fallback parameters", func(t *testing.T) {

@@ -37,7 +37,7 @@ release:
 # Homebrew
 brews:
   - name: preq
-    github:
+    tap:
       owner: tfrs1
       name: homebrew-tap
     # commit_author:

@@ -16,7 +16,7 @@ import (
 
 var (
 	ErrUnknownRepositoryProvider = errors.New(strings.TrimSpace(`
-		unknown repository provider, expected (bitbucket-cloud)
+		unknown repository provider, expected (bitbucket)
 	`))
 	ErrMissingBitbucketUsername = errors.New("bitbucket username is missing")
 	ErrMissingBitbucketPassword = errors.New("bitbucket password is missing")
@@ -283,11 +283,11 @@ func verifyCreatePullRequestOptions(o *client.CreatePullRequestOptions) error {
 	return nil
 }
 
-type User struct {
+type user struct {
 	UUID string `json:"uuid"`
 }
 
-func (c *BitbucketCloudClient) GetCurrentUser() (*User, error) {
+func (c *BitbucketCloudClient) GetCurrentUser() (*client.User, error) {
 	r, err := resty.New().R().
 		SetBasicAuth(c.username, c.password).
 		SetError(bbError{}).
@@ -296,12 +296,14 @@ func (c *BitbucketCloudClient) GetCurrentUser() (*User, error) {
 		return nil, err
 	}
 
-	user := User{}
-	err = json.Unmarshal(r.Body(), &user)
+	u := user{}
+	err = json.Unmarshal(r.Body(), &u)
 	if err != nil {
 		return nil, err
 	}
-	return &user, nil
+	return &client.User{
+		ID: u.UUID,
+	}, nil
 }
 
 func (c *BitbucketCloudClient) GetDefaultReviewers(o *client.CreatePullRequestOptions) ([]*Reviewer, error) {
@@ -344,7 +346,7 @@ func (c *BitbucketCloudClient) CreatePullRequest(o *client.CreatePullRequestOpti
 		if err != nil {
 			return nil, err
 		}
-		uuid = u.UUID
+		uuid = u.ID
 	}
 
 	ddr := make([]bbPROptionsReviewer, 0, len(dr))

@@ -75,8 +75,8 @@ func New() *cobra.Command {
 		Run:     runCmd,
 	}
 
-	cmd.Flags().Bool("wip", false, "repository host, values - (bitbucket-cloud)")
-	cmd.Flags().Bool("close", false, "repository host, values - (bitbucket-cloud)")
+	cmd.Flags().Bool("wip", false, "repository host, values - (bitbucket)")
+	cmd.Flags().Bool("close", false, "repository host, values - (bitbucket)")
 
 	return cmd
 }

@@ -97,7 +97,7 @@ func fillInteractiveParams(params *createCmdParams) error {
 			Name: "provider",
 			Prompt: &survey.Select{
 				Message: "Provider:",
-				Options: []string{"bitbucket-cloud"},
+				Options: []string{"bitbucket"},
 				Default: defaultProvider,
 			},
 			Validate: survey.Required,

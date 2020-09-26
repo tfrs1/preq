@@ -11,7 +11,7 @@ type ClientFactory struct{}
 
 func (cf ClientFactory) DefaultClient(provider client.RepositoryProvider) (client.Client, error) {
 	switch provider {
-	case client.RepositoryProviderEnum.BITBUCKET_CLOUD:
+	case client.RepositoryProviderEnum.BITBUCKET:
 		return bitbucket.DefaultClient()
 	case client.RepositoryProviderEnum.GITHUB:
 		return github.DefaultClient()

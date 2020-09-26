@@ -9,7 +9,7 @@ import (
 
 var (
 	ErrUnknownRepositoryProvider = errors.New(strings.TrimSpace(`
-		unknown repository provider, expected (bitbucket-cloud)
+		unknown repository provider, expected (bitbucket)
 	`))
 	ErrMissingBitbucketUsername = errors.New("bitbucket username is missing")
 	ErrMissingBitbucketPassword = errors.New("bitbucket password is missing")
@@ -37,19 +37,19 @@ func (rp RepositoryProvider) IsValid() bool {
 }
 
 type list struct {
-	BITBUCKET_CLOUD RepositoryProvider
-	GITHUB          RepositoryProvider
+	BITBUCKET RepositoryProvider
+	GITHUB    RepositoryProvider
 }
 
 var RepositoryProviderEnum = &list{
-	BITBUCKET_CLOUD: RepositoryProvider("bitbucket-cloud"),
-	GITHUB:          RepositoryProvider("github"),
+	BITBUCKET: RepositoryProvider("bitbucket"),
+	GITHUB:    RepositoryProvider("github"),
 }
 
 func ParseRepositoryProvider(s string) (RepositoryProvider, error) {
 	switch s {
-	case "bitbucket.org", "bitbucket-cloud":
-		return RepositoryProviderEnum.BITBUCKET_CLOUD, nil
+	case "bitbucket.org", "bitbucket":
+		return RepositoryProviderEnum.BITBUCKET, nil
 	case "github.com", "github":
 		return RepositoryProviderEnum.GITHUB, nil
 	}
@@ -80,6 +80,12 @@ func NewRepositoryFromOptions(options *RepositoryOptions) (*Repository, error) {
 		Name:     r[1],
 	}, nil
 }
+
+type PullRequestReviewState string
+
+const (
+	PullRequestReviewState_APPROVED = "APPROVED"
+)
 
 type PullRequestState string
 
@@ -123,6 +129,10 @@ type PullRequest struct {
 	Destination string
 	Created     time.Time
 	Updated     time.Time
+}
+
+type User struct {
+	ID string
 }
 
 // type Reviewer struct {

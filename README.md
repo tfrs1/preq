@@ -23,12 +23,12 @@ For example, `preq` can find out the Git origin provider, the repository name, a
 
 Most of the commands support support the following optional so they will be omitted from command specific documentation.
 
-- `--provider`, `-p` - Provider, e.g. `bitbucket-cloud`
+- `--provider`, `-p` - Provider, e.g. `bitbucket`
 - `--repository`, `-r` - Repository name, e.g. `owner/repo-name`
 
 > __Note__  
 > Currently the only supported provider is Bitbucket cloud.
-> - `bitbucket-cloud`
+> - `bitbucket`
 
 ### Bitbucket password
 
@@ -61,7 +61,7 @@ In the future the `destination` flag will also be optional, and it will default 
 
 #### Full command example
 ```bash
-preq create -p bitbucket-cloud -r owner/repo -s develop -d master
+preq create -p bitbucket -r owner/repo -s develop -d master
 ```
 
 ### Open

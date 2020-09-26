@@ -1,10 +1,11 @@
 package github
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"preq/pkg/client"
+	preqClient "preq/pkg/client"
 	"strings"
 
 	"github.com/go-resty/resty/v2"
@@ -15,7 +16,7 @@ import (
 
 var (
 	ErrUnknownRepositoryProvider = errors.New(strings.TrimSpace(`
-		unknown repository provider, expected (bitbucket-cloud, github)
+		unknown repository provider, expected (bitbucket, github)
 	`))
 	ErrMissingGithubUsername = errors.New("github username is missing")
 	ErrMissingGithubPassword = errors.New("github password is missing")
@@ -33,7 +34,7 @@ type ClientOptions struct {
 	Token    string
 }
 
-func New(o *ClientOptions) client.Client {
+func New(o *ClientOptions) preqClient.Client {
 	return &GithubCloudClient{
 		username: o.Username,
 		token:    o.Token,
@@ -64,7 +65,7 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 	}, nil
 }
 
-func DefaultClient() (client.Client, error) {
+func DefaultClient() (preqClient.Client, error) {
 	config, err := getDefaultConfiguration()
 	if err != nil {
 		return nil, err
@@ -113,7 +114,7 @@ type bbError struct {
 // 	Values     []*client.PullRequest `json:"values"`
 // }
 
-func (c *GithubCloudClient) GetPullRequests(o *client.GetPullRequestsOptions) (*client.PullRequestList, error) {
+func (c *GithubCloudClient) GetPullRequests(o *preqClient.GetPullRequestsOptions) (*preqClient.PullRequestList, error) {
 	url := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/pulls",
 		o.Repository.Owner,
@@ -138,14 +139,14 @@ func (c *GithubCloudClient) GetPullRequests(o *client.GetPullRequestsOptions) (*
 		return nil, errors.New(string(r.Body()))
 	}
 
-	var pr client.PullRequestList
+	var pr preqClient.PullRequestList
 	parsed := gjson.ParseBytes(r.Body())
 	parsed.ForEach(func(key, value gjson.Result) bool {
-		pr.Values = append(pr.Values, &client.PullRequest{
+		pr.Values = append(pr.Values, &preqClient.PullRequest{
 			ID:          value.Get("number").String(),
 			Title:       value.Get("title").String(),
 			URL:         value.Get("html_url").String(),
-			State:       client.PullRequestState(value.Get("state").String()),
+			State:       preqClient.PullRequestState(value.Get("state").String()),
 			Source:      value.Get("head.ref").String(),
 			Destination: value.Get("base.ref").String(),
 			Created:     value.Get("created_at").Time(),
@@ -164,18 +165,18 @@ func (c *GithubCloudClient) GetPullRequests(o *client.GetPullRequestsOptions) (*
 	return &pr, nil
 }
 
-func unmarshalPR(data []byte) (*client.PullRequest, error) {
+func unmarshalPR(data []byte) (*preqClient.PullRequest, error) {
 	pr := &PullRequest{}
 	err := json.Unmarshal(data, pr)
 	if err != nil {
 		return nil, err
 	}
 
-	return &client.PullRequest{
+	return &preqClient.PullRequest{
 		ID:          string(pr.Number),
 		Title:       pr.Title,
 		URL:         pr.Links.HTML.Href,
-		State:       client.PullRequestState(pr.State),
+		State:       preqClient.PullRequestState(pr.State),
 		Source:      pr.Head.Ref,
 		Destination: pr.Base.Ref,
 	}, nil
@@ -199,7 +200,7 @@ func (c *GithubCloudClient) post(url string) (*resty.Response, error) {
 	return r, nil
 }
 
-func (c *GithubCloudClient) DeclinePullRequest(o *client.DeclinePullRequestOptions) (*client.PullRequest, error) {
+func (c *GithubCloudClient) DeclinePullRequest(o *preqClient.DeclinePullRequestOptions) (*preqClient.PullRequest, error) {
 	r, err := resty.New().R().
 		SetAuthToken(c.token).
 		SetBody(ghPROptions{
@@ -219,23 +220,119 @@ func (c *GithubCloudClient) DeclinePullRequest(o *client.DeclinePullRequestOptio
 	return unmarshalPR(r.Body())
 }
 
-func (c *GithubCloudClient) ApprovePullRequest(o *client.ApprovePullRequestOptions) (*client.PullRequest, error) {
-	url := fmt.Sprintf(
-		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/approve",
-		o.Repository.Owner,
-		o.Repository.Name,
-		o.ID,
-	)
+type getReviewsOptions struct {
+	Repository preqClient.Repository
+	ID         string
+	User       string
+}
 
-	r, err := c.post(url)
+type githubError struct {
+	Message          string `json:"message"`
+	DocumentationURL string `json:"documentation_url"`
+}
+
+type reviewRequest struct {
+	Login             string `json:"login"`
+	ID                int64  `json:"id"`
+	NodeID            string `json:"node_id"`
+	AvatarURL         string `json:"avatar_url"`
+	GravatarID        string `json:"gravatar_id"`
+	URL               string `json:"url"`
+	HTMLURL           string `json:"html_url"`
+	FollowersURL      string `json:"followers_url"`
+	FollowingURL      string `json:"following_url"`
+	GistsURL          string `json:"gists_url"`
+	StarredURL        string `json:"starred_url"`
+	SubscriptionsURL  string `json:"subscriptions_url"`
+	OrganizationsURL  string `json:"organizations_url"`
+	ReposURL          string `json:"repos_url"`
+	EventsURL         string `json:"events_url"`
+	ReceivedEventsURL string `json:"received_events_url"`
+	Type              string `json:"type"`
+	SiteAdmin         bool   `json:"site_admin"`
+}
+
+func (c *GithubCloudClient) getReviewRequests(o *getReviewsOptions) ([]int64, error) {
+	r, err := resty.New().R().
+		SetAuthToken(c.token).
+		SetError(githubError{}).
+		Get(fmt.Sprintf(
+			"https://api.github.com/repos/%s/%s/pulls/%s/requested_reviewers",
+			o.Repository.Owner,
+			o.Repository.Name,
+			o.ID,
+		))
 	if err != nil {
 		return nil, err
 	}
 
-	return unmarshalPR(r.Body())
+	res := &reviewRequests{}
+	err = json.Unmarshal(r.Body(), res)
+	if err != nil {
+		return nil, err
+	}
+
+	var filteredUsers []int64
+	for _, review := range res.Users {
+		if o.User == "" || review.Login == o.User {
+			filteredUsers = append(filteredUsers, review.ID)
+		}
+	}
+
+	return filteredUsers, nil
 }
 
-func verifyCreatePullRequestOptions(o *client.CreatePullRequestOptions) error {
+func (c *GithubCloudClient) getReviews(o *getReviewsOptions) (*[]review, error) {
+	r, err := resty.New().R().
+		SetAuthToken(c.token).
+		SetError(githubError{}).
+		Get(fmt.Sprintf(
+			"https://api.github.com/repos/%s/%s/pulls/%s/reviews",
+			o.Repository.Owner,
+			o.Repository.Name,
+			o.ID,
+		))
+
+	if err != nil {
+		return nil, err
+	}
+
+	reviews := &[]review{}
+	err = json.Unmarshal(r.Body(), reviews)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(o.ID, string(r.Body()))
+
+	return reviews, nil
+}
+
+func (c *GithubCloudClient) ApprovePullRequest(o *preqClient.ApprovePullRequestOptions) (*preqClient.PullRequest, error) {
+	_, err := resty.New().R().
+		SetAuthToken(c.token).
+		SetHeader("content-type", "application/json").
+		SetError(githubError{}).
+		SetBody(`{"event": "APPROVE"}`).
+		Post(fmt.Sprintf(
+			"https://api.github.com/repos/%s/%s/pulls/%s/reviews",
+			o.Repository.Owner,
+			o.Repository.Name,
+			o.ID,
+		))
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Parse the response
+
+	return &preqClient.PullRequest{
+		ID: o.ID,
+		// State: preqClient.PullRequestReviewState_APPROVED,
+	}, nil
+}
+
+func verifyCreatePullRequestOptions(o *preqClient.CreatePullRequestOptions) error {
 	if o.Source == "" {
 		return errors.New("missing source branch")
 	}
@@ -247,41 +344,54 @@ func verifyCreatePullRequestOptions(o *client.CreatePullRequestOptions) error {
 	return nil
 }
 
-type User struct {
-	UUID string `json:"uuid"`
-}
+func (c *GithubCloudClient) getReviewRequestsForUser(u *User) ([]*Item, error) {
+	client := newClient(&newClientOptions{
+		Token: c.token,
+	})
 
-func (c *GithubCloudClient) GetCurrentUser() (*User, error) {
-	r, err := resty.New().R().
-		SetAuthToken(c.token).
-		SetError(bbError{}).
-		Get("https://api.bitbucket.org/2.0/user")
+	res, err := client.Search.Issues(
+		context.Background(),
+		// fmt.Sprintf("repo:%s type:pr state:open review-requested:%s", u.Login),
+		fmt.Sprintf("type:pr state:open review-requested:%s", u.Login),
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	user := User{}
-	err = json.Unmarshal(r.Body(), &user)
+	for _, r := range res.Items {
+		fmt.Println(r.ID)
+	}
+
+	return res.Items, nil
+}
+
+func (c *GithubCloudClient) GetCurrentUser() (*preqClient.User, error) {
+	client := newClient(&newClientOptions{Token: c.token})
+
+	u, err := client.User.Current(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	return &user, nil
+
+	return &preqClient.User{
+		ID: string(u.ID),
+	}, nil
 }
 
-func (c *GithubCloudClient) CreatePullRequest(o *client.CreatePullRequestOptions) (*client.PullRequest, error) {
+func (c *GithubCloudClient) CreatePullRequest(o *preqClient.CreatePullRequestOptions) (*preqClient.PullRequest, error) {
 	err := verifyCreatePullRequestOptions(o)
 	if err != nil {
 		return nil, err
 	}
 
-	uuid := c.uuid
-	if uuid == "" {
-		u, err := c.GetCurrentUser()
-		if err != nil {
-			return nil, err
-		}
-		uuid = u.UUID
-	}
+	// uuid := c.uuid
+	// if uuid == "" {
+	// 	u, err := c.GetCurrentUser()
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	uuid = (string)u.ID
+	// }
 
 	r, err := resty.New().R().
 		SetAuthToken(c.token).
@@ -311,11 +421,11 @@ func (c *GithubCloudClient) CreatePullRequest(o *client.CreatePullRequestOptions
 		log.Fatal(err)
 	}
 
-	return &client.PullRequest{
+	return &preqClient.PullRequest{
 		ID:          string(pr.Number),
 		Title:       pr.Title,
 		URL:         pr.Links.HTML.Href,
-		State:       client.PullRequestState(pr.State),
+		State:       preqClient.PullRequestState(pr.State),
 		Source:      pr.Head.Ref,
 		Destination: pr.Base.Ref,
 	}, nil
