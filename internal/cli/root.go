@@ -9,6 +9,7 @@ import (
 	listcmd "preq/internal/cli/list"
 	opencmd "preq/internal/cli/open"
 	updatecmd "preq/internal/cli/update"
+	"preq/internal/tui"
 
 	"github.com/spf13/cobra"
 )
@@ -24,7 +25,9 @@ var rootCmd = &cobra.Command{
 	Short:   "preq command-line utility for pull requests",
 	Long:    `Command-line utility for all your pull request needs.`,
 	Version: fmt.Sprintf("%v, commit %v, built at %v", version, commit, date),
-	Run:     func(cmd *cobra.Command, args []string) {},
+	Run: func(cmd *cobra.Command, args []string) {
+		tui.Run()
+	},
 }
 
 func Execute() {
