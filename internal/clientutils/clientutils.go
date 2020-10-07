@@ -2,9 +2,9 @@ package clientutils
 
 import (
 	"errors"
-	"preq/pkg/bitbucket"
-	"preq/pkg/client"
-	"preq/pkg/github"
+	"preq/internal/pkg/bitbucket"
+	"preq/internal/pkg/client"
+	"preq/internal/pkg/github"
 )
 
 type ClientFactory struct{}

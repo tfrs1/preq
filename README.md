@@ -40,7 +40,7 @@ The create command supports the following flags, but none of them are required. 
 
 - `--destination`, `-d` - Destination branch name
 - `--source`, `-s` - Source branch name
-- `--wip` - Marks the pull request as work in progress
+- `--draft` - Marks the pull request as work in progress
 
 #### Default reviewers
 
@@ -87,7 +87,7 @@ toml in `.preqcfg` for per dir config or `~/.config/preq/config.toml` for global
   password = "secret-password"
 
 [templates]
-  wip = "%s - Work-in-progress"
+  draft = "%s - Draft"
 ```
 
 Reviewers?

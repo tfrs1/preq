@@ -2,8 +2,7 @@ package configutils
 
 import (
 	"io"
-	"preq/internal/fs"
-	"preq/mocks"
+	"preq/internal/pkg/fs"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -47,18 +46,18 @@ func Test_mergeConfig(t *testing.T) {
 
 func Test_fileExists(t *testing.T) {
 	t.Run("returns nil if file exists", func(t *testing.T) {
-		err := fileExists("", mocks.FS{mocks.FileInfo{false}, nil})
+		err := fileExists("", fs.MockFS{fs.MockFileInfo{false}, nil})
 		assert.Equal(t, nil, err)
 	})
 
 	t.Run("returns error if file does not exists", func(t *testing.T) {
 		vErr := errors.New("file does not exist")
-		err := fileExists("", mocks.FS{mocks.FileInfo{}, vErr})
+		err := fileExists("", fs.MockFS{fs.MockFileInfo{}, vErr})
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	t.Run("returns error if file is a directory", func(t *testing.T) {
-		err := fileExists("", mocks.FS{mocks.FileInfo{true}, nil})
+		err := fileExists("", fs.MockFS{fs.MockFileInfo{true}, nil})
 		assert.EqualError(t, err, ErrConfigFileIsDir.Error())
 	})
 }
@@ -76,13 +75,13 @@ func Test_loadFile(t *testing.T) {
 	t.Run("fails if file cannot be opened", func(t *testing.T) {
 		vErr := errors.New("file err")
 		fileExists = func(string, fs.Filesystem) error { return nil }
-		_, err := loadFile("", mocks.FS{mocks.FileInfo{}, vErr})
+		_, err := loadFile("", fs.MockFS{fs.MockFileInfo{}, vErr})
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	t.Run("succeeds if file exists and can be opened", func(t *testing.T) {
 		fileExists = func(string, fs.Filesystem) error { return nil }
-		_, err := loadFile("", mocks.FS{})
+		_, err := loadFile("", fs.MockFS{})
 		assert.Equal(t, nil, err)
 	})
 

@@ -1,8 +1,8 @@
 package gitutils
 
 import (
-	"preq/internal/fs"
-	"preq/pkg/client"
+	"preq/internal/pkg/client"
+	"preq/internal/pkg/fs"
 	"regexp"
 
 	"github.com/pkg/errors"

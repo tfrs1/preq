@@ -1,9 +1,8 @@
 package gitutils
 
 import (
-	"preq/internal/fs"
-	"preq/mocks"
-	"preq/pkg/client"
+	"preq/internal/pkg/client"
+	"preq/internal/pkg/fs"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -59,7 +58,7 @@ func TestGetCurrentBranch(t *testing.T) {
 	t.Run("fails when cannot get branch", func(t *testing.T) {
 		vErr := errors.New("branch err")
 		openLocalRepo = func() (gitRepository, error) {
-			return &mocks.GitRepository{ErrorValue: vErr}, nil
+			return &MockGitRepository{ErrorValue: vErr}, nil
 		}
 
 		_, err := GetCurrentBranch()
@@ -69,7 +68,7 @@ func TestGetCurrentBranch(t *testing.T) {
 	t.Run("succeeds otherwise", func(t *testing.T) {
 		v := "branch-name"
 		openLocalRepo = func() (gitRepository, error) {
-			return &mocks.GitRepository{CurrentBranchValue: v}, nil
+			return &MockGitRepository{CurrentBranchValue: v}, nil
 		}
 
 		r, err := GetCurrentBranch()
@@ -95,7 +94,7 @@ func Test_getRemoteInfoList(t *testing.T) {
 	t.Run("fails when cannot get remote", func(t *testing.T) {
 		vErr := errors.New("remote err")
 		openLocalRepo = func() (gitRepository, error) {
-			return &mocks.GitRepository{
+			return &MockGitRepository{
 				ErrorValue: vErr,
 			}, nil
 		}
@@ -107,7 +106,7 @@ func Test_getRemoteInfoList(t *testing.T) {
 	t.Run("fails when cannot parse", func(t *testing.T) {
 		vErr := errors.New("parse err")
 		openLocalRepo = func() (gitRepository, error) {
-			return &mocks.GitRepository{
+			return &MockGitRepository{
 				RemoteURLsValue: []string{"url"},
 			}, nil
 		}
@@ -119,7 +118,7 @@ func Test_getRemoteInfoList(t *testing.T) {
 
 	t.Run("succeeds otherwise", func(t *testing.T) {
 		openLocalRepo = func() (gitRepository, error) {
-			return &mocks.GitRepository{
+			return &MockGitRepository{
 				RemoteURLsValue: []string{"url"},
 			}, nil
 		}
@@ -233,14 +232,14 @@ func Test_getBranchCommits(t *testing.T) {
 
 	t.Run("fail when cannot find any branch commits", func(t *testing.T) {
 		vErr := errors.New("branch err")
-		r := &mocks.GitRepository{ErrorValue: vErr}
+		r := &MockGitRepository{ErrorValue: vErr}
 
 		_, err := getBranchCommits(r, []string{""})
 		assert.EqualError(t, err, ErrCannotFindAnyBranchReference.Error())
 	})
 
 	t.Run("fail when cannot find any branch commits", func(t *testing.T) {
-		r := &mocks.GitRepository{BranchCommitValue: &object.Commit{}}
+		r := &MockGitRepository{BranchCommitValue: &object.Commit{}}
 
 		res, err := getBranchCommits(r, []string{""})
 		assert.NoError(t, err)
@@ -263,7 +262,7 @@ func TestGetClosestBranch(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		vErr := errors.New("head err")
 		openLocalRepo = func() (gitRepository, error) {
-			return &mocks.GitRepository{ErrorValue: vErr}, nil
+			return &MockGitRepository{ErrorValue: vErr}, nil
 		}
 
 		_, err := GetClosestBranch([]string{})
@@ -273,7 +272,7 @@ func TestGetClosestBranch(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		vErr := errors.New("branch commits err")
 		openLocalRepo = func() (gitRepository, error) {
-			return &mocks.GitRepository{}, nil
+			return &MockGitRepository{}, nil
 		}
 		getBranchCommits = func(r gitRepository, branches []string) (branchCommitMap, error) { return nil, vErr }
 
@@ -298,7 +297,7 @@ func TestGetCurrentCommitMessage(t *testing.T) {
 	t.Run("fails when cannot get commit", func(t *testing.T) {
 		vErr := errors.New("commit err")
 		openLocalRepo = func() (gitRepository, error) {
-			return &mocks.GitRepository{
+			return &MockGitRepository{
 				ErrorValue: vErr,
 			}, nil
 		}
@@ -309,7 +308,7 @@ func TestGetCurrentCommitMessage(t *testing.T) {
 	t.Run("succeeds otherwise", func(t *testing.T) {
 		msg := "message"
 		openLocalRepo = func() (gitRepository, error) {
-			return &mocks.GitRepository{Commit: &object.Commit{Message: msg}}, nil
+			return &MockGitRepository{Commit: &object.Commit{Message: msg}}, nil
 		}
 		val, err := GetCurrentCommitMessage()
 		assert.NoError(t, err)

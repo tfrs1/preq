@@ -5,7 +5,7 @@ import (
 	"os"
 	"preq/internal/configutils"
 
-	"preq/internal/command"
+	"preq/internal/cli"
 )
 
 func main() {
@@ -15,5 +15,5 @@ func main() {
 		os.Exit(3)
 	}
 
-	command.Execute()
+	cli.Execute()
 }
