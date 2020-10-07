@@ -1,7 +1,6 @@
 package gitutils
 
 import (
-	"preq/mocks"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -13,7 +12,7 @@ import (
 func Test_repository_GetCheckedOutBranchShortName(t *testing.T) {
 	vErr := errors.New("branch err")
 	r := &repository{
-		r: &mocks.GoGitRepository{
+		r: &MockGoGitRepository{
 			Err: vErr,
 		},
 	}
@@ -26,7 +25,7 @@ func Test_repository_GetRemoteURLs(t *testing.T) {
 	t.Run("fails when cannot get remotes", func(t *testing.T) {
 		vErr := errors.New("remotes err")
 		r := &repository{
-			r: &mocks.GoGitRepository{
+			r: &MockGoGitRepository{
 				Err: vErr,
 			},
 		}
@@ -37,7 +36,7 @@ func Test_repository_GetRemoteURLs(t *testing.T) {
 
 	t.Run("succeeds otherwise", func(t *testing.T) {
 		r := &repository{
-			r: &mocks.GoGitRepository{
+			r: &MockGoGitRepository{
 				RemotesValue: []*git.Remote{
 					git.NewRemote(nil, &config.RemoteConfig{
 						URLs: []string{"url"},
@@ -57,7 +56,7 @@ func Test_repository_CurrentCommit(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		vErr := errors.New("commit err")
 		r := &repository{
-			r: &mocks.GoGitRepository{
+			r: &MockGoGitRepository{
 				Err: vErr,
 			},
 		}
@@ -71,7 +70,7 @@ func Test_repository_BranchCommit(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		vErr := errors.New("branch err")
 		r := &repository{
-			r: &mocks.GoGitRepository{
+			r: &MockGoGitRepository{
 				Err: vErr,
 			},
 		}

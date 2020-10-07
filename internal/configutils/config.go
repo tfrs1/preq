@@ -2,7 +2,7 @@ package configutils
 
 import (
 	"io"
-	"preq/internal/fs"
+	"preq/internal/pkg/fs"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
