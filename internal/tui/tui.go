@@ -1,7 +1,11 @@
 package tui
 
 import (
-	"strings"
+	"fmt"
+	"os"
+	"preq/internal/cli/paramutils"
+	"preq/internal/clientutils"
+	"preq/internal/pkg/client"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -49,26 +53,73 @@ func (prt *pullRequestTable) resetFilter() {
 
 }
 
-func (prt *pullRequestTable) load() {
-	lorem := strings.Split("Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.", " ")
-	cols, rows := 10, 40
-	word := 0
-	for r := 0; r < rows; r++ {
-		for c := 0; c < cols; c++ {
-			// color := tcell.ColorWhite
-			// if c < 1 || r < 1 {
-			// 	color = tcell.ColorYellow
-			// }
-			prt.View.SetCell(r, c,
-				tview.NewTableCell(lorem[word]).
-					// SetTextColor(color).
-					SetAlign(tview.AlignCenter))
-			word = (word + 1) % len(lorem)
+func loadConfig() (client.Client, *client.Repository, error) {
+	params := &paramutils.RepositoryParams{}
+	paramutils.FillDefaultRepositoryParams(params)
+
+	c, err := clientutils.ClientFactory{}.DefaultClient(params.Provider)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
+		Provider:           params.Provider,
+		FullRepositoryName: params.Name,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return c, r, nil
+}
+
+func loadPRs(app *tview.Application, c client.Client, repo *client.Repository, table *tview.Table) {
+	app.QueueUpdateDraw(func() {
+		table.SetCell(0, 0, tview.NewTableCell("Loading...").SetAlign(tview.AlignCenter))
+	})
+
+	nextURL := ""
+	for {
+		prs, err := c.GetPullRequests(&client.GetPullRequestsOptions{
+			Repository: repo,
+			State:      client.PullRequestState_OPEN,
+			Next:       nextURL,
+		})
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(134)
 		}
+
+		nextURL = prs.NextURL
+
+		app.QueueUpdateDraw(func() {
+			table.Clear()
+			table.SetCell(0, 0, tview.NewTableCell("#"))
+			table.SetCell(0, 1, tview.NewTableCell("Title"))
+			table.SetCell(0, 2, tview.NewTableCell("Source -> Destination"))
+			for i, v := range prs.Values {
+				table.SetCell(i+1, 0, tview.NewTableCell(v.ID))
+				table.SetCell(i+1, 1, tview.NewTableCell(v.Title))
+				table.SetCell(i+1, 2, tview.NewTableCell(fmt.Sprintf("%s -> %s", v.Source, v.Destination)))
+			}
+		})
+
+		if nextURL == "" {
+			break
+		}
+
+		app.QueueUpdateDraw(func() {
+			table.SetCell(len(prs.Values), 0, tview.NewTableCell("Loading..."))
+		})
 	}
 }
 
 func Run() {
+	c, repo, err := loadConfig()
+	if err != nil {
+		os.Exit(123)
+	}
+
 	app := tview.NewApplication()
 
 	// newPrimitive := func(text string) tview.Primitive {
@@ -138,8 +189,6 @@ func Run() {
 		SetBorders(false).
 		SetBorder(false)
 
-	table.load()
-
 	// // Layout for screens narrower than 100 cells (menu and side bar are hidden).
 	// grid.AddItem(menu, 0, 0, 0, 0, 0, 0, false).
 	// 	AddItem(table, 1, 0, 1, 3, 0, 0, false).
@@ -154,8 +203,10 @@ func Run() {
 	// 	panic(err)
 	// }
 
+	app.SetFocus(table.View)
+	go loadPRs(app, c, repo, table.View)
+
 	if err := app.SetRoot(grid, true).EnableMouse(true).Run(); err != nil {
-		app.SetFocus(table.View)
 		panic(err)
 	}
 }
