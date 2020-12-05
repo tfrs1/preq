@@ -1,10 +1,11 @@
 package approve
 
 import (
-	"fmt"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
 	"preq/internal/clientutils"
+	"preq/internal/config"
+	"preq/internal/domain/pullrequest"
 	"preq/internal/pkg/client"
 
 	"github.com/spf13/cobra"
@@ -15,14 +16,14 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 
 	params := &approveCmdParams{}
-	paramutils.FillDefaultRepositoryParams(&params.Repository)
-	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
+	config.FillDefaultRepositoryParams(&params.Repository)
+	config.FillFlagRepositoryParams(flags, &params.Repository)
 	err := paramutils.ValidateFlagRepositoryParams(&params.Repository)
 	if err != nil {
 		return err
 	}
 
-	cl, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
+	cl, err := clientutils.ClientFactory{}.DefaultPullRequestRepository(params.Repository.Provider)
 	if err != nil {
 		return err
 	}
@@ -43,29 +44,29 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execute(c client.Client, args *cmdArgs, params *approveCmdParams, repo *client.Repository) error {
+func execute(c pullrequest.Repository, args *cmdArgs, params *approveCmdParams, repo *client.Repository) error {
 	if args.ID != "" {
-		_, err := c.ApprovePullRequest(&client.ApprovePullRequestOptions{
-			Repository: repo,
-			ID:         args.ID,
+		_, err := c.Approve(&pullrequest.ApproveOptions{
+			// Repository: repo,
+			ID: args.ID,
 		})
 		if err != nil {
 			return err
 		}
 	} else {
-		prList, err := c.GetPullRequests(&client.GetPullRequestsOptions{
-			Repository: repo,
-			State:      client.PullRequestState_OPEN,
-		})
-		if err != nil {
-			return err
-		}
+		// prList, err := c.Get(&pullrequest.GetOptions{
+		// 	// Repository: repo,
+		// 	State: client.PullRequestState_OPEN,
+		// })
+		// if err != nil {
+		// 	return err
+		// }
 
-		selectedPRs := utils.PromptPullRequestMultiSelect(prList)
-		utils.ProcessPullRequestMap(selectedPRs, c, repo, approvePR, func(msg interface{}) string {
-			m := msg.(approveResponse)
-			return fmt.Sprintf("Approving #%s... %s\n", m.ID, m.Status)
-		})
+		// selectedPRs := utils.PromptPullRequestMultiSelect(prList)
+		// utils.ProcessPullRequestMap(selectedPRs, c, repo, approvePR, func(msg interface{}) string {
+		// 	m := msg.(approveResponse)
+		// 	return fmt.Sprintf("Approving #%s... %s\n", m.ID, m.Status)
+		// })
 	}
 
 	return nil
@@ -90,10 +91,10 @@ type approveResponse struct {
 	Error  error
 }
 
-func approvePR(cl client.Client, r *client.Repository, id string, c chan interface{}) {
-	_, err := cl.ApprovePullRequest(&client.ApprovePullRequestOptions{
-		Repository: r,
-		ID:         id,
+func approvePR(cl pullrequest.Repository, r *client.Repository, id string, c chan interface{}) {
+	_, err := cl.Approve(&pullrequest.ApproveOptions{
+		// Repository: r,
+		ID: id,
 	})
 
 	res := approveResponse{ID: id, Status: "Done"}

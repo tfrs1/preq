@@ -1,17 +1,14 @@
 package cmdcreate
 
 import (
-	"fmt"
 	"preq/internal/cli/paramutils"
+	"preq/internal/config"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
-	"strings"
-
-	"github.com/AlecAivazis/survey/v2"
 )
 
 type createCmdParams struct {
-	Repository  paramutils.RepositoryParams
+	Repository  config.RepositoryParams
 	Source      string
 	Destination string
 	Title       string
@@ -43,8 +40,14 @@ func (params *createCmdParams) Validate() error {
 	return nil
 }
 
+func populateParams(params *createCmdParams, flags paramutils.FlagSet) {
+	config.FillDefaultRepositoryParams(&params.Repository)
+	fillDefaultParams(params)
+	fillFlagParams(flags, params)
+}
+
 func fillFlagParams(flags paramutils.FlagSet, params *createCmdParams) {
-	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
+	config.FillFlagRepositoryParams(flags, &params.Repository)
 
 	var (
 		source      = flags.GetStringOrDefault("source", params.Source)
@@ -62,8 +65,6 @@ func fillFlagParams(flags paramutils.FlagSet, params *createCmdParams) {
 }
 
 func fillDefaultParams(p *createCmdParams) {
-	paramutils.FillDefaultRepositoryParams(&p.Repository)
-
 	defaultSourceBranch, err := gitutils.GetCurrentBranch()
 	if err == nil {
 		p.Source = defaultSourceBranch
@@ -79,83 +80,6 @@ func fillDefaultParams(p *createCmdParams) {
 	if err == nil {
 		p.Title = title
 	}
-}
-
-func fillInteractiveParams(params *createCmdParams) error {
-	// NOTE: Just hitting enter to select the first option
-	// does not work when the default value is an empty string
-	var defaultProvider interface{}
-	if params.Repository.Provider != "" {
-		defaultProvider = params.Repository.Provider
-	} else {
-		defaultProvider = nil
-	}
-
-	// the questions to ask
-	var qs = []*survey.Question{
-		{
-			Name: "provider",
-			Prompt: &survey.Select{
-				Message: "Provider:",
-				Options: []string{"bitbucket"},
-				Default: defaultProvider,
-			},
-			Validate: survey.Required,
-		},
-		{
-			Name: "repository",
-			Prompt: &survey.Input{
-				Message: "Repository",
-				Default: params.Repository.Name,
-			},
-			Validate: func(val interface{}) error {
-				err := survey.Required(val)
-				if err != nil {
-					return err
-				}
-
-				value := fmt.Sprintf("%v", val)
-
-				v := strings.Split(value, "/")
-				if len(v) != 2 || v[0] == "" || v[1] == "" {
-					return errcodes.ErrRepositoryMustBeInFormOwnerRepo
-				}
-
-				return nil
-			},
-		},
-		{
-			Name: "source",
-			Prompt: &survey.Input{
-				Message: "Source branch",
-				Default: params.Source,
-			},
-			Validate: survey.Required,
-		},
-		{
-			Name: "destination",
-			Prompt: &survey.Input{
-				Message: "Destination branch",
-				Default: params.Destination,
-			},
-			Validate: survey.Required,
-		},
-		{
-			Name: "title",
-			Prompt: &survey.Input{
-				Message: "Title",
-				Default: params.Title,
-			},
-			Validate: survey.Required,
-		},
-	}
-
-	err := survey.Ask(qs, params)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func validateParams(params *createCmdParams) error {

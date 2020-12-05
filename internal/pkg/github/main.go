@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"preq/internal/domain"
+	"preq/internal/domain/pullrequest"
 	preqClient "preq/internal/pkg/client"
 	"strings"
 
@@ -23,9 +25,10 @@ var (
 )
 
 type GithubCloudClient struct {
-	username string
-	token    string
-	uuid     string
+	Repository domain.GitRepository
+	Username   string
+	Token      string
+	UUID       string
 }
 
 type ClientOptions struct {
@@ -34,10 +37,10 @@ type ClientOptions struct {
 	Token    string
 }
 
-func New(o *ClientOptions) preqClient.Client {
+func New(o *ClientOptions) pullrequest.Repository {
 	return &GithubCloudClient{
-		username: o.Username,
-		token:    o.Token,
+		Username: o.Username,
+		Token:    o.Token,
 	}
 }
 
@@ -65,16 +68,32 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 	}, nil
 }
 
-func DefaultClient() (preqClient.Client, error) {
+func DefaultClient() (pullrequest.Repository, error) {
 	config, err := getDefaultConfiguration()
 	if err != nil {
 		return nil, err
 	}
 
 	return &GithubCloudClient{
-		username: config.username,
-		token:    config.token,
-		uuid:     config.uuid,
+		Username: config.username,
+		Token:    config.token,
+		UUID:     config.uuid,
+	}, nil
+}
+
+func DefaultClient1(repo *preqClient.Repository) (pullrequest.Repository, error) {
+	config, err := getDefaultConfiguration()
+	if err != nil {
+		return nil, err
+	}
+
+	return &GithubCloudClient{
+		Repository: domain.GitRepository{
+			Name: fmt.Sprintf("%s/%s", repo.Owner, repo.Name),
+		},
+		Username: config.username,
+		Token:    config.token,
+		UUID:     config.uuid,
 	}, nil
 }
 
@@ -114,21 +133,56 @@ type bbError struct {
 // 	Values     []*client.PullRequest `json:"values"`
 // }
 
-func (c *GithubCloudClient) GetPullRequests(o *preqClient.GetPullRequestsOptions) (*preqClient.PullRequestList, error) {
+type GithubPullRequestPageList struct {
+	pageSize int
+	hasNext  bool
+	counter  int
+	c        *GithubCloudClient
+	o        *pullrequest.GetOptions
+}
+
+func NewPullRequestPageList(c *GithubCloudClient, o *pullrequest.GetOptions) pullrequest.EntityPageList {
+	return &GithubPullRequestPageList{
+		c:        c,
+		o:        o,
+		pageSize: 20,
+		hasNext:  true,
+		counter:  0,
+	}
+}
+
+func (pl *GithubPullRequestPageList) HasNext() bool {
+	return pl.hasNext
+}
+
+func (pl *GithubPullRequestPageList) Next() ([]*pullrequest.Entity, error) {
+	pl.counter++
+	prs, err := pl.GetPage(pl.counter)
+	if err != nil {
+		return nil, err
+	}
+
+	pl.hasNext = len(prs) == pl.pageSize
+
+	return prs, nil
+}
+
+func (pl *GithubPullRequestPageList) GetPage(page int) ([]*pullrequest.Entity, error) {
 	url := fmt.Sprintf(
-		"https://api.github.com/repos/%s/%s/pulls",
-		o.Repository.Owner,
-		o.Repository.Name,
+		"https://api.github.com/repos/%s/pulls",
+		pl.c.Repository.Name,
 	)
 
-	if o.Next != "" {
-		url = o.Next
+	if pl.o.Next != "" {
+		url = pl.o.Next
 	}
 
 	rc := resty.New()
 	r, err := rc.R().
-		SetAuthToken(c.token).
-		SetQueryParam("state", string(o.State)).
+		SetAuthToken(pl.c.Token).
+		// TODO: Add pageSize query
+		SetQueryParam("state", string(pl.o.State)).
+		SetQueryParam("page", fmt.Sprint(page)).
 		SetError(bbError{}).
 		Get(url)
 
@@ -139,14 +193,14 @@ func (c *GithubCloudClient) GetPullRequests(o *preqClient.GetPullRequestsOptions
 		return nil, errors.New(string(r.Body()))
 	}
 
-	var pr preqClient.PullRequestList
+	var pr []*pullrequest.Entity
 	parsed := gjson.ParseBytes(r.Body())
 	parsed.ForEach(func(key, value gjson.Result) bool {
-		pr.Values = append(pr.Values, &preqClient.PullRequest{
-			ID:          value.Get("number").String(),
+		pr = append(pr, &pullrequest.Entity{
+			ID:          pullrequest.EntityID(value.Get("number").String()),
 			Title:       value.Get("title").String(),
 			URL:         value.Get("html_url").String(),
-			State:       preqClient.PullRequestState(value.Get("state").String()),
+			State:       pullrequest.State(value.Get("state").String()),
 			Source:      value.Get("head.ref").String(),
 			Destination: value.Get("base.ref").String(),
 			Created:     value.Get("created_at").Time(),
@@ -162,21 +216,72 @@ func (c *GithubCloudClient) GetPullRequests(o *preqClient.GetPullRequestsOptions
 
 	// pr.NextURL = r.Header().Get("Link") // Split on , -> split on ; check for rel="next"
 
-	return &pr, nil
+	return pr, nil
 }
 
-func unmarshalPR(data []byte) (*preqClient.PullRequest, error) {
+func (c *GithubCloudClient) Get(o *pullrequest.GetOptions) (pullrequest.EntityPageList, error) {
+	return NewPullRequestPageList(c, o), nil
+	// url := fmt.Sprintf(
+	// 	"https://api.github.com/repos/%s/pulls",
+	// 	c.Repository.Name,
+	// )
+
+	// if o.Next != "" {
+	// 	url = o.Next
+	// }
+
+	// rc := resty.New()
+	// r, err := rc.R().
+	// 	SetAuthToken(c.Token).
+	// 	SetQueryParam("state", string(o.State)).
+	// 	SetError(bbError{}).
+	// 	Get(url)
+
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if r.IsError() {
+	// 	return nil, errors.New(string(r.Body()))
+	// }
+
+	// var pr domain.PullRequestList
+	// parsed := gjson.ParseBytes(r.Body())
+	// parsed.ForEach(func(key, value gjson.Result) bool {
+	// 	pr.Values = append(pr.Values, &pullrequest.Entity{
+	// 		ID:          value.Get("number").String(),
+	// 		Title:       value.Get("title").String(),
+	// 		URL:         value.Get("html_url").String(),
+	// 		State:       domain.PullRequestState(value.Get("state").String()),
+	// 		Source:      value.Get("head.ref").String(),
+	// 		Destination: value.Get("base.ref").String(),
+	// 		Created:     value.Get("created_at").Time(),
+	// 		Updated:     value.Get("updated_at").Time(),
+	// 	})
+
+	// 	return true
+	// })
+
+	// // pr.PageLength = uint(parsed.Get("pagelen").Uint())
+	// // pr.Page = uint(parsed.Get("page").Uint())
+	// // pr.Size = uint(parsed.Get("size").Uint())
+
+	// // pr.NextURL = r.Header().Get("Link") // Split on , -> split on ; check for rel="next"
+
+	// return &pr, nil
+}
+
+func unmarshalPR(data []byte) (*pullrequest.Entity, error) {
 	pr := &PullRequest{}
 	err := json.Unmarshal(data, pr)
 	if err != nil {
 		return nil, err
 	}
 
-	return &preqClient.PullRequest{
-		ID:          string(pr.Number),
-		Title:       pr.Title,
-		URL:         pr.Links.HTML.Href,
-		State:       preqClient.PullRequestState(pr.State),
+	return &pullrequest.Entity{
+		ID:    pullrequest.EntityID(fmt.Sprint(pr.Number)),
+		Title: pr.Title,
+		URL:   pr.Links.HTML.Href,
+		// State:       preqClient.PullRequestState(pr.State),
 		Source:      pr.Head.Ref,
 		Destination: pr.Base.Ref,
 	}, nil
@@ -185,7 +290,7 @@ func unmarshalPR(data []byte) (*preqClient.PullRequest, error) {
 func (c *GithubCloudClient) post(url string) (*resty.Response, error) {
 	rc := resty.New()
 	r, err := rc.R().
-		SetAuthToken(c.token).
+		SetAuthToken(c.Token).
 		SetError(bbError{}).
 		Post(url)
 
@@ -200,17 +305,16 @@ func (c *GithubCloudClient) post(url string) (*resty.Response, error) {
 	return r, nil
 }
 
-func (c *GithubCloudClient) DeclinePullRequest(o *preqClient.DeclinePullRequestOptions) (*preqClient.PullRequest, error) {
+func (c *GithubCloudClient) Close(o *pullrequest.CloseOptions) (*pullrequest.Entity, error) {
 	r, err := resty.New().R().
-		SetAuthToken(c.token).
+		SetAuthToken(c.Token).
 		SetBody(ghPROptions{
 			State: "closed",
 		}).
 		SetError(bbError{}).
 		Patch(fmt.Sprintf(
-			"https://api.github.com/repos/%s/%s/pulls/%s",
-			o.Repository.Owner,
-			o.Repository.Name,
+			"https://api.github.com/repos/%s/pulls/%s",
+			c.Repository.Name,
 			o.ID,
 		))
 	if err != nil {
@@ -218,6 +322,14 @@ func (c *GithubCloudClient) DeclinePullRequest(o *preqClient.DeclinePullRequestO
 	}
 
 	return unmarshalPR(r.Body())
+}
+
+func (c *GithubCloudClient) WebPageList() string {
+	return fmt.Sprintf("https://github.com/%s/pulls", c.Repository.Name)
+}
+
+func (c *GithubCloudClient) WebPage(id pullrequest.EntityID) string {
+	return fmt.Sprintf("https://github.com/%s/pull/%s", c.Repository.Name, id)
 }
 
 type getReviewsOptions struct {
@@ -254,7 +366,7 @@ type reviewRequest struct {
 
 func (c *GithubCloudClient) getReviewRequests(o *getReviewsOptions) ([]int64, error) {
 	r, err := resty.New().R().
-		SetAuthToken(c.token).
+		SetAuthToken(c.Token).
 		SetError(githubError{}).
 		Get(fmt.Sprintf(
 			"https://api.github.com/repos/%s/%s/pulls/%s/requested_reviewers",
@@ -284,7 +396,7 @@ func (c *GithubCloudClient) getReviewRequests(o *getReviewsOptions) ([]int64, er
 
 func (c *GithubCloudClient) getReviews(o *getReviewsOptions) (*[]review, error) {
 	r, err := resty.New().R().
-		SetAuthToken(c.token).
+		SetAuthToken(c.Token).
 		SetError(githubError{}).
 		Get(fmt.Sprintf(
 			"https://api.github.com/repos/%s/%s/pulls/%s/reviews",
@@ -308,16 +420,15 @@ func (c *GithubCloudClient) getReviews(o *getReviewsOptions) (*[]review, error) 
 	return reviews, nil
 }
 
-func (c *GithubCloudClient) ApprovePullRequest(o *preqClient.ApprovePullRequestOptions) (*preqClient.PullRequest, error) {
+func (c *GithubCloudClient) Approve(o *pullrequest.ApproveOptions) (*pullrequest.Entity, error) {
 	_, err := resty.New().R().
-		SetAuthToken(c.token).
+		SetAuthToken(c.Token).
 		SetHeader("content-type", "application/json").
 		SetError(githubError{}).
 		SetBody(`{"event": "APPROVE"}`).
 		Post(fmt.Sprintf(
-			"https://api.github.com/repos/%s/%s/pulls/%s/reviews",
-			o.Repository.Owner,
-			o.Repository.Name,
+			"https://api.github.com/repos/%s/pulls/%s/reviews",
+			c.Repository.Name,
 			o.ID,
 		))
 	if err != nil {
@@ -326,13 +437,13 @@ func (c *GithubCloudClient) ApprovePullRequest(o *preqClient.ApprovePullRequestO
 
 	// TODO: Parse the response
 
-	return &preqClient.PullRequest{
-		ID: o.ID,
+	return &pullrequest.Entity{
+		ID: pullrequest.EntityID(o.ID),
 		// State: preqClient.PullRequestReviewState_APPROVED,
 	}, nil
 }
 
-func verifyCreatePullRequestOptions(o *preqClient.CreatePullRequestOptions) error {
+func verifyCreatePullRequestOptions(o *pullrequest.CreateOptions) error {
 	if o.Source == "" {
 		return errors.New("missing source branch")
 	}
@@ -346,7 +457,7 @@ func verifyCreatePullRequestOptions(o *preqClient.CreatePullRequestOptions) erro
 
 func (c *GithubCloudClient) getReviewRequestsForUser(u *User) ([]*Item, error) {
 	client := newClient(&newClientOptions{
-		Token: c.token,
+		Token: c.Token,
 	})
 
 	res, err := client.Search.Issues(
@@ -366,7 +477,7 @@ func (c *GithubCloudClient) getReviewRequestsForUser(u *User) ([]*Item, error) {
 }
 
 func (c *GithubCloudClient) GetCurrentUser() (*preqClient.User, error) {
-	client := newClient(&newClientOptions{Token: c.token})
+	client := newClient(&newClientOptions{Token: c.Token})
 
 	u, err := client.User.Current(context.Background())
 	if err != nil {
@@ -374,11 +485,11 @@ func (c *GithubCloudClient) GetCurrentUser() (*preqClient.User, error) {
 	}
 
 	return &preqClient.User{
-		ID: string(u.ID),
+		ID: fmt.Sprint(u.ID),
 	}, nil
 }
 
-func (c *GithubCloudClient) CreatePullRequest(o *preqClient.CreatePullRequestOptions) (*preqClient.PullRequest, error) {
+func (c *GithubCloudClient) Create(o *pullrequest.CreateOptions) (*pullrequest.Entity, error) {
 	err := verifyCreatePullRequestOptions(o)
 	if err != nil {
 		return nil, err
@@ -394,7 +505,7 @@ func (c *GithubCloudClient) CreatePullRequest(o *preqClient.CreatePullRequestOpt
 	// }
 
 	r, err := resty.New().R().
-		SetAuthToken(c.token).
+		SetAuthToken(c.Token).
 		// SetHeader("content-type", "application/json").
 		SetBody(ghPROptions{
 			Title: o.Title,
@@ -404,9 +515,8 @@ func (c *GithubCloudClient) CreatePullRequest(o *preqClient.CreatePullRequestOpt
 		}).
 		SetError(bbError{}).
 		Post(fmt.Sprintf(
-			"https://api.github.com/repos/%s/%s/pulls",
-			o.Repository.Owner,
-			o.Repository.Name,
+			"https://api.github.com/repos/%s/pulls",
+			c.Repository.Name,
 		))
 
 	if err != nil {
@@ -421,11 +531,11 @@ func (c *GithubCloudClient) CreatePullRequest(o *preqClient.CreatePullRequestOpt
 		log.Fatal(err)
 	}
 
-	return &preqClient.PullRequest{
-		ID:          string(pr.Number),
-		Title:       pr.Title,
-		URL:         pr.Links.HTML.Href,
-		State:       preqClient.PullRequestState(pr.State),
+	return &pullrequest.Entity{
+		ID:    pullrequest.EntityID(fmt.Sprint(pr.Number)),
+		Title: pr.Title,
+		URL:   pr.Links.HTML.Href,
+		// State:       preqClient.PullRequestState(pr.State),
 		Source:      pr.Head.Ref,
 		Destination: pr.Base.Ref,
 	}, nil

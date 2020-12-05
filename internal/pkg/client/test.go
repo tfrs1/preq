@@ -1,21 +1,25 @@
 package client
 
+import (
+	"preq/internal/domain/pullrequest"
+)
+
 type MockClient struct {
 	ErrorValue error
 }
 
-func (c *MockClient) GetPullRequests(o *GetPullRequestsOptions) (*PullRequestList, error) {
+func (c *MockClient) Get(o *pullrequest.GetOptions) (pullrequest.EntityPageList, error) {
 	return nil, c.ErrorValue
 }
 
-func (c *MockClient) CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error) {
+func (c *MockClient) Create(o *pullrequest.CreateOptions) (*pullrequest.Entity, error) {
 	return nil, c.ErrorValue
 }
 
-func (c *MockClient) ApprovePullRequest(o *ApprovePullRequestOptions) (*PullRequest, error) {
+func (c *MockClient) Approve(o *pullrequest.ApproveOptions) (*pullrequest.Entity, error) {
 	return nil, c.ErrorValue
 }
 
-func (c *MockClient) DeclinePullRequest(o *DeclinePullRequestOptions) (*PullRequest, error) {
+func (c *MockClient) Close(o *pullrequest.CloseOptions) (*pullrequest.Entity, error) {
 	return nil, c.ErrorValue
 }

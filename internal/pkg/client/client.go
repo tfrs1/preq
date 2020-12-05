@@ -16,10 +16,10 @@ var (
 )
 
 type Client interface {
-	DeclinePullRequest(o *DeclinePullRequestOptions) (*PullRequest, error)
-	GetPullRequests(o *GetPullRequestsOptions) (*PullRequestList, error)
-	CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error)
-	ApprovePullRequest(o *ApprovePullRequestOptions) (*PullRequest, error)
+	Close(o *ClosePullRequestOptions) (*PullRequest, error)
+	Get(o *GetPullRequestOptions) (*PullRequestList, error)
+	Create(o *CreatePullRequestOptions) (*PullRequest, error)
+	Approve(o *ApprovePullRequestOptions) (*PullRequest, error)
 }
 
 type RepositoryProvider string
@@ -90,19 +90,19 @@ const (
 type PullRequestState string
 
 const (
-	PullRequestState_DECLINED   = "DECLINED"
+	PullRequestState_CLOSED     = "CLOSED"
 	PullRequestState_OPEN       = "OPEN"
 	PullRequestState_MERGED     = "MERGED"
 	PullRequestState_SUPERSEDED = "SUPERSEDED"
 )
 
-type GetPullRequestsOptions struct {
+type GetPullRequestOptions struct {
 	Repository *Repository
 	State      PullRequestState
 	Next       string
 }
 
-type DeclinePullRequestOptions struct {
+type ClosePullRequestOptions struct {
 	Repository *Repository
 	ID         string
 }

@@ -1,10 +1,4 @@
-package approve
-
-// import (
-// 	"preq/internal/cli/paramutils"
-// )
-
-// package decline
+package close
 
 import (
 	"fmt"
@@ -16,15 +10,10 @@ import (
 	"strings"
 )
 
-type approveCmdParams struct {
-	Repository config.RepositoryParams
-}
-
 var getRemoteInfo = gitutils.GetRemoteInfo
 
 type cmdParams struct {
-	Provider   client.RepositoryProvider
-	Repository string
+	Repository config.RepositoryParams
 }
 
 type cmdArgs struct {
@@ -43,33 +32,33 @@ func parseArgs(args []string) *cmdArgs {
 func fillDefaultCloseCmdParams(params *cmdParams) {
 	defaultRepo, err := getRemoteInfo()
 	if err == nil {
-		params.Repository = fmt.Sprintf("%s/%s", defaultRepo.Owner, defaultRepo.Name)
-		params.Provider = defaultRepo.Provider
+		params.Repository.Name = fmt.Sprintf("%s/%s", defaultRepo.Owner, defaultRepo.Name)
+		params.Repository.Provider = defaultRepo.Provider
 	}
 }
 
 func fillFlagCloseCmdParams(flags paramutils.FlagSet, params *cmdParams) {
 	var (
-		repo     = flags.GetStringOrDefault("repository", "")
-		provider = flags.GetStringOrDefault("provider", "")
+		repo     = flags.GetStringOrDefault("repository", params.Repository.Name)
+		provider = flags.GetStringOrDefault("provider", string(params.Repository.Provider))
 	)
 
-	params.Repository = repo
-	params.Provider = client.RepositoryProvider(provider)
+	params.Repository.Name = repo
+	params.Repository.Provider = client.RepositoryProvider(provider)
 }
 
 var validateFlagCloseCmdParams = func(params *cmdParams) error {
-	if (params.Repository == "" && params.Provider != "") || (params.Repository != "" && params.Provider == "") {
+	if (params.Repository.Name == "" && params.Repository.Provider != "") || (params.Repository.Name != "" && params.Repository.Provider == "") {
 		return errcodes.ErrSomeRepoParamsMissing
 	}
 
-	if params.Repository != "" && params.Provider != "" {
-		v := strings.Split(params.Repository, "/")
+	if params.Repository.Name != "" && params.Repository.Provider != "" {
+		v := strings.Split(params.Repository.Name, "/")
 		if len(v) != 2 || v[0] == "" || v[1] == "" {
 			return errcodes.ErrRepositoryMustBeInFormOwnerRepo
 		}
 
-		if !params.Provider.IsValid() {
+		if !params.Repository.Provider.IsValid() {
 			return errcodes.ErrorRepositoryProviderUnknown
 		}
 	}

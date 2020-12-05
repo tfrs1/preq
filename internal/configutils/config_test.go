@@ -120,31 +120,26 @@ func Test_loadConfig(t *testing.T) {
 
 func TestLoad(t *testing.T) {
 	oldLoadConfig := loadConfig
-	oldGetGlobalConfigPath := getGlobalConfigPath
 
 	t.Run("", func(t *testing.T) {
 		loadConfig = func(string) error { return nil }
-		getGlobalConfigPath = func() (string, error) { return "", nil }
-		err := Load()
+		err := LoadGlobal("")
 		assert.Equal(t, nil, err)
 	})
 
-	t.Run("", func(t *testing.T) {
-		getGlobalConfigPath = func() (string, error) { return "", errors.New("") }
-		err := Load()
-		assert.EqualError(t, err, ErrHomeDirNotFound.Error())
-	})
+	// t.Run("homedir should fail", func(t *testing.T) {
+	// 	err := LoadDefault("")
+	// 	assert.EqualError(t, err, ErrHomeDirNotFound.Error())
+	// })
 
 	t.Run("", func(t *testing.T) {
 		vErr := errors.New("load err")
 		loadConfig = func(string) error { return vErr }
-		getGlobalConfigPath = func() (string, error) { return "", nil }
-		err := Load()
+		err := LoadGlobal("")
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	loadConfig = oldLoadConfig
-	getGlobalConfigPath = oldGetGlobalConfigPath
 }
 
 func TestGetStringFlagOrDefault(t *testing.T) {

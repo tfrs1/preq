@@ -7,9 +7,9 @@ import (
 	"os"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
-	"preq/internal/clientutils"
+	"preq/internal/config"
+	"preq/internal/domain/pullrequest"
 	"preq/internal/pkg/client"
-	"preq/internal/systemcodes"
 
 	"github.com/gosuri/uilive"
 	"github.com/gosuri/uitable"
@@ -18,29 +18,21 @@ import (
 
 func runCmd(cmd *cobra.Command, args []string) error {
 	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
+	c, _, err := config.LoadLocal(flags)
+	if err != nil {
+		fmt.Println("unknown error")
+		os.Exit(123)
+	}
 
 	params := &listCmdParams{}
-	paramutils.FillDefaultRepositoryParams(&params.Repository)
-	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
-	err := paramutils.ValidateFlagRepositoryParams(&params.Repository)
+	config.FillDefaultRepositoryParams(&params.Repository)
+	config.FillFlagRepositoryParams(flags, &params.Repository)
+	err = paramutils.ValidateFlagRepositoryParams(&params.Repository)
 	if err != nil {
 		return err
 	}
 
-	c, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
-	if err != nil {
-		return err
-	}
-
-	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider:           params.Repository.Provider,
-		FullRepositoryName: params.Repository.Name,
-	})
-	if err != nil {
-		return err
-	}
-
-	err = execute(c, params, r)
+	err = execute(c, params)
 	if err != nil {
 		return err
 	}
@@ -48,10 +40,15 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execute(c client.Client, params *listCmdParams, repo *client.Repository) error {
-	nextURL := ""
-	reader := bufio.NewReader(os.Stdin)
+func execute(c pullrequest.Repository, params *listCmdParams) error {
+	list, err := c.Get(&pullrequest.GetOptions{
+		State: client.PullRequestState_OPEN,
+	})
+	if err != nil {
+		return err
+	}
 
+	reader := bufio.NewReader(os.Stdin)
 	writer := uilive.New()
 	defer writer.Stop()
 	writer.Start()
@@ -61,20 +58,12 @@ func execute(c client.Client, params *listCmdParams, repo *client.Repository) er
 	table.AddRow("-", "-----", "--------", "---")
 
 	for {
-		prs, err := c.GetPullRequests(&client.GetPullRequestsOptions{
-			Repository: repo,
-			State:      client.PullRequestState_OPEN,
-			Next:       nextURL,
-		})
-
+		prs, err := list.Next()
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(systemcodes.ErrorCodeGeneric)
+			return err
 		}
 
-		nextURL = prs.NextURL
-
-		for _, v := range prs.Values {
+		for _, v := range prs {
 			table.AddRow(
 				v.ID,
 				v.Title,
@@ -85,7 +74,7 @@ func execute(c client.Client, params *listCmdParams, repo *client.Repository) er
 
 		fmt.Fprintln(writer, table.String())
 
-		if nextURL == "" {
+		if !list.HasNext() {
 			break
 		}
 

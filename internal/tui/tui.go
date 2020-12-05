@@ -2,17 +2,25 @@ package tui
 
 import (
 	"fmt"
-	"os"
-	"preq/internal/cli/paramutils"
-	"preq/internal/clientutils"
-	"preq/internal/pkg/client"
+	"preq/internal/domain"
+	"preq/internal/domain/pullrequest"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
+type pullRequestTableItem struct {
+	ID          string
+	Title       string
+	Source      string
+	Destination string
+}
+
 type pullRequestTable struct {
-	View *tview.Table
+	View            *tview.Table
+	items           []*pullRequestTableItem
+	selectedStyle   tcell.Style
+	unselectedStyle tcell.Style
 }
 
 func newPullRequestTable() *pullRequestTable {
@@ -23,26 +31,71 @@ func newPullRequestTable() *pullRequestTable {
 	// 	SetTitle("preq").
 	// 	SetBorder(true)
 
+	var styleInstance tcell.Style
+	unselectedStyle := styleInstance.
+		Background(tcell.ColorDefault).
+		Foreground(tcell.ColorWhite)
+
+	selectedStyle := styleInstance.
+		Italic(true).
+		Bold(true).
+		Background(tcell.ColorDarkRed)
+
+	selected := false
+
+	items := []*pullRequestTableItem{}
+	instance := &pullRequestTable{table, items, selectedStyle, unselectedStyle}
 	// Set table options
 	table.
 		SetBorders(false).
 		Select(0, 0).
 		SetFixed(1, 1).
 		SetSelectable(true, false).
+		// SetSelectedStyle(tableSelectedStyle).
 		SetDoneFunc(func(key tcell.Key) {
 			// if key == tcell.KeyEscape {
-			// 	app.Stop()
+			// 	// table.SetSelectable(true, false)
 			// }
-			// if key == tcell.KeyEnter {
-			// 	table.SetSelectable(true, false)
-			// }
+			if key == tcell.KeyEnter {
+				// table.SetSelectable(true, false)
+			}
 		}).
-		SetSelectedFunc(func(row int, column int) {
-			table.GetCell(row, column).SetTextColor(tcell.ColorRed)
-			table.SetSelectable(false, false)
+		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			switch event.Rune() {
+			case ' ':
+				row, _ := table.GetSelection()
+				// Disable selecting the header row
+				if row == 0 {
+					return nil
+				}
+
+				if selected {
+					selected = false
+					instance.selectRow(row)
+				} else {
+					selected = true
+					instance.unselectRow(row)
+				}
+
+				return nil
+			}
+
+			return event
 		})
 
-	return &pullRequestTable{table}
+	return instance
+}
+
+func (prt *pullRequestTable) selectRow(row int) {
+	for i := 0; i < prt.View.GetColumnCount(); i++ {
+		prt.View.GetCell(row, i).SetStyle(prt.selectedStyle)
+	}
+}
+
+func (prt *pullRequestTable) unselectRow(row int) {
+	for i := 0; i < prt.View.GetColumnCount(); i++ {
+		prt.View.GetCell(row, i).SetStyle(prt.unselectedStyle)
+	}
 }
 
 func (prt *pullRequestTable) filter(input string) {
@@ -53,74 +106,100 @@ func (prt *pullRequestTable) resetFilter() {
 
 }
 
-func loadConfig() (client.Client, *client.Repository, error) {
-	params := &paramutils.RepositoryParams{}
-	paramutils.FillDefaultRepositoryParams(params)
-
-	c, err := clientutils.ClientFactory{}.DefaultClient(params.Provider)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider:           params.Provider,
-		FullRepositoryName: params.Name,
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return c, r, nil
+func (prt *pullRequestTable) Clear() {
+	prt.View.Clear()
+	prt.View.SetCell(0, 0, tview.NewTableCell("#"))
+	prt.View.SetCell(0, 1, tview.NewTableCell("Title"))
+	prt.View.SetCell(0, 2, tview.NewTableCell("Source -> Destination"))
 }
 
-func loadPRs(app *tview.Application, c client.Client, repo *client.Repository, table *tview.Table) {
+func (prt *pullRequestTable) AddRow(prti *pullRequestTableItem) {
+	prt.items = append(prt.items, prti)
+	i := len(prt.items)
+	prt.View.SetCell(i, 0, tview.NewTableCell(prti.ID))
+	prt.View.SetCell(i, 1, tview.NewTableCell(prti.Title))
+	prt.View.SetCell(i, 2, tview.NewTableCell(fmt.Sprintf("%s -> %s", prti.Source, prti.Destination)))
+}
+
+type grid struct {
+	grid   *tview.Grid
+	table  *tview.Table
+	search *tview.InputField
+}
+
+func (g *grid) showFilter() {
+	g.grid.Clear().
+		AddItem(g.table, 0, 0, 1, 1, 0, 0, false).
+		AddItem(g.search, 1, 0, 1, 1, 0, 0, false)
+}
+
+func (g *grid) hideFilter() {
+	g.grid.Clear().
+		AddItem(g.table, 0, 0, 2, 1, 0, 0, false)
+}
+
+func loadPRs(app *tview.Application, prList pullrequest.EntityPageList, table *pullRequestTable) {
 	app.QueueUpdateDraw(func() {
-		table.SetCell(0, 0, tview.NewTableCell("Loading...").SetAlign(tview.AlignCenter))
+		table.View.SetCell(0, 0, tview.NewTableCell("Loading...").SetAlign(tview.AlignCenter))
 	})
 
-	nextURL := ""
-	for {
-		prs, err := c.GetPullRequests(&client.GetPullRequestsOptions{
-			Repository: repo,
-			State:      client.PullRequestState_OPEN,
-			Next:       nextURL,
-		})
+	app.QueueUpdateDraw(func() {
+		table.Clear()
+		values, err := prList.GetPage(1)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(134)
+			return
 		}
 
-		nextURL = prs.NextURL
-
-		app.QueueUpdateDraw(func() {
-			table.Clear()
-			table.SetCell(0, 0, tview.NewTableCell("#"))
-			table.SetCell(0, 1, tview.NewTableCell("Title"))
-			table.SetCell(0, 2, tview.NewTableCell("Source -> Destination"))
-			for i, v := range prs.Values {
-				table.SetCell(i+1, 0, tview.NewTableCell(v.ID))
-				table.SetCell(i+1, 1, tview.NewTableCell(v.Title))
-				table.SetCell(i+1, 2, tview.NewTableCell(fmt.Sprintf("%s -> %s", v.Source, v.Destination)))
-			}
-		})
-
-		if nextURL == "" {
-			break
+		for _, v := range values {
+			table.AddRow(&pullRequestTableItem{
+				// ID:          v.ID,
+				Title:       v.Title,
+				Source:      v.Source,
+				Destination: v.Destination,
+			})
 		}
+	})
 
-		app.QueueUpdateDraw(func() {
-			table.SetCell(len(prs.Values), 0, tview.NewTableCell("Loading..."))
-		})
+	// app.QueueUpdateDraw(func() {
+	// 	table.View.SetCell(len(prList.Values), 0, tview.NewTableCell("Loading..."))
+	// })
+}
+
+type TuiPresenter struct {
+	client pullrequest.Repository
+}
+
+func (tp *TuiPresenter) Start() {
+	run(tp.client)
+}
+
+func (tp *TuiPresenter) Notify(e *domain.Event) {}
+
+func NewTui(c []pullrequest.Repository) *TuiPresenter {
+	return &TuiPresenter{
+		client: c[0],
 	}
 }
 
-func Run() {
-	c, repo, err := loadConfig()
-	if err != nil {
-		os.Exit(123)
-	}
+type app struct {
+	tui         *tview.Application
+	table       *pullRequestTable
+	searchInput *tview.InputField
+	grid        *grid
+}
 
-	app := tview.NewApplication()
+func (app *app) Update(prList pullrequest.EntityPageList) {
+	loadPRs(app.tui, prList, app.table)
+	// fmt.Println(prList)
+}
+
+func (app *app) UpdateFailed(error) {}
+
+func newApp() *app {
+	tui := tview.NewApplication()
+	table := newPullRequestTable()
+	searchInput := tview.NewInputField()
+	grid := &grid{tview.NewGrid(), table.View, searchInput}
 
 	// newPrimitive := func(text string) tview.Primitive {
 	// 	return tview.NewTextView().
@@ -131,13 +210,20 @@ func Run() {
 	// main := newPrimitive("Main content")
 	// sideBar := newPrimitive("Side Bar")
 
-	table := newPullRequestTable()
 	table.View.
 		SetBorder(true).
-		SetTitle("Pull requests")
+		SetTitle("Pull requests").
+		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			switch event.Key() {
+			case tcell.KeyCtrlD:
+				fmt.Println("delete?")
+				return nil
+			}
 
-	searchInput := tview.NewInputField().
-		SetPlaceholder("Filter pull requests")
+			return event
+		})
+
+	searchInput.SetPlaceholder("Filter pull requests")
 	searchInput.
 		SetBorder(true).
 		SetTitle("Filter")
@@ -145,28 +231,33 @@ func Run() {
 	searchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEscape:
+			grid.hideFilter()
 			searchInput.SetText("")
+			tui.SetFocus(table.View)
+			// grid.RemoveItem(searchInput)
 		}
 
 		return event
 	})
 
-	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	tui.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEscape:
-			if app.GetFocus() != searchInput || searchInput.GetText() == "" {
-				app.Stop()
-			}
+			// if app.GetFocus() != searchInput || searchInput.GetText() == "" {
+			// 	app.Stop()
+			// }
 		}
 
 		switch event.Rune() {
 		case 'q':
-			if app.GetFocus() != searchInput {
-				app.Stop()
+			if tui.GetFocus() != searchInput {
+				tui.Stop()
 			}
 		case '/':
-			if app.GetFocus() != searchInput {
-				app.SetFocus(searchInput)
+			if tui.GetFocus() != searchInput {
+				grid.showFilter()
+				// grid.AddItem(searchInput, 1, 0, 1, 1, 0, 0, false)
+				tui.SetFocus(searchInput)
 				return nil
 			}
 		}
@@ -174,17 +265,16 @@ func Run() {
 		return event
 	})
 
-	grid := tview.NewGrid().
+	grid.grid.
 		// SetRows(3, 0, 3).
 		// SetColumns(30, 0, 30).
 		SetRows(0, 3).
 		SetBorders(true).
-		AddItem(table.View, 0, 0, 1, 1, 0, 0, false).
-		AddItem(searchInput, 1, 0, 1, 1, 0, 0, false)
+		AddItem(table.View, 0, 0, 2, 1, 0, 0, false)
 	// AddItem(newPrimitive("Header"), 0, 0, 1, 3, 0, 0, false).
 	// 	AddItem(newPrimitive("Footer"), 2, 0, 1, 3, 0, 0, false)
 
-	grid.
+	grid.grid.
 		// 	SetTitle("preq").
 		SetBorders(false).
 		SetBorder(false)
@@ -203,10 +293,23 @@ func Run() {
 	// 	panic(err)
 	// }
 
-	app.SetFocus(table.View)
-	go loadPRs(app, c, repo, table.View)
+	tui.SetFocus(table.View)
+	tui = tui.SetRoot(grid.grid, true).EnableMouse(true)
 
-	if err := app.SetRoot(grid, true).EnableMouse(true).Run(); err != nil {
+	return &app{
+		tui:         tui,
+		table:       table,
+		grid:        grid,
+		searchInput: searchInput,
+	}
+}
+
+func run(c pullrequest.Repository) {
+	app := newApp()
+	go domain.LoadPullRequests(c, app)
+
+	if err := app.tui.Run(); err != nil {
 		panic(err)
 	}
+
 }

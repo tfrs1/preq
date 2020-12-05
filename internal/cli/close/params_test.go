@@ -1,4 +1,4 @@
-package decline
+package close
 
 import (
 	"preq/internal/cli/paramutils"
@@ -22,7 +22,7 @@ func Test_parseArgs(t *testing.T) {
 	})
 }
 
-func Test_fillDefaultDeclineCmdParams(t *testing.T) {
+func Test_fillDefaultCloseCmdParams(t *testing.T) {
 	t.Run("another test", func(t *testing.T) {
 		old := getRemoteInfo
 		defer func() { getRemoteInfo = old }()
@@ -35,16 +35,16 @@ func Test_fillDefaultDeclineCmdParams(t *testing.T) {
 		}
 
 		params := cmdParams{}
-		fillDefaultDeclineCmdParams(&params)
+		fillDefaultCloseCmdParams(&params)
 		assert.Equal(t, params.Provider, client.RepositoryProviderEnum.BITBUCKET)
 		assert.Equal(t, params.Repository, "owner/repo-name")
 	})
 }
 
-func Test_validateFlagDeclineCmdParams(t *testing.T) {
+func Test_validateFlagCloseCmdParams(t *testing.T) {
 	t.Run("no param", func(t *testing.T) {
 		params := &cmdParams{}
-		err := validateFlagDeclineCmdParams(params)
+		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, nil, err)
 	})
 
@@ -52,7 +52,7 @@ func Test_validateFlagDeclineCmdParams(t *testing.T) {
 		params := &cmdParams{
 			Repository: "owner/repo-name",
 		}
-		err := validateFlagDeclineCmdParams(params)
+		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, errcodes.ErrSomeRepoParamsMissing, err)
 	})
 
@@ -60,7 +60,7 @@ func Test_validateFlagDeclineCmdParams(t *testing.T) {
 		params := &cmdParams{
 			Provider: "provider",
 		}
-		err := validateFlagDeclineCmdParams(params)
+		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, errcodes.ErrSomeRepoParamsMissing, err)
 	})
 
@@ -69,7 +69,7 @@ func Test_validateFlagDeclineCmdParams(t *testing.T) {
 			Repository: "wrong",
 			Provider:   "provider",
 		}
-		err := validateFlagDeclineCmdParams(params)
+		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, errcodes.ErrRepositoryMustBeInFormOwnerRepo, err)
 	})
 
@@ -78,7 +78,7 @@ func Test_validateFlagDeclineCmdParams(t *testing.T) {
 			Repository: "owner/repo-name",
 			Provider:   "wrong",
 		}
-		err := validateFlagDeclineCmdParams(params)
+		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, errcodes.ErrorRepositoryProviderUnknown, err)
 	})
 
@@ -87,16 +87,16 @@ func Test_validateFlagDeclineCmdParams(t *testing.T) {
 			Repository: "owner/repo-name",
 			Provider:   client.RepositoryProviderEnum.BITBUCKET,
 		}
-		err := validateFlagDeclineCmdParams(params)
+		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, nil, err)
 	})
 }
 
-func Test_fillFlagDeclineCmdParams(t *testing.T) {
+func Test_fillFlagCloseCmdParams(t *testing.T) {
 	t.Run("fills with flag parameters", func(t *testing.T) {
 		repo := "owner/repo"
 		params := cmdParams{}
-		fillFlagDeclineCmdParams(
+		fillFlagCloseCmdParams(
 			&paramutils.MockPreqFlagSet{StringMap: map[string]interface{}{
 				"repository": repo,
 				"provider":   string(client.RepositoryProviderEnum.BITBUCKET),
@@ -110,7 +110,7 @@ func Test_fillFlagDeclineCmdParams(t *testing.T) {
 
 	t.Run("fills with fallback parameters", func(t *testing.T) {
 		params := cmdParams{}
-		fillFlagDeclineCmdParams(
+		fillFlagCloseCmdParams(
 			&paramutils.MockPreqFlagSet{},
 			&params,
 		)
