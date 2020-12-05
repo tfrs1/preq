@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"preq/internal/cli/utils"
 	"preq/internal/clientutils"
+	"preq/internal/domain"
 	"preq/internal/pkg/client"
 	"preq/internal/systemcodes"
 	"runtime"
@@ -42,16 +43,16 @@ func execute(args *cmdArgs, params *openCmdParams) error {
 		if err != nil {
 			return err
 		}
-		r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
+		_, err = client.NewRepositoryFromOptions(&client.RepositoryOptions{
 			Provider:           client.RepositoryProvider(params.Repository.Provider),
 			FullRepositoryName: params.Repository.Name,
 		})
 		if err != nil {
 			return err
 		}
-		prList, err := cl.GetPullRequests(&client.GetPullRequestsOptions{
-			Repository: r,
-			State:      client.PullRequestState_OPEN,
+		prList, err := cl.GetPullRequests(&domain.GetPullRequestOptions{
+			// Repository: r,
+			State: client.PullRequestState_OPEN,
 		})
 		if err != nil {
 			return err

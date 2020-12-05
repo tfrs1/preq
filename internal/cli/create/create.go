@@ -5,8 +5,8 @@ import (
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
 	"preq/internal/clientutils"
+	"preq/internal/domain"
 	"preq/internal/domain/pullrequest"
-	"preq/internal/pkg/client"
 
 	"github.com/spf13/cobra"
 )
@@ -54,12 +54,12 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-type creatorAdatapter struct {
-	Client client.Client
+type creatorAdapter struct {
+	Client domain.Client
 }
 
-func (ca *creatorAdatapter) Create(o *pullrequest.CreateOptions) (*pullrequest.Entity, error) {
-	cpro := &client.CreatePullRequestOptions{
+func (ca *creatorAdapter) Create(o *pullrequest.CreateOptions) (*pullrequest.Entity, error) {
+	cpro := &domain.CreatePullRequestOptions{
 		CloseBranch: o.CloseBranch,
 		Destination: o.Destination,
 		Source:      o.Source,
@@ -80,8 +80,8 @@ func (ca *creatorAdatapter) Create(o *pullrequest.CreateOptions) (*pullrequest.E
 	}, nil
 }
 
-func execute(c client.Client, params *createCmdParams) error {
-	ca := &creatorAdatapter{Client: c}
+func execute(c domain.Client, params *createCmdParams) error {
+	ca := &creatorAdapter{Client: c}
 
 	service := pullrequest.NewCreateService(ca)
 	pr, err := service.Create(&pullrequest.CreateOptions{

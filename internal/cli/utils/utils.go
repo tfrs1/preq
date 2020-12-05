@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"preq/internal/domain"
 	"preq/internal/pkg/client"
 	"preq/internal/systemcodes"
 
@@ -16,7 +17,7 @@ type PromptPullRequest struct {
 	Title string
 }
 
-func PromptPullRequestMultiSelect(prList *client.PullRequestList) map[string]*PromptPullRequest {
+func PromptPullRequestMultiSelect(prList *domain.PullRequestList) map[string]*PromptPullRequest {
 	prs := getPromptPullRequestSilce(prList)
 
 	answers := []string{}
@@ -45,9 +46,9 @@ func PromptPullRequestMultiSelect(prList *client.PullRequestList) map[string]*Pr
 
 func ProcessPullRequestMap(
 	selectedPRs map[string]*PromptPullRequest,
-	cl client.Client,
+	cl domain.Client,
 	r *client.Repository,
-	processFn func(cl client.Client, r *client.Repository, id string, c chan interface{}),
+	processFn func(cl domain.Client, r *client.Repository, id string, c chan interface{}),
 	fn func(interface{}) string,
 ) {
 	c := make(chan interface{})
@@ -68,7 +69,7 @@ func ProcessPullRequestMap(
 	}
 }
 
-func maxPRDescriptionLength(prs []*client.PullRequest, limit int) int {
+func maxPRDescriptionLength(prs []*domain.PullRequest, limit int) int {
 	maxLen := 0
 	for _, pr := range prs {
 		l := len(pr.Source) + len(pr.Destination) + 4
@@ -84,7 +85,7 @@ func maxPRDescriptionLength(prs []*client.PullRequest, limit int) int {
 	return maxLen
 }
 
-func getPromptPullRequestSilce(prs *client.PullRequestList) []*PromptPullRequest {
+func getPromptPullRequestSilce(prs *domain.PullRequestList) []*PromptPullRequest {
 	maxLen := maxPRDescriptionLength(prs.Values, 30)
 	prFormat := fmt.Sprintf("#%%s: %%-%ds %%s %%s", maxLen)
 	options := make([]*PromptPullRequest, 0, len(prs.Values))
@@ -105,7 +106,7 @@ func getPromptPullRequestSilce(prs *client.PullRequestList) []*PromptPullRequest
 	return options
 }
 
-func PromptPullRequestSelect(prList *client.PullRequestList) *PromptPullRequest {
+func PromptPullRequestSelect(prList *domain.PullRequestList) *PromptPullRequest {
 	prs := getPromptPullRequestSilce(prList)
 
 	var answer string

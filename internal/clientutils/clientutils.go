@@ -2,6 +2,7 @@ package clientutils
 
 import (
 	"errors"
+	"preq/internal/domain"
 	"preq/internal/pkg/bitbucket"
 	"preq/internal/pkg/client"
 	"preq/internal/pkg/github"
@@ -9,7 +10,7 @@ import (
 
 type ClientFactory struct{}
 
-func (cf ClientFactory) DefaultClient(provider client.RepositoryProvider) (client.Client, error) {
+func (cf ClientFactory) DefaultClient(provider client.RepositoryProvider) (domain.Client, error) {
 	switch provider {
 	case client.RepositoryProviderEnum.BITBUCKET:
 		return bitbucket.DefaultClient()

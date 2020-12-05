@@ -9,6 +9,7 @@ package approve
 import (
 	"fmt"
 	"preq/internal/cli/paramutils"
+	"preq/internal/config"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
 	"preq/internal/pkg/client"
@@ -16,7 +17,7 @@ import (
 )
 
 type approveCmdParams struct {
-	Repository paramutils.RepositoryParams
+	Repository config.RepositoryParams
 }
 
 var getRemoteInfo = gitutils.GetRemoteInfo

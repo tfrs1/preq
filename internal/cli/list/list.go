@@ -8,6 +8,8 @@ import (
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
 	"preq/internal/clientutils"
+	"preq/internal/config"
+	"preq/internal/domain"
 	"preq/internal/pkg/client"
 	"preq/internal/systemcodes"
 
@@ -20,7 +22,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 
 	params := &listCmdParams{}
-	paramutils.FillDefaultRepositoryParams(&params.Repository)
+	config.FillDefaultRepositoryParams(&params.Repository)
 	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
 	err := paramutils.ValidateFlagRepositoryParams(&params.Repository)
 	if err != nil {
@@ -48,7 +50,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execute(c client.Client, params *listCmdParams, repo *client.Repository) error {
+func execute(c domain.Client, params *listCmdParams, repo *client.Repository) error {
 	nextURL := ""
 	reader := bufio.NewReader(os.Stdin)
 
@@ -61,10 +63,10 @@ func execute(c client.Client, params *listCmdParams, repo *client.Repository) er
 	table.AddRow("-", "-----", "--------", "---")
 
 	for {
-		prs, err := c.GetPullRequests(&client.GetPullRequestsOptions{
-			Repository: repo,
-			State:      client.PullRequestState_OPEN,
-			Next:       nextURL,
+		prs, err := c.GetPullRequests(&domain.GetPullRequestOptions{
+			// Repository: repo,
+			State: client.PullRequestState_OPEN,
+			Next:  nextURL,
 		})
 
 		if err != nil {

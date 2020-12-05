@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"preq/internal/domain"
 	preqClient "preq/internal/pkg/client"
 	"strings"
 
@@ -23,9 +24,10 @@ var (
 )
 
 type GithubCloudClient struct {
-	username string
-	token    string
-	uuid     string
+	Repository preqClient.Repository
+	username   string
+	token      string
+	uuid       string
 }
 
 type ClientOptions struct {
@@ -34,7 +36,7 @@ type ClientOptions struct {
 	Token    string
 }
 
-func New(o *ClientOptions) preqClient.Client {
+func New(o *ClientOptions) domain.Client {
 	return &GithubCloudClient{
 		username: o.Username,
 		token:    o.Token,
@@ -65,7 +67,7 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 	}, nil
 }
 
-func DefaultClient() (preqClient.Client, error) {
+func DefaultClient() (domain.Client, error) {
 	config, err := getDefaultConfiguration()
 	if err != nil {
 		return nil, err
@@ -114,11 +116,11 @@ type bbError struct {
 // 	Values     []*client.PullRequest `json:"values"`
 // }
 
-func (c *GithubCloudClient) GetPullRequests(o *preqClient.GetPullRequestsOptions) (*preqClient.PullRequestList, error) {
+func (c *GithubCloudClient) GetPullRequests(o *domain.GetPullRequestOptions) (*domain.PullRequestList, error) {
 	url := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/pulls",
-		o.Repository.Owner,
-		o.Repository.Name,
+		c.Repository.Owner,
+		c.Repository.Name,
 	)
 
 	if o.Next != "" {
@@ -139,14 +141,14 @@ func (c *GithubCloudClient) GetPullRequests(o *preqClient.GetPullRequestsOptions
 		return nil, errors.New(string(r.Body()))
 	}
 
-	var pr preqClient.PullRequestList
+	var pr domain.PullRequestList
 	parsed := gjson.ParseBytes(r.Body())
 	parsed.ForEach(func(key, value gjson.Result) bool {
-		pr.Values = append(pr.Values, &preqClient.PullRequest{
+		pr.Values = append(pr.Values, &domain.PullRequest{
 			ID:          value.Get("number").String(),
 			Title:       value.Get("title").String(),
 			URL:         value.Get("html_url").String(),
-			State:       preqClient.PullRequestState(value.Get("state").String()),
+			State:       domain.PullRequestState(value.Get("state").String()),
 			Source:      value.Get("head.ref").String(),
 			Destination: value.Get("base.ref").String(),
 			Created:     value.Get("created_at").Time(),
@@ -165,18 +167,18 @@ func (c *GithubCloudClient) GetPullRequests(o *preqClient.GetPullRequestsOptions
 	return &pr, nil
 }
 
-func unmarshalPR(data []byte) (*preqClient.PullRequest, error) {
+func unmarshalPR(data []byte) (*domain.PullRequest, error) {
 	pr := &PullRequest{}
 	err := json.Unmarshal(data, pr)
 	if err != nil {
 		return nil, err
 	}
 
-	return &preqClient.PullRequest{
-		ID:          string(pr.Number),
-		Title:       pr.Title,
-		URL:         pr.Links.HTML.Href,
-		State:       preqClient.PullRequestState(pr.State),
+	return &domain.PullRequest{
+		ID:    fmt.Sprint(pr.Number),
+		Title: pr.Title,
+		URL:   pr.Links.HTML.Href,
+		// State:       preqClient.PullRequestState(pr.State),
 		Source:      pr.Head.Ref,
 		Destination: pr.Base.Ref,
 	}, nil
@@ -200,7 +202,7 @@ func (c *GithubCloudClient) post(url string) (*resty.Response, error) {
 	return r, nil
 }
 
-func (c *GithubCloudClient) DeclinePullRequest(o *preqClient.DeclinePullRequestOptions) (*preqClient.PullRequest, error) {
+func (c *GithubCloudClient) DeclinePullRequest(o *domain.DeclinePullRequestOptions) (*domain.PullRequest, error) {
 	r, err := resty.New().R().
 		SetAuthToken(c.token).
 		SetBody(ghPROptions{
@@ -209,8 +211,8 @@ func (c *GithubCloudClient) DeclinePullRequest(o *preqClient.DeclinePullRequestO
 		SetError(bbError{}).
 		Patch(fmt.Sprintf(
 			"https://api.github.com/repos/%s/%s/pulls/%s",
-			o.Repository.Owner,
-			o.Repository.Name,
+			c.Repository.Owner,
+			c.Repository.Name,
 			o.ID,
 		))
 	if err != nil {
@@ -308,7 +310,7 @@ func (c *GithubCloudClient) getReviews(o *getReviewsOptions) (*[]review, error) 
 	return reviews, nil
 }
 
-func (c *GithubCloudClient) ApprovePullRequest(o *preqClient.ApprovePullRequestOptions) (*preqClient.PullRequest, error) {
+func (c *GithubCloudClient) ApprovePullRequest(o *domain.ApprovePullRequestOptions) (*domain.PullRequest, error) {
 	_, err := resty.New().R().
 		SetAuthToken(c.token).
 		SetHeader("content-type", "application/json").
@@ -316,8 +318,8 @@ func (c *GithubCloudClient) ApprovePullRequest(o *preqClient.ApprovePullRequestO
 		SetBody(`{"event": "APPROVE"}`).
 		Post(fmt.Sprintf(
 			"https://api.github.com/repos/%s/%s/pulls/%s/reviews",
-			o.Repository.Owner,
-			o.Repository.Name,
+			c.Repository.Owner,
+			c.Repository.Name,
 			o.ID,
 		))
 	if err != nil {
@@ -326,13 +328,13 @@ func (c *GithubCloudClient) ApprovePullRequest(o *preqClient.ApprovePullRequestO
 
 	// TODO: Parse the response
 
-	return &preqClient.PullRequest{
+	return &domain.PullRequest{
 		ID: o.ID,
 		// State: preqClient.PullRequestReviewState_APPROVED,
 	}, nil
 }
 
-func verifyCreatePullRequestOptions(o *preqClient.CreatePullRequestOptions) error {
+func verifyCreatePullRequestOptions(o *domain.CreatePullRequestOptions) error {
 	if o.Source == "" {
 		return errors.New("missing source branch")
 	}
@@ -374,11 +376,11 @@ func (c *GithubCloudClient) GetCurrentUser() (*preqClient.User, error) {
 	}
 
 	return &preqClient.User{
-		ID: string(u.ID),
+		ID: fmt.Sprint(u.ID),
 	}, nil
 }
 
-func (c *GithubCloudClient) CreatePullRequest(o *preqClient.CreatePullRequestOptions) (*preqClient.PullRequest, error) {
+func (c *GithubCloudClient) CreatePullRequest(o *domain.CreatePullRequestOptions) (*domain.PullRequest, error) {
 	err := verifyCreatePullRequestOptions(o)
 	if err != nil {
 		return nil, err
@@ -405,8 +407,8 @@ func (c *GithubCloudClient) CreatePullRequest(o *preqClient.CreatePullRequestOpt
 		SetError(bbError{}).
 		Post(fmt.Sprintf(
 			"https://api.github.com/repos/%s/%s/pulls",
-			o.Repository.Owner,
-			o.Repository.Name,
+			c.Repository.Owner,
+			c.Repository.Name,
 		))
 
 	if err != nil {
@@ -421,11 +423,11 @@ func (c *GithubCloudClient) CreatePullRequest(o *preqClient.CreatePullRequestOpt
 		log.Fatal(err)
 	}
 
-	return &preqClient.PullRequest{
-		ID:          string(pr.Number),
-		Title:       pr.Title,
-		URL:         pr.Links.HTML.Href,
-		State:       preqClient.PullRequestState(pr.State),
+	return &domain.PullRequest{
+		ID:    fmt.Sprint(pr.Number),
+		Title: pr.Title,
+		URL:   pr.Links.HTML.Href,
+		// State:       preqClient.PullRequestState(pr.State),
 		Source:      pr.Head.Ref,
 		Destination: pr.Base.Ref,
 	}, nil

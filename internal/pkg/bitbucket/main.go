@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"preq/internal/domain"
 	"preq/internal/pkg/client"
 	"strings"
 	"time"
@@ -23,6 +24,7 @@ var (
 )
 
 type BitbucketCloudClient struct {
+	Repository client.Repository
 	username   string
 	password   string
 	uuid       string
@@ -34,7 +36,7 @@ type ClientOptions struct {
 	Password string
 }
 
-func New(o *ClientOptions) client.Client {
+func New(o *ClientOptions) domain.Client {
 	return &BitbucketCloudClient{
 		username: o.Username,
 		password: o.Password,
@@ -68,7 +70,7 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 	}, nil
 }
 
-func DefaultClient() (client.Client, error) {
+func DefaultClient() (domain.Client, error) {
 	config, err := getDefaultConfiguration()
 	if err != nil {
 		return nil, err
@@ -114,7 +116,7 @@ type bitbucketPullRequest struct {
 	Description string
 	CreatedOn   time.Time `json:"created_on"`
 	UpdatedOn   time.Time `json:"update_on"`
-	State       client.PullRequestState
+	State       domain.PullRequestState
 	Author      struct {
 		DisplayName string `json:"display_name"`
 		UUID        string
@@ -159,11 +161,11 @@ type defaultReviewersResponse struct {
 // 	Values     []*client.PullRequest `json:"values"`
 // }
 
-func (c *BitbucketCloudClient) GetPullRequests(o *client.GetPullRequestsOptions) (*client.PullRequestList, error) {
+func (c *BitbucketCloudClient) GetPullRequests(o *domain.GetPullRequestOptions) (*domain.PullRequestList, error) {
 	url := fmt.Sprintf(
 		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests",
-		o.Repository.Owner,
-		o.Repository.Name,
+		c.Repository.Owner,
+		c.Repository.Name,
 	)
 
 	if o.Next != "" {
@@ -184,7 +186,7 @@ func (c *BitbucketCloudClient) GetPullRequests(o *client.GetPullRequestsOptions)
 		return nil, errors.New(string(r.Body()))
 	}
 
-	var pr client.PullRequestList
+	var pr domain.PullRequestList
 	parsed := gjson.ParseBytes(r.Body())
 	pr.PageLength = uint(parsed.Get("pagelen").Uint())
 	pr.Page = uint(parsed.Get("page").Uint())
@@ -192,11 +194,11 @@ func (c *BitbucketCloudClient) GetPullRequests(o *client.GetPullRequestsOptions)
 	pr.NextURL = parsed.Get("next").String()
 	result := parsed.Get("values")
 	result.ForEach(func(key, value gjson.Result) bool {
-		pr.Values = append(pr.Values, &client.PullRequest{
+		pr.Values = append(pr.Values, &domain.PullRequest{
 			ID:          value.Get("id").String(),
 			Title:       value.Get("title").String(),
 			URL:         value.Get("links.html.href").String(),
-			State:       client.PullRequestState(value.Get("state").String()),
+			State:       domain.PullRequestState(value.Get("state").String()),
 			Source:      value.Get("source.branch.name").String(),
 			Destination: value.Get("destination.branch.name").String(),
 			Created:     value.Get("created_on").Time(),
@@ -209,15 +211,15 @@ func (c *BitbucketCloudClient) GetPullRequests(o *client.GetPullRequestsOptions)
 	return &pr, nil
 }
 
-func unmarshalPR(data []byte) (*client.PullRequest, error) {
+func unmarshalPR(data []byte) (*domain.PullRequest, error) {
 	pr := &bitbucketPullRequest{}
 	err := json.Unmarshal(data, pr)
 	if err != nil {
 		return nil, err
 	}
 
-	return &client.PullRequest{
-		ID:          string(pr.ID),
+	return &domain.PullRequest{
+		ID:          fmt.Sprint(pr.ID),
 		Title:       pr.Title,
 		URL:         pr.Links.HTML.Href,
 		State:       pr.State,
@@ -244,11 +246,11 @@ func (c *BitbucketCloudClient) post(url string) (*resty.Response, error) {
 	return r, nil
 }
 
-func (c *BitbucketCloudClient) DeclinePullRequest(o *client.DeclinePullRequestOptions) (*client.PullRequest, error) {
+func (c *BitbucketCloudClient) DeclinePullRequest(o *domain.DeclinePullRequestOptions) (*domain.PullRequest, error) {
 	url := fmt.Sprintf(
 		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/decline",
-		o.Repository.Owner,
-		o.Repository.Name,
+		c.Repository.Owner,
+		c.Repository.Name,
 		o.ID,
 	)
 
@@ -260,11 +262,11 @@ func (c *BitbucketCloudClient) DeclinePullRequest(o *client.DeclinePullRequestOp
 	return unmarshalPR(r.Body())
 }
 
-func (c *BitbucketCloudClient) ApprovePullRequest(o *client.ApprovePullRequestOptions) (*client.PullRequest, error) {
+func (c *BitbucketCloudClient) ApprovePullRequest(o *domain.ApprovePullRequestOptions) (*domain.PullRequest, error) {
 	url := fmt.Sprintf(
 		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/approve",
-		o.Repository.Owner,
-		o.Repository.Name,
+		c.Repository.Owner,
+		c.Repository.Name,
 		o.ID,
 	)
 
@@ -276,7 +278,7 @@ func (c *BitbucketCloudClient) ApprovePullRequest(o *client.ApprovePullRequestOp
 	return unmarshalPR(r.Body())
 }
 
-func verifyCreatePullRequestOptions(o *client.CreatePullRequestOptions) error {
+func verifyCreatePullRequestOptions(o *domain.CreatePullRequestOptions) error {
 	if o.Source == "" {
 		return errors.New("missing source branch")
 	}
@@ -311,7 +313,7 @@ func (c *BitbucketCloudClient) GetCurrentUser() (*client.User, error) {
 	}, nil
 }
 
-func (c *BitbucketCloudClient) GetDefaultReviewers(o *client.CreatePullRequestOptions) ([]*Reviewer, error) {
+func (c *BitbucketCloudClient) GetDefaultReviewers(o *domain.CreatePullRequestOptions) ([]*Reviewer, error) {
 	r, err := resty.New().R().
 		SetBasicAuth(c.username, c.password).
 		SetError(bbError{}).
@@ -333,7 +335,7 @@ func (c *BitbucketCloudClient) GetDefaultReviewers(o *client.CreatePullRequestOp
 	return pr.Values, nil
 }
 
-func (c *BitbucketCloudClient) CreatePullRequest(o *client.CreatePullRequestOptions) (*client.PullRequest, error) {
+func (c *BitbucketCloudClient) CreatePullRequest(o *domain.CreatePullRequestOptions) (*domain.PullRequest, error) {
 	err := verifyCreatePullRequestOptions(o)
 	if err != nil {
 		return nil, err
@@ -400,8 +402,8 @@ func (c *BitbucketCloudClient) CreatePullRequest(o *client.CreatePullRequestOpti
 		log.Fatal(err)
 	}
 
-	return &client.PullRequest{
-		ID:          string(pr.ID),
+	return &domain.PullRequest{
+		ID:          fmt.Sprint(pr.ID),
 		Title:       pr.Title,
 		URL:         pr.Links.HTML.Href,
 		State:       pr.State,

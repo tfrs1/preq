@@ -5,6 +5,8 @@ import (
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
 	"preq/internal/clientutils"
+	"preq/internal/config"
+	"preq/internal/domain"
 	"preq/internal/pkg/client"
 
 	"github.com/spf13/cobra"
@@ -15,7 +17,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 
 	params := &approveCmdParams{}
-	paramutils.FillDefaultRepositoryParams(&params.Repository)
+	config.FillDefaultRepositoryParams(&params.Repository)
 	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
 	err := paramutils.ValidateFlagRepositoryParams(&params.Repository)
 	if err != nil {
@@ -43,19 +45,19 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execute(c client.Client, args *cmdArgs, params *approveCmdParams, repo *client.Repository) error {
+func execute(c domain.Client, args *cmdArgs, params *approveCmdParams, repo *client.Repository) error {
 	if args.ID != "" {
-		_, err := c.ApprovePullRequest(&client.ApprovePullRequestOptions{
-			Repository: repo,
-			ID:         args.ID,
+		_, err := c.ApprovePullRequest(&domain.ApprovePullRequestOptions{
+			// Repository: repo,
+			ID: args.ID,
 		})
 		if err != nil {
 			return err
 		}
 	} else {
-		prList, err := c.GetPullRequests(&client.GetPullRequestsOptions{
-			Repository: repo,
-			State:      client.PullRequestState_OPEN,
+		prList, err := c.GetPullRequests(&domain.GetPullRequestOptions{
+			// Repository: repo,
+			State: client.PullRequestState_OPEN,
 		})
 		if err != nil {
 			return err
@@ -90,10 +92,10 @@ type approveResponse struct {
 	Error  error
 }
 
-func approvePR(cl client.Client, r *client.Repository, id string, c chan interface{}) {
-	_, err := cl.ApprovePullRequest(&client.ApprovePullRequestOptions{
-		Repository: r,
-		ID:         id,
+func approvePR(cl domain.Client, r *client.Repository, id string, c chan interface{}) {
+	_, err := cl.ApprovePullRequest(&domain.ApprovePullRequestOptions{
+		// Repository: r,
+		ID: id,
 	})
 
 	res := approveResponse{ID: id, Status: "Done"}

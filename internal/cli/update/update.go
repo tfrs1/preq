@@ -48,7 +48,7 @@ func runCmd(cmd *cobra.Command, args []string) {
 	// 		os.Exit(systemcodes.ErrorCodeGeneric)
 	// 	}
 	// } else {
-	// 	prList, err := cl.GetPullRequests(&client.GetPullRequestsOptions{
+	// 	prList, err := cl.GetPullRequests(&client.GetPullRequestOptions{
 	// 		Repository: r,
 	// 		State:      client.PullRequestState_OPEN,
 	// 	})

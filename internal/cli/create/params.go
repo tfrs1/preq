@@ -3,6 +3,7 @@ package cmdcreate
 import (
 	"fmt"
 	"preq/internal/cli/paramutils"
+	"preq/internal/config"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
 	"strings"
@@ -11,7 +12,7 @@ import (
 )
 
 type createCmdParams struct {
-	Repository  paramutils.RepositoryParams
+	Repository  config.RepositoryParams
 	Source      string
 	Destination string
 	Title       string
@@ -62,7 +63,7 @@ func fillFlagParams(flags paramutils.FlagSet, params *createCmdParams) {
 }
 
 func fillDefaultParams(p *createCmdParams) {
-	paramutils.FillDefaultRepositoryParams(&p.Repository)
+	config.FillDefaultRepositoryParams(&p.Repository)
 
 	defaultSourceBranch, err := gitutils.GetCurrentBranch()
 	if err == nil {

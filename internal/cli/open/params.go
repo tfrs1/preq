@@ -2,12 +2,13 @@ package open
 
 import (
 	"preq/internal/cli/paramutils"
+	"preq/internal/config"
 
 	"github.com/spf13/cobra"
 )
 
 type openCmdParams struct {
-	Repository  paramutils.RepositoryParams
+	Repository  config.RepositoryParams
 	PrintOnly   bool
 	Interactive bool
 }
@@ -23,7 +24,7 @@ func parseArgs(args []string) *cmdArgs {
 func fillDefaultOpenCmdParams(params *openCmdParams) {
 	params.PrintOnly = false
 	params.Interactive = false
-	paramutils.FillDefaultRepositoryParams(&params.Repository)
+	config.FillDefaultRepositoryParams(&params.Repository)
 }
 
 func fillFlagOpenCmdParams(cmd *cobra.Command, params *openCmdParams) {

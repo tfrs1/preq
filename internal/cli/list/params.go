@@ -2,7 +2,7 @@ package list
 
 import (
 	"fmt"
-	"preq/internal/cli/paramutils"
+	"preq/internal/config"
 	"preq/internal/configutils"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
@@ -13,7 +13,7 @@ import (
 )
 
 type listCmdParams struct {
-	Repository paramutils.RepositoryParams
+	Repository config.RepositoryParams
 }
 
 func fillDefaultListCmdParams(params *listCmdParams) {

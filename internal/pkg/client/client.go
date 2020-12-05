@@ -17,7 +17,7 @@ var (
 
 type Client interface {
 	DeclinePullRequest(o *DeclinePullRequestOptions) (*PullRequest, error)
-	GetPullRequests(o *GetPullRequestsOptions) (*PullRequestList, error)
+	GetPullRequests(o *GetPullRequestOptions) (*PullRequestList, error)
 	CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error)
 	ApprovePullRequest(o *ApprovePullRequestOptions) (*PullRequest, error)
 }
@@ -96,7 +96,7 @@ const (
 	PullRequestState_SUPERSEDED = "SUPERSEDED"
 )
 
-type GetPullRequestsOptions struct {
+type GetPullRequestOptions struct {
 	Repository *Repository
 	State      PullRequestState
 	Next       string
