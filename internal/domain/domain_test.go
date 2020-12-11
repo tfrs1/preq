@@ -19,20 +19,20 @@ type MockClient struct {
 	GetPullRequestsCalls int
 }
 
-func (mc *MockClient) GetPullRequests(*GetPullRequestOptions) (*PullRequestList, error) {
+func (mc *MockClient) Get(*GetPullRequestOptions) (PullRequestPageList, error) {
 	mc.GetPullRequestsCalls++
 	return nil, nil
 }
 
-func (mc *MockClient) CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error) {
+func (mc *MockClient) Create(o *CreatePullRequestOptions) (*PullRequest, error) {
 	return nil, nil
 }
 
-func (mc *MockClient) ApprovePullRequest(o *ApprovePullRequestOptions) (*PullRequest, error) {
+func (mc *MockClient) Approve(o *ApprovePullRequestOptions) (*PullRequest, error) {
 	return nil, nil
 }
 
-func (mc *MockClient) DeclinePullRequest(o *DeclinePullRequestOptions) (*PullRequest, error) {
+func (mc *MockClient) Decline(o *DeclinePullRequestOptions) (*PullRequest, error) {
 	return nil, nil
 }
 
@@ -40,8 +40,12 @@ type MockPullRequestUpdateListener struct {
 	UpdateCalls int
 }
 
-func (mprul *MockPullRequestUpdateListener) Update() {
+func (mprul *MockPullRequestUpdateListener) Update(prList PullRequestPageList) {
 	mprul.UpdateCalls++
+}
+
+func (mprul *MockPullRequestUpdateListener) UpdateFailed(e error) {
+	// mprul.UpdateCalls++
 }
 
 func (mp *MockPresenter) Start() {

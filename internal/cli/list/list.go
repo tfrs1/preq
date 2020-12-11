@@ -1,17 +1,14 @@
 package list
 
 import (
-	"bufio"
 	"fmt"
 	"io"
-	"os"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
 	"preq/internal/clientutils"
 	"preq/internal/config"
 	"preq/internal/domain"
 	"preq/internal/pkg/client"
-	"preq/internal/systemcodes"
 
 	"github.com/gosuri/uilive"
 	"github.com/gosuri/uitable"
@@ -50,9 +47,9 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execute(c domain.Client, params *listCmdParams, repo *client.Repository) error {
-	nextURL := ""
-	reader := bufio.NewReader(os.Stdin)
+func execute(c domain.PullRequestRepository, params *listCmdParams, repo *client.Repository) error {
+	// nextURL := ""
+	// reader := bufio.NewReader(os.Stdin)
 
 	writer := uilive.New()
 	defer writer.Stop()
@@ -63,45 +60,45 @@ func execute(c domain.Client, params *listCmdParams, repo *client.Repository) er
 	table.AddRow("-", "-----", "--------", "---")
 
 	for {
-		prs, err := c.GetPullRequests(&domain.GetPullRequestOptions{
-			// Repository: repo,
-			State: client.PullRequestState_OPEN,
-			Next:  nextURL,
-		})
+		// prs, err := c.Get(&domain.GetPullRequestOptions{
+		// 	// Repository: repo,
+		// 	State: client.PullRequestState_OPEN,
+		// 	Next:  nextURL,
+		// })
 
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(systemcodes.ErrorCodeGeneric)
-		}
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	os.Exit(systemcodes.ErrorCodeGeneric)
+		// }
 
-		nextURL = prs.NextURL
+		// nextURL = prs.NextURL
 
-		for _, v := range prs.Values {
-			table.AddRow(
-				v.ID,
-				v.Title,
-				fmt.Sprintf("%s -> %s", v.Source, v.Destination),
-				v.URL,
-			)
-		}
+		// for _, v := range prs.Values {
+		// 	table.AddRow(
+		// 		v.ID,
+		// 		v.Title,
+		// 		fmt.Sprintf("%s -> %s", v.Source, v.Destination),
+		// 		v.URL,
+		// 	)
+		// }
 
-		fmt.Fprintln(writer, table.String())
+		// fmt.Fprintln(writer, table.String())
 
-		if nextURL == "" {
-			break
-		}
+		// if nextURL == "" {
+		// 	break
+		// }
 
-		moreMsg := "Press Enter to show more..."
-		fmt.Fprintln(writer.Newline(), moreMsg)
+		// moreMsg := "Press Enter to show more..."
+		// fmt.Fprintln(writer.Newline(), moreMsg)
 
-		_, _, err = reader.ReadRune()
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
+		// _, _, err = reader.ReadRune()
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	break
+		// }
 
-		// Clear the additional line from loading more request (Enter)
-		clearLine(writer.Out)
+		// // Clear the additional line from loading more request (Enter)
+		// clearLine(writer.Out)
 
 		loadingMsg := "Loading..."
 		fmt.Fprintln(writer, table.String())

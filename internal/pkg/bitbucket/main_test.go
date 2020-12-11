@@ -2,6 +2,6 @@ package bitbucket
 
 // func TestASD(t *testing.T) {
 // 	c := New()
-// 	c.GetPullRequests()
+// 	c.Get()
 // 	// assert.IsType(t, client, c)
 // }

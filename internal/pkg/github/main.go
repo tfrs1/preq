@@ -24,10 +24,10 @@ var (
 )
 
 type GithubCloudClient struct {
-	Repository preqClient.Repository
-	username   string
-	token      string
-	uuid       string
+	Repository domain.GitRepository
+	Username   string
+	Token      string
+	UUID       string
 }
 
 type ClientOptions struct {
@@ -36,10 +36,10 @@ type ClientOptions struct {
 	Token    string
 }
 
-func New(o *ClientOptions) domain.Client {
+func New(o *ClientOptions) domain.PullRequestRepository {
 	return &GithubCloudClient{
-		username: o.Username,
-		token:    o.Token,
+		Username: o.Username,
+		Token:    o.Token,
 	}
 }
 
@@ -67,16 +67,16 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 	}, nil
 }
 
-func DefaultClient() (domain.Client, error) {
+func DefaultClient() (domain.PullRequestRepository, error) {
 	config, err := getDefaultConfiguration()
 	if err != nil {
 		return nil, err
 	}
 
 	return &GithubCloudClient{
-		username: config.username,
-		token:    config.token,
-		uuid:     config.uuid,
+		Username: config.username,
+		Token:    config.token,
+		UUID:     config.uuid,
 	}, nil
 }
 
@@ -116,21 +116,25 @@ type bbError struct {
 // 	Values     []*client.PullRequest `json:"values"`
 // }
 
-func (c *GithubCloudClient) GetPullRequests(o *domain.GetPullRequestOptions) (*domain.PullRequestList, error) {
+type GithubPullRequestPageList struct {
+	c *GithubCloudClient
+	o *domain.GetPullRequestOptions
+}
+
+func (pl *GithubPullRequestPageList) GetPage(page int) ([]*domain.PullRequest, error) {
 	url := fmt.Sprintf(
-		"https://api.github.com/repos/%s/%s/pulls",
-		c.Repository.Owner,
-		c.Repository.Name,
+		"https://api.github.com/repos/%s/pulls",
+		pl.c.Repository.Name,
 	)
 
-	if o.Next != "" {
-		url = o.Next
+	if pl.o.Next != "" {
+		url = pl.o.Next
 	}
 
 	rc := resty.New()
 	r, err := rc.R().
-		SetAuthToken(c.token).
-		SetQueryParam("state", string(o.State)).
+		SetAuthToken(pl.c.Token).
+		SetQueryParam("state", string(pl.o.State)).
 		SetError(bbError{}).
 		Get(url)
 
@@ -141,10 +145,10 @@ func (c *GithubCloudClient) GetPullRequests(o *domain.GetPullRequestOptions) (*d
 		return nil, errors.New(string(r.Body()))
 	}
 
-	var pr domain.PullRequestList
+	var pr []*domain.PullRequest
 	parsed := gjson.ParseBytes(r.Body())
 	parsed.ForEach(func(key, value gjson.Result) bool {
-		pr.Values = append(pr.Values, &domain.PullRequest{
+		pr = append(pr, &domain.PullRequest{
 			ID:          value.Get("number").String(),
 			Title:       value.Get("title").String(),
 			URL:         value.Get("html_url").String(),
@@ -164,7 +168,61 @@ func (c *GithubCloudClient) GetPullRequests(o *domain.GetPullRequestOptions) (*d
 
 	// pr.NextURL = r.Header().Get("Link") // Split on , -> split on ; check for rel="next"
 
-	return &pr, nil
+	return pr, nil
+}
+
+func (c *GithubCloudClient) Get(o *domain.GetPullRequestOptions) (domain.PullRequestPageList, error) {
+	return &GithubPullRequestPageList{
+		c: c,
+		o: o,
+	}, nil
+	// url := fmt.Sprintf(
+	// 	"https://api.github.com/repos/%s/pulls",
+	// 	c.Repository.Name,
+	// )
+
+	// if o.Next != "" {
+	// 	url = o.Next
+	// }
+
+	// rc := resty.New()
+	// r, err := rc.R().
+	// 	SetAuthToken(c.Token).
+	// 	SetQueryParam("state", string(o.State)).
+	// 	SetError(bbError{}).
+	// 	Get(url)
+
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if r.IsError() {
+	// 	return nil, errors.New(string(r.Body()))
+	// }
+
+	// var pr domain.PullRequestList
+	// parsed := gjson.ParseBytes(r.Body())
+	// parsed.ForEach(func(key, value gjson.Result) bool {
+	// 	pr.Values = append(pr.Values, &domain.PullRequest{
+	// 		ID:          value.Get("number").String(),
+	// 		Title:       value.Get("title").String(),
+	// 		URL:         value.Get("html_url").String(),
+	// 		State:       domain.PullRequestState(value.Get("state").String()),
+	// 		Source:      value.Get("head.ref").String(),
+	// 		Destination: value.Get("base.ref").String(),
+	// 		Created:     value.Get("created_at").Time(),
+	// 		Updated:     value.Get("updated_at").Time(),
+	// 	})
+
+	// 	return true
+	// })
+
+	// // pr.PageLength = uint(parsed.Get("pagelen").Uint())
+	// // pr.Page = uint(parsed.Get("page").Uint())
+	// // pr.Size = uint(parsed.Get("size").Uint())
+
+	// // pr.NextURL = r.Header().Get("Link") // Split on , -> split on ; check for rel="next"
+
+	// return &pr, nil
 }
 
 func unmarshalPR(data []byte) (*domain.PullRequest, error) {
@@ -187,7 +245,7 @@ func unmarshalPR(data []byte) (*domain.PullRequest, error) {
 func (c *GithubCloudClient) post(url string) (*resty.Response, error) {
 	rc := resty.New()
 	r, err := rc.R().
-		SetAuthToken(c.token).
+		SetAuthToken(c.Token).
 		SetError(bbError{}).
 		Post(url)
 
@@ -202,16 +260,15 @@ func (c *GithubCloudClient) post(url string) (*resty.Response, error) {
 	return r, nil
 }
 
-func (c *GithubCloudClient) DeclinePullRequest(o *domain.DeclinePullRequestOptions) (*domain.PullRequest, error) {
+func (c *GithubCloudClient) Decline(o *domain.DeclinePullRequestOptions) (*domain.PullRequest, error) {
 	r, err := resty.New().R().
-		SetAuthToken(c.token).
+		SetAuthToken(c.Token).
 		SetBody(ghPROptions{
 			State: "closed",
 		}).
 		SetError(bbError{}).
 		Patch(fmt.Sprintf(
-			"https://api.github.com/repos/%s/%s/pulls/%s",
-			c.Repository.Owner,
+			"https://api.github.com/repos/%s/pulls/%s",
 			c.Repository.Name,
 			o.ID,
 		))
@@ -256,7 +313,7 @@ type reviewRequest struct {
 
 func (c *GithubCloudClient) getReviewRequests(o *getReviewsOptions) ([]int64, error) {
 	r, err := resty.New().R().
-		SetAuthToken(c.token).
+		SetAuthToken(c.Token).
 		SetError(githubError{}).
 		Get(fmt.Sprintf(
 			"https://api.github.com/repos/%s/%s/pulls/%s/requested_reviewers",
@@ -286,7 +343,7 @@ func (c *GithubCloudClient) getReviewRequests(o *getReviewsOptions) ([]int64, er
 
 func (c *GithubCloudClient) getReviews(o *getReviewsOptions) (*[]review, error) {
 	r, err := resty.New().R().
-		SetAuthToken(c.token).
+		SetAuthToken(c.Token).
 		SetError(githubError{}).
 		Get(fmt.Sprintf(
 			"https://api.github.com/repos/%s/%s/pulls/%s/reviews",
@@ -310,15 +367,14 @@ func (c *GithubCloudClient) getReviews(o *getReviewsOptions) (*[]review, error) 
 	return reviews, nil
 }
 
-func (c *GithubCloudClient) ApprovePullRequest(o *domain.ApprovePullRequestOptions) (*domain.PullRequest, error) {
+func (c *GithubCloudClient) Approve(o *domain.ApprovePullRequestOptions) (*domain.PullRequest, error) {
 	_, err := resty.New().R().
-		SetAuthToken(c.token).
+		SetAuthToken(c.Token).
 		SetHeader("content-type", "application/json").
 		SetError(githubError{}).
 		SetBody(`{"event": "APPROVE"}`).
 		Post(fmt.Sprintf(
-			"https://api.github.com/repos/%s/%s/pulls/%s/reviews",
-			c.Repository.Owner,
+			"https://api.github.com/repos/%s/pulls/%s/reviews",
 			c.Repository.Name,
 			o.ID,
 		))
@@ -348,7 +404,7 @@ func verifyCreatePullRequestOptions(o *domain.CreatePullRequestOptions) error {
 
 func (c *GithubCloudClient) getReviewRequestsForUser(u *User) ([]*Item, error) {
 	client := newClient(&newClientOptions{
-		Token: c.token,
+		Token: c.Token,
 	})
 
 	res, err := client.Search.Issues(
@@ -368,7 +424,7 @@ func (c *GithubCloudClient) getReviewRequestsForUser(u *User) ([]*Item, error) {
 }
 
 func (c *GithubCloudClient) GetCurrentUser() (*preqClient.User, error) {
-	client := newClient(&newClientOptions{Token: c.token})
+	client := newClient(&newClientOptions{Token: c.Token})
 
 	u, err := client.User.Current(context.Background())
 	if err != nil {
@@ -380,7 +436,7 @@ func (c *GithubCloudClient) GetCurrentUser() (*preqClient.User, error) {
 	}, nil
 }
 
-func (c *GithubCloudClient) CreatePullRequest(o *domain.CreatePullRequestOptions) (*domain.PullRequest, error) {
+func (c *GithubCloudClient) Create(o *domain.CreatePullRequestOptions) (*domain.PullRequest, error) {
 	err := verifyCreatePullRequestOptions(o)
 	if err != nil {
 		return nil, err
@@ -396,7 +452,7 @@ func (c *GithubCloudClient) CreatePullRequest(o *domain.CreatePullRequestOptions
 	// }
 
 	r, err := resty.New().R().
-		SetAuthToken(c.token).
+		SetAuthToken(c.Token).
 		// SetHeader("content-type", "application/json").
 		SetBody(ghPROptions{
 			Title: o.Title,
@@ -406,8 +462,7 @@ func (c *GithubCloudClient) CreatePullRequest(o *domain.CreatePullRequestOptions
 		}).
 		SetError(bbError{}).
 		Post(fmt.Sprintf(
-			"https://api.github.com/repos/%s/%s/pulls",
-			c.Repository.Owner,
+			"https://api.github.com/repos/%s/pulls",
 			c.Repository.Name,
 		))
 

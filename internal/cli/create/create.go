@@ -55,7 +55,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 }
 
 type creatorAdapter struct {
-	Client domain.Client
+	Client domain.PullRequestRepository
 }
 
 func (ca *creatorAdapter) Create(o *pullrequest.CreateOptions) (*pullrequest.Entity, error) {
@@ -67,7 +67,7 @@ func (ca *creatorAdapter) Create(o *pullrequest.CreateOptions) (*pullrequest.Ent
 		Draft:       o.Draft,
 	}
 
-	pr, err := ca.Client.CreatePullRequest(cpro)
+	pr, err := ca.Client.Create(cpro)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (ca *creatorAdapter) Create(o *pullrequest.CreateOptions) (*pullrequest.Ent
 	}, nil
 }
 
-func execute(c domain.Client, params *createCmdParams) error {
+func execute(c domain.PullRequestRepository, params *createCmdParams) error {
 	ca := &creatorAdapter{Client: c}
 
 	service := pullrequest.NewCreateService(ca)

@@ -72,12 +72,8 @@ var loadConfig = func(filename string) error {
 	return nil
 }
 
-var getGlobalConfigPath = func() (string, error) {
-	return homedir.Expand("~/.config/preq/config.toml")
-}
-
-func Load() error {
-	hdCfgPath, err := getGlobalConfigPath()
+func LoadDefault(path string) error {
+	hdCfgPath, err := homedir.Expand(path)
 	if err != nil {
 		return ErrHomeDirNotFound
 	}

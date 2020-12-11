@@ -2,9 +2,7 @@ package tui
 
 import (
 	"fmt"
-	"os"
 	"preq/internal/domain"
-	"preq/internal/pkg/client"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -138,49 +136,36 @@ func (g *grid) hideFilter() {
 	g.grid.Clear().
 		AddItem(g.table, 0, 0, 2, 1, 0, 0, false)
 }
-func loadPRs(app *tview.Application, c domain.Client, repo *client.Repository, table *pullRequestTable) {
+
+func loadPRs(app *tview.Application, prList domain.PullRequestPageList, table *pullRequestTable) {
 	app.QueueUpdateDraw(func() {
 		table.View.SetCell(0, 0, tview.NewTableCell("Loading...").SetAlign(tview.AlignCenter))
 	})
 
-	nextURL := ""
-	for {
-		prs, err := c.GetPullRequests(&domain.GetPullRequestOptions{
-			// Repository: repo,
-			State: client.PullRequestState_OPEN,
-			Next:  nextURL,
-		})
+	app.QueueUpdateDraw(func() {
+		table.Clear()
+		values, err := prList.GetPage(1)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(134)
+			return
 		}
 
-		nextURL = prs.NextURL
-
-		app.QueueUpdateDraw(func() {
-			table.Clear()
-			for _, v := range prs.Values {
-				table.AddRow(&pullRequestTableItem{
-					ID:          v.ID,
-					Title:       v.Title,
-					Source:      v.Source,
-					Destination: v.Destination,
-				})
-			}
-		})
-
-		if nextURL == "" {
-			break
+		for _, v := range values {
+			table.AddRow(&pullRequestTableItem{
+				ID:          v.ID,
+				Title:       v.Title,
+				Source:      v.Source,
+				Destination: v.Destination,
+			})
 		}
+	})
 
-		app.QueueUpdateDraw(func() {
-			table.View.SetCell(len(prs.Values), 0, tview.NewTableCell("Loading..."))
-		})
-	}
+	// app.QueueUpdateDraw(func() {
+	// 	table.View.SetCell(len(prList.Values), 0, tview.NewTableCell("Loading..."))
+	// })
 }
 
 type TuiPresenter struct {
-	client domain.Client
+	client domain.PullRequestRepository
 }
 
 func (tp *TuiPresenter) Start() {
@@ -189,9 +174,9 @@ func (tp *TuiPresenter) Start() {
 
 func (tp *TuiPresenter) Notify(e *domain.Event) {}
 
-func NewTui(c domain.Client) *TuiPresenter {
+func NewTui(c []domain.PullRequestRepository) *TuiPresenter {
 	return &TuiPresenter{
-		client: c,
+		client: c[0],
 	}
 }
 
@@ -202,7 +187,12 @@ type app struct {
 	grid        *grid
 }
 
-func (app *app) Update() {}
+func (app *app) Update(prList domain.PullRequestPageList) {
+	loadPRs(app.tui, prList, app.table)
+	// fmt.Println(prList)
+}
+
+func (app *app) UpdateFailed(error) {}
 
 func newApp() *app {
 	tui := tview.NewApplication()
@@ -304,11 +294,12 @@ func newApp() *app {
 	}
 }
 
-func run(c domain.Client) {
+func run(c domain.PullRequestRepository) {
 	app := newApp()
 	go domain.LoadPullRequests(c, app)
 
 	if err := app.tui.Run(); err != nil {
 		panic(err)
 	}
+
 }

@@ -1,7 +1,6 @@
 package decline
 
 import (
-	"fmt"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
 	"preq/internal/clientutils"
@@ -46,9 +45,9 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execute(c domain.Client, args *cmdArgs, params *cmdParams, repo *client.Repository) error {
+func execute(c domain.PullRequestRepository, args *cmdArgs, params *cmdParams, repo *client.Repository) error {
 	if args.ID != "" {
-		_, err := c.DeclinePullRequest(&domain.DeclinePullRequestOptions{
+		_, err := c.Decline(&domain.DeclinePullRequestOptions{
 			// Repository: repo,
 			ID: args.ID,
 		})
@@ -56,25 +55,25 @@ func execute(c domain.Client, args *cmdArgs, params *cmdParams, repo *client.Rep
 			return err
 		}
 	} else {
-		prList, err := c.GetPullRequests(&domain.GetPullRequestOptions{
-			// Repository: repo,
-			State: client.PullRequestState_OPEN,
-		})
-		if err != nil {
-			return err
-		}
+		// prList, err := c.Get(&domain.GetPullRequestOptions{
+		// 	// Repository: repo,
+		// 	State: client.PullRequestState_OPEN,
+		// })
+		// if err != nil {
+		// 	return err
+		// }
 
-		selectedPRs := promptPullRequestMultiSelect(prList)
-		processPullRequestMap(
-			selectedPRs,
-			c,
-			repo,
-			declinePR,
-			func(msg interface{}) string {
-				m := msg.(declineResponse)
-				return fmt.Sprintf("Declining #%s... %s\n", m.ID, m.Status)
-			},
-		)
+		// selectedPRs := promptPullRequestMultiSelect(prList)
+		// processPullRequestMap(
+		// 	selectedPRs,
+		// 	c,
+		// 	repo,
+		// 	declinePR,
+		// 	func(msg interface{}) string {
+		// 		m := msg.(declineResponse)
+		// 		return fmt.Sprintf("Declining #%s... %s\n", m.ID, m.Status)
+		// 	},
+		// )
 	}
 
 	return nil
@@ -99,8 +98,8 @@ type declineResponse struct {
 	Error  error
 }
 
-func declinePR(cl domain.Client, r *client.Repository, id string, c chan interface{}) {
-	_, err := cl.DeclinePullRequest(&domain.DeclinePullRequestOptions{
+func declinePR(cl domain.PullRequestRepository, r *client.Repository, id string, c chan interface{}) {
+	_, err := cl.Decline(&domain.DeclinePullRequestOptions{
 		// Repository: r,
 		ID: id,
 	})

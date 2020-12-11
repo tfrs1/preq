@@ -12,7 +12,6 @@ import (
 	"github.com/go-resty/resty/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/tidwall/gjson"
 )
 
 var (
@@ -36,7 +35,7 @@ type ClientOptions struct {
 	Password string
 }
 
-func New(o *ClientOptions) domain.Client {
+func New(o *ClientOptions) domain.PullRequestRepository {
 	return &BitbucketCloudClient{
 		username: o.Username,
 		password: o.Password,
@@ -70,7 +69,7 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 	}, nil
 }
 
-func DefaultClient() (domain.Client, error) {
+func DefaultClient() (domain.PullRequestRepository, error) {
 	config, err := getDefaultConfiguration()
 	if err != nil {
 		return nil, err
@@ -161,54 +160,62 @@ type defaultReviewersResponse struct {
 // 	Values     []*client.PullRequest `json:"values"`
 // }
 
-func (c *BitbucketCloudClient) GetPullRequests(o *domain.GetPullRequestOptions) (*domain.PullRequestList, error) {
-	url := fmt.Sprintf(
-		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests",
-		c.Repository.Owner,
-		c.Repository.Name,
-	)
+type BitbucketCloudPullRequestPageList struct{}
 
-	if o.Next != "" {
-		url = o.Next
-	}
+func (pl *BitbucketCloudPullRequestPageList) GetPage(page int) ([]*domain.PullRequest, error) {
+	return nil, nil
+}
 
-	rc := resty.New()
-	r, err := rc.R().
-		SetBasicAuth(c.username, c.password).
-		SetQueryParam("state", string(o.State)).
-		SetError(bbError{}).
-		Get(url)
+func (c *BitbucketCloudClient) Get(o *domain.GetPullRequestOptions) (domain.PullRequestPageList, error) {
+	return &BitbucketCloudPullRequestPageList{}, nil
 
-	if err != nil {
-		return nil, err
-	}
-	if r.IsError() {
-		return nil, errors.New(string(r.Body()))
-	}
+	// url := fmt.Sprintf(
+	// 	"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests",
+	// 	c.Repository.Owner,
+	// 	c.Repository.Name,
+	// )
 
-	var pr domain.PullRequestList
-	parsed := gjson.ParseBytes(r.Body())
-	pr.PageLength = uint(parsed.Get("pagelen").Uint())
-	pr.Page = uint(parsed.Get("page").Uint())
-	pr.Size = uint(parsed.Get("size").Uint())
-	pr.NextURL = parsed.Get("next").String()
-	result := parsed.Get("values")
-	result.ForEach(func(key, value gjson.Result) bool {
-		pr.Values = append(pr.Values, &domain.PullRequest{
-			ID:          value.Get("id").String(),
-			Title:       value.Get("title").String(),
-			URL:         value.Get("links.html.href").String(),
-			State:       domain.PullRequestState(value.Get("state").String()),
-			Source:      value.Get("source.branch.name").String(),
-			Destination: value.Get("destination.branch.name").String(),
-			Created:     value.Get("created_on").Time(),
-			Updated:     value.Get("updated_on").Time(),
-		})
+	// if o.Next != "" {
+	// 	url = o.Next
+	// }
 
-		return true
-	})
+	// rc := resty.New()
+	// r, err := rc.R().
+	// 	SetBasicAuth(c.username, c.password).
+	// 	SetQueryParam("state", string(o.State)).
+	// 	SetError(bbError{}).
+	// 	Get(url)
 
-	return &pr, nil
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if r.IsError() {
+	// 	return nil, errors.New(string(r.Body()))
+	// }
+
+	// var pr domain.PullRequestList
+	// parsed := gjson.ParseBytes(r.Body())
+	// pr.PageLength = uint(parsed.Get("pagelen").Uint())
+	// pr.Page = uint(parsed.Get("page").Uint())
+	// pr.Size = uint(parsed.Get("size").Uint())
+	// pr.NextURL = parsed.Get("next").String()
+	// result := parsed.Get("values")
+	// result.ForEach(func(key, value gjson.Result) bool {
+	// 	pr.Values = append(pr.Values, &domain.PullRequest{
+	// 		ID:          value.Get("id").String(),
+	// 		Title:       value.Get("title").String(),
+	// 		URL:         value.Get("links.html.href").String(),
+	// 		State:       domain.PullRequestState(value.Get("state").String()),
+	// 		Source:      value.Get("source.branch.name").String(),
+	// 		Destination: value.Get("destination.branch.name").String(),
+	// 		Created:     value.Get("created_on").Time(),
+	// 		Updated:     value.Get("updated_on").Time(),
+	// 	})
+
+	// 	return true
+	// })
+
+	// return &pr, nil
 }
 
 func unmarshalPR(data []byte) (*domain.PullRequest, error) {
@@ -246,7 +253,7 @@ func (c *BitbucketCloudClient) post(url string) (*resty.Response, error) {
 	return r, nil
 }
 
-func (c *BitbucketCloudClient) DeclinePullRequest(o *domain.DeclinePullRequestOptions) (*domain.PullRequest, error) {
+func (c *BitbucketCloudClient) Decline(o *domain.DeclinePullRequestOptions) (*domain.PullRequest, error) {
 	url := fmt.Sprintf(
 		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/decline",
 		c.Repository.Owner,
@@ -262,7 +269,7 @@ func (c *BitbucketCloudClient) DeclinePullRequest(o *domain.DeclinePullRequestOp
 	return unmarshalPR(r.Body())
 }
 
-func (c *BitbucketCloudClient) ApprovePullRequest(o *domain.ApprovePullRequestOptions) (*domain.PullRequest, error) {
+func (c *BitbucketCloudClient) Approve(o *domain.ApprovePullRequestOptions) (*domain.PullRequest, error) {
 	url := fmt.Sprintf(
 		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/approve",
 		c.Repository.Owner,
@@ -335,7 +342,7 @@ func (c *BitbucketCloudClient) GetDefaultReviewers(o *domain.CreatePullRequestOp
 	return pr.Values, nil
 }
 
-func (c *BitbucketCloudClient) CreatePullRequest(o *domain.CreatePullRequestOptions) (*domain.PullRequest, error) {
+func (c *BitbucketCloudClient) Create(o *domain.CreatePullRequestOptions) (*domain.PullRequest, error) {
 	err := verifyCreatePullRequestOptions(o)
 	if err != nil {
 		return nil, err

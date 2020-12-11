@@ -4,14 +4,18 @@ import (
 	"time"
 )
 
+type GitRepository struct {
+	Name string
+}
+
 type Storage interface {
-	RefreshPullRequestData(Client)
-	GetPullRequests() string
+	RefreshPullRequestData(PullRequestRepository)
+	Get() string
 }
 
 type Domain struct {
 	// Repository *client.Repository
-	Client    Client
+	Client    PullRequestRepository
 	Storage   Storage
 	Presenter Presenter
 }
@@ -46,11 +50,11 @@ func (cb *CommandBus) execute(c Command) {
 	}
 }
 
-type Client interface {
-	GetPullRequests(*GetPullRequestOptions) (*PullRequestList, error)
-	CreatePullRequest(*CreatePullRequestOptions) (*PullRequest, error)
-	ApprovePullRequest(*ApprovePullRequestOptions) (*PullRequest, error)
-	DeclinePullRequest(*DeclinePullRequestOptions) (*PullRequest, error)
+type PullRequestRepository interface {
+	Get(*GetPullRequestOptions) (PullRequestPageList, error)
+	Create(*CreatePullRequestOptions) (*PullRequest, error)
+	Approve(*ApprovePullRequestOptions) (*PullRequest, error)
+	Decline(*DeclinePullRequestOptions) (*PullRequest, error)
 }
 
 type Event struct {
@@ -72,7 +76,7 @@ func (d *Domain) LoadPullRequests() {
 	d.Storage.RefreshPullRequestData(d.Client)
 	d.notify(&Event{
 		eventType: EVENT_PULL_REQUEST_LIST_UPDATED,
-		data:      d.Storage.GetPullRequests(),
+		data:      d.Storage.Get(),
 	})
 }
 
@@ -83,12 +87,17 @@ func (d *Domain) Present() {
 }
 
 type PullRequestUpdateListener interface {
-	Update()
+	UpdateFailed(error)
+	Update(PullRequestPageList)
 }
 
-func LoadPullRequests(c Client, l PullRequestUpdateListener) {
-	c.GetPullRequests(&GetPullRequestOptions{})
-	l.Update()
+func LoadPullRequests(c PullRequestRepository, l PullRequestUpdateListener) {
+	prList, err := c.Get(&GetPullRequestOptions{})
+	if err != nil {
+		l.UpdateFailed(err)
+	}
+
+	l.Update(prList)
 }
 
 type PullRequestState string
@@ -102,6 +111,10 @@ type PullRequest struct {
 	Destination string
 	Created     time.Time
 	Updated     time.Time
+}
+
+type PullRequestPageList interface {
+	GetPage(int) ([]*PullRequest, error)
 }
 
 type PullRequestList struct {

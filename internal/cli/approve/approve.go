@@ -1,7 +1,6 @@
 package approve
 
 import (
-	"fmt"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
 	"preq/internal/clientutils"
@@ -45,9 +44,9 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execute(c domain.Client, args *cmdArgs, params *approveCmdParams, repo *client.Repository) error {
+func execute(c domain.PullRequestRepository, args *cmdArgs, params *approveCmdParams, repo *client.Repository) error {
 	if args.ID != "" {
-		_, err := c.ApprovePullRequest(&domain.ApprovePullRequestOptions{
+		_, err := c.Approve(&domain.ApprovePullRequestOptions{
 			// Repository: repo,
 			ID: args.ID,
 		})
@@ -55,19 +54,19 @@ func execute(c domain.Client, args *cmdArgs, params *approveCmdParams, repo *cli
 			return err
 		}
 	} else {
-		prList, err := c.GetPullRequests(&domain.GetPullRequestOptions{
-			// Repository: repo,
-			State: client.PullRequestState_OPEN,
-		})
-		if err != nil {
-			return err
-		}
+		// prList, err := c.Get(&domain.GetPullRequestOptions{
+		// 	// Repository: repo,
+		// 	State: client.PullRequestState_OPEN,
+		// })
+		// if err != nil {
+		// 	return err
+		// }
 
-		selectedPRs := utils.PromptPullRequestMultiSelect(prList)
-		utils.ProcessPullRequestMap(selectedPRs, c, repo, approvePR, func(msg interface{}) string {
-			m := msg.(approveResponse)
-			return fmt.Sprintf("Approving #%s... %s\n", m.ID, m.Status)
-		})
+		// selectedPRs := utils.PromptPullRequestMultiSelect(prList)
+		// utils.ProcessPullRequestMap(selectedPRs, c, repo, approvePR, func(msg interface{}) string {
+		// 	m := msg.(approveResponse)
+		// 	return fmt.Sprintf("Approving #%s... %s\n", m.ID, m.Status)
+		// })
 	}
 
 	return nil
@@ -92,8 +91,8 @@ type approveResponse struct {
 	Error  error
 }
 
-func approvePR(cl domain.Client, r *client.Repository, id string, c chan interface{}) {
-	_, err := cl.ApprovePullRequest(&domain.ApprovePullRequestOptions{
+func approvePR(cl domain.PullRequestRepository, r *client.Repository, id string, c chan interface{}) {
+	_, err := cl.Approve(&domain.ApprovePullRequestOptions{
 		// Repository: r,
 		ID: id,
 	})

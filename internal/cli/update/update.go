@@ -39,7 +39,7 @@ func runCmd(cmd *cobra.Command, args []string) {
 	// }
 
 	// if id != "" {
-	// 	_, err = cl.ApprovePullRequest(&client.ApprovePullRequestOptions{
+	// 	_, err = cl.Approve(&client.ApprovePullRequestOptions{
 	// 		Repository: r,
 	// 		ID:         args[0],
 	// 	})
@@ -48,7 +48,7 @@ func runCmd(cmd *cobra.Command, args []string) {
 	// 		os.Exit(systemcodes.ErrorCodeGeneric)
 	// 	}
 	// } else {
-	// 	prList, err := cl.GetPullRequests(&client.GetPullRequestOptions{
+	// 	prList, err := cl.Get(&client.GetPullRequestOptions{
 	// 		Repository: r,
 	// 		State:      client.PullRequestState_OPEN,
 	// 	})

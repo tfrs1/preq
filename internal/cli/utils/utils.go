@@ -46,9 +46,9 @@ func PromptPullRequestMultiSelect(prList *domain.PullRequestList) map[string]*Pr
 
 func ProcessPullRequestMap(
 	selectedPRs map[string]*PromptPullRequest,
-	cl domain.Client,
+	cl domain.PullRequestRepository,
 	r *client.Repository,
-	processFn func(cl domain.Client, r *client.Repository, id string, c chan interface{}),
+	processFn func(cl domain.PullRequestRepository, r *client.Repository, id string, c chan interface{}),
 	fn func(interface{}) string,
 ) {
 	c := make(chan interface{})

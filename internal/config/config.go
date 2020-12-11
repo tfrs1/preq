@@ -10,6 +10,10 @@ import (
 	"github.com/spf13/viper"
 )
 
+const (
+	DEFAULT_CONFIG_PATH = "~/.config/preq/config.toml"
+)
+
 type paramsFiller interface {
 	Fill(params *RepositoryParams)
 }
@@ -59,7 +63,7 @@ func FillDefaultRepositoryParams(params *RepositoryParams) {
 	}
 }
 
-func Load() (domain.Client, *client.Repository, error) {
+func LoadLocal() (domain.PullRequestRepository, *client.Repository, error) {
 	params := &RepositoryParams{}
 	FillDefaultRepositoryParams(params)
 

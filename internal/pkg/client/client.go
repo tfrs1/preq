@@ -16,10 +16,10 @@ var (
 )
 
 type Client interface {
-	DeclinePullRequest(o *DeclinePullRequestOptions) (*PullRequest, error)
-	GetPullRequests(o *GetPullRequestOptions) (*PullRequestList, error)
-	CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error)
-	ApprovePullRequest(o *ApprovePullRequestOptions) (*PullRequest, error)
+	Decline(o *DeclinePullRequestOptions) (*PullRequest, error)
+	Get(o *GetPullRequestOptions) (*PullRequestList, error)
+	Create(o *CreatePullRequestOptions) (*PullRequest, error)
+	Approve(o *ApprovePullRequestOptions) (*PullRequest, error)
 }
 
 type RepositoryProvider string

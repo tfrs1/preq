@@ -10,7 +10,7 @@ import (
 
 type ClientFactory struct{}
 
-func (cf ClientFactory) DefaultClient(provider client.RepositoryProvider) (domain.Client, error) {
+func (cf ClientFactory) DefaultClient(provider client.RepositoryProvider) (domain.PullRequestRepository, error) {
 	switch provider {
 	case client.RepositoryProviderEnum.BITBUCKET:
 		return bitbucket.DefaultClient()

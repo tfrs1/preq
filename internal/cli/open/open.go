@@ -3,13 +3,8 @@ package open
 import (
 	"fmt"
 	"log"
-	"os"
 	"os/exec"
 	"preq/internal/cli/utils"
-	"preq/internal/clientutils"
-	"preq/internal/domain"
-	"preq/internal/pkg/client"
-	"preq/internal/systemcodes"
 	"runtime"
 
 	"github.com/spf13/cobra"
@@ -39,31 +34,31 @@ func execute(args *cmdArgs, params *openCmdParams) error {
 	if args.ID != "" {
 		url = fmt.Sprintf("https://bitbucket.org/%s/pull-requests/%s", params.Repository, args.ID)
 	} else if params.Interactive {
-		cl, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
-		if err != nil {
-			return err
-		}
-		_, err = client.NewRepositoryFromOptions(&client.RepositoryOptions{
-			Provider:           client.RepositoryProvider(params.Repository.Provider),
-			FullRepositoryName: params.Repository.Name,
-		})
-		if err != nil {
-			return err
-		}
-		prList, err := cl.GetPullRequests(&domain.GetPullRequestOptions{
-			// Repository: r,
-			State: client.PullRequestState_OPEN,
-		})
-		if err != nil {
-			return err
-		}
+		// cl, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
+		// if err != nil {
+		// 	return err
+		// }
+		// _, err = client.NewRepositoryFromOptions(&client.RepositoryOptions{
+		// 	Provider:           client.RepositoryProvider(params.Repository.Provider),
+		// 	FullRepositoryName: params.Repository.Name,
+		// })
+		// if err != nil {
+		// 	return err
+		// }
+		// prList, err := cl.Get(&domain.GetPullRequestOptions{
+		// 	// Repository: r,
+		// 	State: client.PullRequestState_OPEN,
+		// })
+		// if err != nil {
+		// 	return err
+		// }
 
-		selectedPR := utils.PromptPullRequestSelect(prList)
-		if selectedPR == nil {
-			os.Exit(systemcodes.ErrorCodeGeneric)
-		}
+		// selectedPR := utils.PromptPullRequestSelect(prList)
+		// if selectedPR == nil {
+		// 	os.Exit(systemcodes.ErrorCodeGeneric)
+		// }
 
-		url = fmt.Sprintf("https://bitbucket.org/%s/pull-requests/%s", params.Repository, selectedPR.ID)
+		// url = fmt.Sprintf("https://bitbucket.org/%s/pull-requests/%s", params.Repository, selectedPR.ID)
 	}
 
 	if params.PrintOnly {
