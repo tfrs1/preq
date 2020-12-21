@@ -34,7 +34,7 @@ func execute(args *cmdArgs, params *openCmdParams) error {
 	if args.ID != "" {
 		url = fmt.Sprintf("https://bitbucket.org/%s/pull-requests/%s", params.Repository, args.ID)
 	} else if params.Interactive {
-		// cl, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
+		// cl, err := clientutils.ClientFactory{}.DefaultPullRequestRepository(params.Repository.Provider)
 		// if err != nil {
 		// 	return err
 		// }
@@ -45,7 +45,7 @@ func execute(args *cmdArgs, params *openCmdParams) error {
 		// if err != nil {
 		// 	return err
 		// }
-		// prList, err := cl.Get(&domain.GetPullRequestOptions{
+		// prList, err := cl.Get(&pullrequest.GetOptions{
 		// 	// Repository: r,
 		// 	State: client.PullRequestState_OPEN,
 		// })

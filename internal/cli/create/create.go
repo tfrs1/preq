@@ -5,7 +5,6 @@ import (
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
 	"preq/internal/clientutils"
-	"preq/internal/domain"
 	"preq/internal/domain/pullrequest"
 
 	"github.com/spf13/cobra"
@@ -23,74 +22,34 @@ func setUpFlags(cmd *cobra.Command) {
 }
 
 func runCmd(cmd *cobra.Command, args []string) error {
-	flags := paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
+	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 	params := &createCmdParams{}
-	fillDefaultParams(params)
-	fillFlagParams(&flags, params)
-
-	interactive := flags.GetBoolOrDefault("interactive", false)
-	if interactive {
-		err := fillInteractiveParams(params)
-		if err != nil {
-			return err
-		}
-	}
+	populateParams(params, flags)
 
 	err := params.Validate()
 	if err != nil {
 		return err
 	}
 
-	c, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
+	c, err := clientutils.ClientFactory{}.DefaultPullRequestRepository(params.Repository.Provider)
 	if err != nil {
 		return err
 	}
 
-	err = execute(c, params)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-type creatorAdapter struct {
-	Client domain.PullRequestRepository
-}
-
-func (ca *creatorAdapter) Create(o *pullrequest.CreateOptions) (*pullrequest.Entity, error) {
-	cpro := &domain.CreatePullRequestOptions{
-		CloseBranch: o.CloseBranch,
-		Destination: o.Destination,
-		Source:      o.Source,
-		Title:       o.Title,
-		Draft:       o.Draft,
-	}
-
-	pr, err := ca.Client.Create(cpro)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pullrequest.Entity{
-		Destination: pr.Destination,
-		Source:      pr.Source,
-		Title:       pr.Title,
-		URL:         pr.URL,
-	}, nil
-}
-
-func execute(c domain.PullRequestRepository, params *createCmdParams) error {
-	ca := &creatorAdapter{Client: c}
-
-	service := pullrequest.NewCreateService(ca)
-	pr, err := service.Create(&pullrequest.CreateOptions{
-		CloseBranch: params.CloseBranch,
+	co := &pullrequest.CreateOptions{
 		Title:       params.Title,
 		Source:      params.Source,
 		Destination: params.Destination,
+		CloseBranch: params.CloseBranch,
 		Draft:       params.Draft,
-	})
+	}
+
+	return execute(c, co)
+}
+
+func execute(c pullrequest.Creator, params *pullrequest.CreateOptions) error {
+	service := pullrequest.NewCreateService(c)
+	pr, err := service.Create(params)
 
 	if err != nil {
 		return err
@@ -102,6 +61,7 @@ func execute(c domain.PullRequestRepository, params *createCmdParams) error {
 	return nil
 }
 
+// New creates an instance of create command
 func New() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create",

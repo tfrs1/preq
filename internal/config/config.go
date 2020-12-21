@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 	"preq/internal/clientutils"
-	"preq/internal/domain"
+	"preq/internal/domain/pullrequest"
 	"preq/internal/gitutils"
 	"preq/internal/pkg/client"
 
@@ -52,6 +52,12 @@ func (pf *viperConfigParamsFiller) Fill(params *RepositoryParams) {
 	}
 }
 
+type RepositoryInfo interface {
+	GetCurrentBranch() string
+	GetClosestBranch([]string) (string, error)
+	GetCurrentCommitMessage() (string, error)
+}
+
 func FillDefaultRepositoryParams(params *RepositoryParams) {
 	paramsFillers := []paramsFiller{
 		&localRepositoryParamsFiller{},
@@ -63,7 +69,7 @@ func FillDefaultRepositoryParams(params *RepositoryParams) {
 	}
 }
 
-func LoadLocal() (domain.PullRequestRepository, *client.Repository, error) {
+func LoadLocal() (pullrequest.Repository, *client.Repository, error) {
 	params := &RepositoryParams{}
 	FillDefaultRepositoryParams(params)
 
@@ -75,7 +81,7 @@ func LoadLocal() (domain.PullRequestRepository, *client.Repository, error) {
 		return nil, nil, err
 	}
 
-	c, err := clientutils.ClientFactory{}.DefaultClient(params.Provider)
+	c, err := clientutils.ClientFactory{}.DefaultPullRequestRepository(params.Provider)
 	if err != nil {
 		return nil, nil, err
 	}

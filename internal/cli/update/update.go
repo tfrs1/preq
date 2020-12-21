@@ -15,7 +15,7 @@ func runCmd(cmd *cobra.Command, args []string) {
 	fmt.Println(cmd.Flags().Changed("draft"))
 
 	// TODO: Implement update command
-	// cl, err := clientutils.ClientFactory{}.DefaultClient()
+	// cl, err := clientutils.ClientFactory{}.DefaultPullRequestRepository()
 	// if err != nil {
 	// 	fmt.Println(err)
 	// 	os.Exit(systemcodes.ErrorCodeGeneric)

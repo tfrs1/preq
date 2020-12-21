@@ -8,14 +8,6 @@ type CreateService struct {
 	creator Creator
 }
 
-type CreateOptions struct {
-	Title       string
-	Source      string
-	Destination string
-	CloseBranch bool
-	Draft       bool
-}
-
 func (cs *CreateService) Create(o *CreateOptions) (*Entity, error) {
 	return cs.creator.Create(o)
 }

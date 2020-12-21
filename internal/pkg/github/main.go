@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"preq/internal/domain"
+	"preq/internal/domain/pullrequest"
 	preqClient "preq/internal/pkg/client"
 	"strings"
 
@@ -36,7 +37,7 @@ type ClientOptions struct {
 	Token    string
 }
 
-func New(o *ClientOptions) domain.PullRequestRepository {
+func New(o *ClientOptions) pullrequest.Repository {
 	return &GithubCloudClient{
 		Username: o.Username,
 		Token:    o.Token,
@@ -67,7 +68,7 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 	}, nil
 }
 
-func DefaultClient() (domain.PullRequestRepository, error) {
+func DefaultClient() (pullrequest.Repository, error) {
 	config, err := getDefaultConfiguration()
 	if err != nil {
 		return nil, err
@@ -118,10 +119,10 @@ type bbError struct {
 
 type GithubPullRequestPageList struct {
 	c *GithubCloudClient
-	o *domain.GetPullRequestOptions
+	o *pullrequest.GetOptions
 }
 
-func (pl *GithubPullRequestPageList) GetPage(page int) ([]*domain.PullRequest, error) {
+func (pl *GithubPullRequestPageList) GetPage(page int) ([]*pullrequest.Entity, error) {
 	url := fmt.Sprintf(
 		"https://api.github.com/repos/%s/pulls",
 		pl.c.Repository.Name,
@@ -145,14 +146,14 @@ func (pl *GithubPullRequestPageList) GetPage(page int) ([]*domain.PullRequest, e
 		return nil, errors.New(string(r.Body()))
 	}
 
-	var pr []*domain.PullRequest
+	var pr []*pullrequest.Entity
 	parsed := gjson.ParseBytes(r.Body())
 	parsed.ForEach(func(key, value gjson.Result) bool {
-		pr = append(pr, &domain.PullRequest{
-			ID:          value.Get("number").String(),
+		pr = append(pr, &pullrequest.Entity{
+			ID:          pullrequest.EntityID(value.Get("number").String()),
 			Title:       value.Get("title").String(),
 			URL:         value.Get("html_url").String(),
-			State:       domain.PullRequestState(value.Get("state").String()),
+			State:       pullrequest.State(value.Get("state").String()),
 			Source:      value.Get("head.ref").String(),
 			Destination: value.Get("base.ref").String(),
 			Created:     value.Get("created_at").Time(),
@@ -171,7 +172,7 @@ func (pl *GithubPullRequestPageList) GetPage(page int) ([]*domain.PullRequest, e
 	return pr, nil
 }
 
-func (c *GithubCloudClient) Get(o *domain.GetPullRequestOptions) (domain.PullRequestPageList, error) {
+func (c *GithubCloudClient) Get(o *pullrequest.GetOptions) (pullrequest.EntityPageList, error) {
 	return &GithubPullRequestPageList{
 		c: c,
 		o: o,
@@ -202,7 +203,7 @@ func (c *GithubCloudClient) Get(o *domain.GetPullRequestOptions) (domain.PullReq
 	// var pr domain.PullRequestList
 	// parsed := gjson.ParseBytes(r.Body())
 	// parsed.ForEach(func(key, value gjson.Result) bool {
-	// 	pr.Values = append(pr.Values, &domain.PullRequest{
+	// 	pr.Values = append(pr.Values, &pullrequest.Entity{
 	// 		ID:          value.Get("number").String(),
 	// 		Title:       value.Get("title").String(),
 	// 		URL:         value.Get("html_url").String(),
@@ -225,15 +226,15 @@ func (c *GithubCloudClient) Get(o *domain.GetPullRequestOptions) (domain.PullReq
 	// return &pr, nil
 }
 
-func unmarshalPR(data []byte) (*domain.PullRequest, error) {
+func unmarshalPR(data []byte) (*pullrequest.Entity, error) {
 	pr := &PullRequest{}
 	err := json.Unmarshal(data, pr)
 	if err != nil {
 		return nil, err
 	}
 
-	return &domain.PullRequest{
-		ID:    fmt.Sprint(pr.Number),
+	return &pullrequest.Entity{
+		ID:    pullrequest.EntityID(fmt.Sprint(pr.Number)),
 		Title: pr.Title,
 		URL:   pr.Links.HTML.Href,
 		// State:       preqClient.PullRequestState(pr.State),
@@ -260,7 +261,7 @@ func (c *GithubCloudClient) post(url string) (*resty.Response, error) {
 	return r, nil
 }
 
-func (c *GithubCloudClient) Decline(o *domain.DeclinePullRequestOptions) (*domain.PullRequest, error) {
+func (c *GithubCloudClient) Decline(o *pullrequest.DeclineOptions) (*pullrequest.Entity, error) {
 	r, err := resty.New().R().
 		SetAuthToken(c.Token).
 		SetBody(ghPROptions{
@@ -367,7 +368,7 @@ func (c *GithubCloudClient) getReviews(o *getReviewsOptions) (*[]review, error) 
 	return reviews, nil
 }
 
-func (c *GithubCloudClient) Approve(o *domain.ApprovePullRequestOptions) (*domain.PullRequest, error) {
+func (c *GithubCloudClient) Approve(o *pullrequest.ApproveOptions) (*pullrequest.Entity, error) {
 	_, err := resty.New().R().
 		SetAuthToken(c.Token).
 		SetHeader("content-type", "application/json").
@@ -384,13 +385,13 @@ func (c *GithubCloudClient) Approve(o *domain.ApprovePullRequestOptions) (*domai
 
 	// TODO: Parse the response
 
-	return &domain.PullRequest{
-		ID: o.ID,
+	return &pullrequest.Entity{
+		ID: pullrequest.EntityID(o.ID),
 		// State: preqClient.PullRequestReviewState_APPROVED,
 	}, nil
 }
 
-func verifyCreatePullRequestOptions(o *domain.CreatePullRequestOptions) error {
+func verifyCreatePullRequestOptions(o *pullrequest.CreateOptions) error {
 	if o.Source == "" {
 		return errors.New("missing source branch")
 	}
@@ -436,7 +437,7 @@ func (c *GithubCloudClient) GetCurrentUser() (*preqClient.User, error) {
 	}, nil
 }
 
-func (c *GithubCloudClient) Create(o *domain.CreatePullRequestOptions) (*domain.PullRequest, error) {
+func (c *GithubCloudClient) Create(o *pullrequest.CreateOptions) (*pullrequest.Entity, error) {
 	err := verifyCreatePullRequestOptions(o)
 	if err != nil {
 		return nil, err
@@ -478,8 +479,8 @@ func (c *GithubCloudClient) Create(o *domain.CreatePullRequestOptions) (*domain.
 		log.Fatal(err)
 	}
 
-	return &domain.PullRequest{
-		ID:    fmt.Sprint(pr.Number),
+	return &pullrequest.Entity{
+		ID:    pullrequest.EntityID(fmt.Sprint(pr.Number)),
 		Title: pr.Title,
 		URL:   pr.Links.HTML.Href,
 		// State:       preqClient.PullRequestState(pr.State),

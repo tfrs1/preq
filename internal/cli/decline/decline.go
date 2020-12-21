@@ -4,13 +4,12 @@ import (
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
 	"preq/internal/clientutils"
-	"preq/internal/domain"
+	"preq/internal/domain/pullrequest"
 	"preq/internal/pkg/client"
 
 	"github.com/spf13/cobra"
 )
 
-var promptPullRequestMultiSelect = utils.PromptPullRequestMultiSelect
 var processPullRequestMap = utils.ProcessPullRequestMap
 
 func runCmd(cmd *cobra.Command, args []string) error {
@@ -24,7 +23,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cl, err := clientutils.ClientFactory{}.DefaultClient(params.Provider)
+	cl, err := clientutils.ClientFactory{}.DefaultPullRequestRepository(params.Provider)
 	if err != nil {
 		return err
 	}
@@ -45,9 +44,9 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execute(c domain.PullRequestRepository, args *cmdArgs, params *cmdParams, repo *client.Repository) error {
+func execute(c pullrequest.Repository, args *cmdArgs, params *cmdParams, repo *client.Repository) error {
 	if args.ID != "" {
-		_, err := c.Decline(&domain.DeclinePullRequestOptions{
+		_, err := c.Decline(&pullrequest.DeclineOptions{
 			// Repository: repo,
 			ID: args.ID,
 		})
@@ -55,7 +54,7 @@ func execute(c domain.PullRequestRepository, args *cmdArgs, params *cmdParams, r
 			return err
 		}
 	} else {
-		// prList, err := c.Get(&domain.GetPullRequestOptions{
+		// prList, err := c.Get(&pullrequest.GetOptions{
 		// 	// Repository: repo,
 		// 	State: client.PullRequestState_OPEN,
 		// })
@@ -98,8 +97,8 @@ type declineResponse struct {
 	Error  error
 }
 
-func declinePR(cl domain.PullRequestRepository, r *client.Repository, id string, c chan interface{}) {
-	_, err := cl.Decline(&domain.DeclinePullRequestOptions{
+func declinePR(cl pullrequest.Repository, r *client.Repository, id string, c chan interface{}) {
+	_, err := cl.Decline(&pullrequest.DeclineOptions{
 		// Repository: r,
 		ID: id,
 	})

@@ -14,6 +14,7 @@ import (
 	"preq/internal/config"
 	"preq/internal/configutils"
 	"preq/internal/domain"
+	"preq/internal/domain/pullrequest"
 	"preq/internal/pkg/client"
 	"preq/internal/pkg/github"
 	"preq/internal/tui"
@@ -27,7 +28,7 @@ var (
 	date    = "unknown"
 )
 
-func loadConfig() (domain.PullRequestRepository, *client.Repository, error) {
+func loadConfig() (pullrequest.Repository, *client.Repository, error) {
 	params := &config.RepositoryParams{}
 	config.FillDefaultRepositoryParams(params)
 
@@ -39,7 +40,7 @@ func loadConfig() (domain.PullRequestRepository, *client.Repository, error) {
 		return nil, nil, err
 	}
 
-	c, err := clientutils.ClientFactory{}.DefaultClient(params.Provider)
+	c, err := clientutils.ClientFactory{}.DefaultPullRequestRepository(params.Provider)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -53,7 +54,7 @@ func (ms *MockStorage) Get() string {
 	return ""
 }
 
-func (ms *MockStorage) RefreshPullRequestData(c domain.PullRequestRepository) {
+func (ms *MockStorage) RefreshPullRequestData(c pullrequest.Repository) {
 
 }
 
@@ -94,11 +95,11 @@ var rootCmd = &cobra.Command{
 			Repository: domain.GitRepository{
 				Name: "tfrs1/preq",
 			},
-			Username: "tfrs1",
-			Token:    "a99fd333ea529996de5cc8374473a5436ece2ef0",
+			Username: "",
+			Token:    "",
 		}
 
-		tui := tui.NewTui([]domain.PullRequestRepository{ghc})
+		tui := tui.NewTui([]pullrequest.Repository{ghc})
 		tui.Start()
 		// storage := NewStorage()
 		// domain := &domain.Domain{

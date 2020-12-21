@@ -1,21 +1,19 @@
 package domain
 
-import (
-	"time"
-)
+import "preq/internal/domain/pullrequest"
 
 type GitRepository struct {
 	Name string
 }
 
 type Storage interface {
-	RefreshPullRequestData(PullRequestRepository)
+	RefreshPullRequestData(pullrequest.Repository)
 	Get() string
 }
 
 type Domain struct {
 	// Repository *client.Repository
-	Client    PullRequestRepository
+	Client    pullrequest.Repository
 	Storage   Storage
 	Presenter Presenter
 }
@@ -50,13 +48,6 @@ func (cb *CommandBus) execute(c Command) {
 	}
 }
 
-type PullRequestRepository interface {
-	Get(*GetPullRequestOptions) (PullRequestPageList, error)
-	Create(*CreatePullRequestOptions) (*PullRequest, error)
-	Approve(*ApprovePullRequestOptions) (*PullRequest, error)
-	Decline(*DeclinePullRequestOptions) (*PullRequest, error)
-}
-
 type Event struct {
 	eventType string
 	data      string
@@ -88,11 +79,11 @@ func (d *Domain) Present() {
 
 type PullRequestUpdateListener interface {
 	UpdateFailed(error)
-	Update(PullRequestPageList)
+	Update(pullrequest.EntityPageList)
 }
 
-func LoadPullRequests(c PullRequestRepository, l PullRequestUpdateListener) {
-	prList, err := c.Get(&GetPullRequestOptions{})
+func LoadPullRequests(c pullrequest.Repository, l PullRequestUpdateListener) {
+	prList, err := c.Get(&pullrequest.GetOptions{})
 	if err != nil {
 		l.UpdateFailed(err)
 	}
@@ -100,49 +91,10 @@ func LoadPullRequests(c PullRequestRepository, l PullRequestUpdateListener) {
 	l.Update(prList)
 }
 
-type PullRequestState string
-
-type PullRequest struct {
-	ID          string
-	Title       string
-	URL         string
-	State       PullRequestState
-	Source      string
-	Destination string
-	Created     time.Time
-	Updated     time.Time
-}
-
-type PullRequestPageList interface {
-	GetPage(int) ([]*PullRequest, error)
-}
-
 type PullRequestList struct {
-	PageLength uint           `json:"pagelen"`
-	Page       uint           `json:"page"`
-	Size       uint           `json:"size"`
-	NextURL    string         `json:"next"`
-	Values     []*PullRequest `json:"values"`
-}
-
-type GetPullRequestOptions struct {
-	State PullRequestState
-	Next  string
-}
-
-type CreatePullRequestOptions struct {
-	Title       string
-	Source      string
-	Destination string
-	CloseBranch bool
-	Draft       bool
-	// ID string
-}
-
-type ApprovePullRequestOptions struct {
-	ID string
-}
-
-type DeclinePullRequestOptions struct {
-	ID string
+	PageLength uint                  `json:"pagelen"`
+	Page       uint                  `json:"page"`
+	Size       uint                  `json:"size"`
+	NextURL    string                `json:"next"`
+	Values     []*pullrequest.Entity `json:"values"`
 }

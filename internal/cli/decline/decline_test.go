@@ -3,7 +3,7 @@ package decline
 import (
 	"errors"
 	"preq/internal/cli/utils"
-	"preq/internal/domain"
+	"preq/internal/domain/pullrequest"
 	"preq/internal/pkg/client"
 	"testing"
 
@@ -41,7 +41,7 @@ func Test_declinePR(t *testing.T) {
 
 func Test_execute(t *testing.T) {
 	type args struct {
-		c      domain.PullRequestRepository
+		c      pullrequest.Repository
 		args   *cmdArgs
 		params *cmdParams
 		repo   *client.Repository
@@ -90,11 +90,8 @@ func Test_execute(t *testing.T) {
 	t.Run("execute succeeds when client calls succeed", func(t *testing.T) {
 		oldPromptPullRequestMultiSelect := promptPullRequestMultiSelect
 		oldProcessPullRequestMap := processPullRequestMap
-		processPullRequestMap = func(selectedPRs map[string]*utils.PromptPullRequest, cl domain.PullRequestRepository, r *client.Repository, processFn func(cl domain.PullRequestRepository, r *client.Repository, id string, c chan interface{}), fn func(interface{}) string) {
+		processPullRequestMap = func(selectedPRs map[string]*utils.PromptPullRequest, cl pullrequest.Repository, r *client.Repository, processFn func(cl pullrequest.Repository, r *client.Repository, id string, c chan interface{}), fn func(interface{}) string) {
 			return
-		}
-		promptPullRequestMultiSelect = func(prList *domain.PullRequestList) map[string]*utils.PromptPullRequest {
-			return map[string]*utils.PromptPullRequest{}
 		}
 		err := execute(
 			&client.MockClient{},

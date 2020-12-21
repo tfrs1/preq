@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"preq/internal/domain"
+	"preq/internal/domain/pullrequest"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -137,7 +138,7 @@ func (g *grid) hideFilter() {
 		AddItem(g.table, 0, 0, 2, 1, 0, 0, false)
 }
 
-func loadPRs(app *tview.Application, prList domain.PullRequestPageList, table *pullRequestTable) {
+func loadPRs(app *tview.Application, prList pullrequest.EntityPageList, table *pullRequestTable) {
 	app.QueueUpdateDraw(func() {
 		table.View.SetCell(0, 0, tview.NewTableCell("Loading...").SetAlign(tview.AlignCenter))
 	})
@@ -151,7 +152,7 @@ func loadPRs(app *tview.Application, prList domain.PullRequestPageList, table *p
 
 		for _, v := range values {
 			table.AddRow(&pullRequestTableItem{
-				ID:          v.ID,
+				// ID:          v.ID,
 				Title:       v.Title,
 				Source:      v.Source,
 				Destination: v.Destination,
@@ -165,7 +166,7 @@ func loadPRs(app *tview.Application, prList domain.PullRequestPageList, table *p
 }
 
 type TuiPresenter struct {
-	client domain.PullRequestRepository
+	client pullrequest.Repository
 }
 
 func (tp *TuiPresenter) Start() {
@@ -174,7 +175,7 @@ func (tp *TuiPresenter) Start() {
 
 func (tp *TuiPresenter) Notify(e *domain.Event) {}
 
-func NewTui(c []domain.PullRequestRepository) *TuiPresenter {
+func NewTui(c []pullrequest.Repository) *TuiPresenter {
 	return &TuiPresenter{
 		client: c[0],
 	}
@@ -187,7 +188,7 @@ type app struct {
 	grid        *grid
 }
 
-func (app *app) Update(prList domain.PullRequestPageList) {
+func (app *app) Update(prList pullrequest.EntityPageList) {
 	loadPRs(app.tui, prList, app.table)
 	// fmt.Println(prList)
 }
@@ -211,7 +212,16 @@ func newApp() *app {
 
 	table.View.
 		SetBorder(true).
-		SetTitle("Pull requests")
+		SetTitle("Pull requests").
+		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			switch event.Key() {
+			case tcell.KeyCtrlD:
+				fmt.Println("delete?")
+				return nil
+			}
+
+			return event
+		})
 
 	searchInput.SetPlaceholder("Filter pull requests")
 	searchInput.
@@ -294,7 +304,7 @@ func newApp() *app {
 	}
 }
 
-func run(c domain.PullRequestRepository) {
+func run(c pullrequest.Repository) {
 	app := newApp()
 	go domain.LoadPullRequests(c, app)
 

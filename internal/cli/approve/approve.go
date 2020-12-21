@@ -5,7 +5,7 @@ import (
 	"preq/internal/cli/utils"
 	"preq/internal/clientutils"
 	"preq/internal/config"
-	"preq/internal/domain"
+	"preq/internal/domain/pullrequest"
 	"preq/internal/pkg/client"
 
 	"github.com/spf13/cobra"
@@ -23,7 +23,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cl, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
+	cl, err := clientutils.ClientFactory{}.DefaultPullRequestRepository(params.Repository.Provider)
 	if err != nil {
 		return err
 	}
@@ -44,9 +44,9 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execute(c domain.PullRequestRepository, args *cmdArgs, params *approveCmdParams, repo *client.Repository) error {
+func execute(c pullrequest.Repository, args *cmdArgs, params *approveCmdParams, repo *client.Repository) error {
 	if args.ID != "" {
-		_, err := c.Approve(&domain.ApprovePullRequestOptions{
+		_, err := c.Approve(&pullrequest.ApproveOptions{
 			// Repository: repo,
 			ID: args.ID,
 		})
@@ -54,7 +54,7 @@ func execute(c domain.PullRequestRepository, args *cmdArgs, params *approveCmdPa
 			return err
 		}
 	} else {
-		// prList, err := c.Get(&domain.GetPullRequestOptions{
+		// prList, err := c.Get(&pullrequest.GetOptions{
 		// 	// Repository: repo,
 		// 	State: client.PullRequestState_OPEN,
 		// })
@@ -91,8 +91,8 @@ type approveResponse struct {
 	Error  error
 }
 
-func approvePR(cl domain.PullRequestRepository, r *client.Repository, id string, c chan interface{}) {
-	_, err := cl.Approve(&domain.ApprovePullRequestOptions{
+func approvePR(cl pullrequest.Repository, r *client.Repository, id string, c chan interface{}) {
+	_, err := cl.Approve(&pullrequest.ApproveOptions{
 		// Repository: r,
 		ID: id,
 	})

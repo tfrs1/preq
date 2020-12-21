@@ -7,7 +7,7 @@ import (
 	"preq/internal/cli/utils"
 	"preq/internal/clientutils"
 	"preq/internal/config"
-	"preq/internal/domain"
+	"preq/internal/domain/pullrequest"
 	"preq/internal/pkg/client"
 
 	"github.com/gosuri/uilive"
@@ -26,7 +26,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
+	c, err := clientutils.ClientFactory{}.DefaultPullRequestRepository(params.Repository.Provider)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execute(c domain.PullRequestRepository, params *listCmdParams, repo *client.Repository) error {
+func execute(c pullrequest.Repository, params *listCmdParams, repo *client.Repository) error {
 	// nextURL := ""
 	// reader := bufio.NewReader(os.Stdin)
 
@@ -60,7 +60,7 @@ func execute(c domain.PullRequestRepository, params *listCmdParams, repo *client
 	table.AddRow("-", "-----", "--------", "---")
 
 	for {
-		// prs, err := c.Get(&domain.GetPullRequestOptions{
+		// prs, err := c.Get(&pullrequest.GetOptions{
 		// 	// Repository: repo,
 		// 	State: client.PullRequestState_OPEN,
 		// 	Next:  nextURL,
