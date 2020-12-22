@@ -67,19 +67,20 @@ var rootCmd = &cobra.Command{
 	Short:   "preq command-line utility for pull requests",
 	Long:    `Command-line utility for all your pull request needs.`,
 	Version: fmt.Sprintf("%v, commit %v, built at %v", version, commit, date),
-	Run: func(cmd *cobra.Command, args []string) {
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		path, err := cmd.Flags().GetString("config")
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(3)
 		}
 
-		err = configutils.LoadDefault(path)
+		err = configutils.LoadGlobal(path)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(3)
 		}
-
+	},
+	Run: func(cmd *cobra.Command, args []string) {
 		c, r, err := config.LoadLocal()
 		if err != nil {
 			// TODO: Do something
@@ -95,7 +96,7 @@ var rootCmd = &cobra.Command{
 			Repository: domain.GitRepository{
 				Name: "tfrs1/preq",
 			},
-			Username: "",
+			Username: "tfrs1",
 			Token:    "",
 		}
 
@@ -120,17 +121,19 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
-	rootCmd.AddCommand(createcmd.New())
-	rootCmd.AddCommand(approvecmd.New())
-	rootCmd.AddCommand(declinecmd.New())
-	rootCmd.AddCommand(listcmd.New())
-	rootCmd.AddCommand(opencmd.New())
-	rootCmd.AddCommand(updatecmd.New())
+	rootCmd.AddCommand(
+		createcmd.New(),
+		approvecmd.New(),
+		declinecmd.New(),
+		listcmd.New(),
+		opencmd.New(),
+		updatecmd.New(),
+	)
 
 	rootCmd.PersistentFlags().StringP("repository", "r", "", "repository in form of owner/repo")
 	// TODO: Shorthand names for providers?
 	rootCmd.PersistentFlags().StringP("provider", "p", "", "repository host, values - (bitbucket)")
-	rootCmd.PersistentFlags().String("config", config.DEFAULT_CONFIG_PATH, "default config path")
+	rootCmd.PersistentFlags().String("config", "", "default config path")
 
 	rootCmd.Execute()
 }

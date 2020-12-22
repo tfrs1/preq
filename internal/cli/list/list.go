@@ -1,11 +1,12 @@
 package list
 
 import (
+	"bufio"
 	"fmt"
 	"io"
+	"os"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
-	"preq/internal/clientutils"
 	"preq/internal/config"
 	"preq/internal/domain/pullrequest"
 	"preq/internal/pkg/client"
@@ -16,30 +17,23 @@ import (
 )
 
 func runCmd(cmd *cobra.Command, args []string) error {
+	c, _, err := config.LoadLocal()
+	if err != nil {
+		fmt.Println("unknown error")
+		os.Exit(123)
+	}
+
 	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 
 	params := &listCmdParams{}
 	config.FillDefaultRepositoryParams(&params.Repository)
 	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
-	err := paramutils.ValidateFlagRepositoryParams(&params.Repository)
+	err = paramutils.ValidateFlagRepositoryParams(&params.Repository)
 	if err != nil {
 		return err
 	}
 
-	c, err := clientutils.ClientFactory{}.DefaultPullRequestRepository(params.Repository.Provider)
-	if err != nil {
-		return err
-	}
-
-	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider:           params.Repository.Provider,
-		FullRepositoryName: params.Repository.Name,
-	})
-	if err != nil {
-		return err
-	}
-
-	err = execute(c, params, r)
+	err = execute(c, params)
 	if err != nil {
 		return err
 	}
@@ -47,10 +41,15 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execute(c pullrequest.Repository, params *listCmdParams, repo *client.Repository) error {
-	// nextURL := ""
-	// reader := bufio.NewReader(os.Stdin)
+func execute(c pullrequest.Repository, params *listCmdParams) error {
+	list, err := c.Get(&pullrequest.GetOptions{
+		State: client.PullRequestState_OPEN,
+	})
+	if err != nil {
+		return err
+	}
 
+	reader := bufio.NewReader(os.Stdin)
 	writer := uilive.New()
 	defer writer.Stop()
 	writer.Start()
@@ -60,45 +59,43 @@ func execute(c pullrequest.Repository, params *listCmdParams, repo *client.Repos
 	table.AddRow("-", "-----", "--------", "---")
 
 	for {
-		// prs, err := c.Get(&pullrequest.GetOptions{
-		// 	// Repository: repo,
-		// 	State: client.PullRequestState_OPEN,
-		// 	Next:  nextURL,
-		// })
+		prs, err := list.Next()
+		if err != nil {
+			return err
+		}
 
-		// if err != nil {
-		// 	fmt.Println(err)
-		// 	os.Exit(systemcodes.ErrorCodeGeneric)
-		// }
+		// TODO: not required with list.hasNext()
+		if prs == nil {
+			break
+		}
 
-		// nextURL = prs.NextURL
+		for _, v := range prs {
+			table.AddRow(
+				v.ID,
+				v.Title,
+				fmt.Sprintf("%s -> %s", v.Source, v.Destination),
+				v.URL,
+			)
+		}
 
-		// for _, v := range prs.Values {
-		// 	table.AddRow(
-		// 		v.ID,
-		// 		v.Title,
-		// 		fmt.Sprintf("%s -> %s", v.Source, v.Destination),
-		// 		v.URL,
-		// 	)
-		// }
+		fmt.Fprintln(writer, table.String())
 
-		// fmt.Fprintln(writer, table.String())
-
-		// if nextURL == "" {
+		// TODO: implement this hasNext()
+		// if !list.hasNext() {
 		// 	break
 		// }
 
-		// moreMsg := "Press Enter to show more..."
-		// fmt.Fprintln(writer.Newline(), moreMsg)
+		moreMsg := "Press Enter to show more..."
+		fmt.Fprintln(writer.Newline(), moreMsg)
 
-		// _, _, err = reader.ReadRune()
-		// if err != nil {
-		// 	fmt.Println(err)
-		// 	break
-		// }
+		_, _, err = reader.ReadRune()
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
 
-		// // Clear the additional line from loading more request (Enter)
-		// clearLine(writer.Out)
+		// Clear the additional line from loading more request (Enter)
+		clearLine(writer.Out)
 
 		loadingMsg := "Loading..."
 		fmt.Fprintln(writer, table.String())

@@ -123,7 +123,7 @@ func TestLoad(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 		loadConfig = func(string) error { return nil }
-		err := LoadDefault("")
+		err := LoadGlobal("")
 		assert.Equal(t, nil, err)
 	})
 
@@ -135,7 +135,7 @@ func TestLoad(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		vErr := errors.New("load err")
 		loadConfig = func(string) error { return vErr }
-		err := LoadDefault("")
+		err := LoadGlobal("")
 		assert.EqualError(t, err, vErr.Error())
 	})
 

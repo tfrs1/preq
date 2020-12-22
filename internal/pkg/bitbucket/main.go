@@ -166,6 +166,10 @@ func (pl *BitbucketCloudPullRequestPageList) GetPage(page int) ([]*pullrequest.E
 	return nil, nil
 }
 
+func (pl *BitbucketCloudPullRequestPageList) Next() ([]*pullrequest.Entity, error) {
+	return nil, nil
+}
+
 func (c *BitbucketCloudClient) Get(o *pullrequest.GetOptions) (pullrequest.EntityPageList, error) {
 	return &BitbucketCloudPullRequestPageList{}, nil
 
@@ -226,7 +230,7 @@ func unmarshalPR(data []byte) (*pullrequest.Entity, error) {
 	}
 
 	return &pullrequest.Entity{
-		ID:          pullrequest.EntityID(pr.ID),
+		ID:          pullrequest.EntityID(fmt.Sprint(pr.ID)),
 		Title:       pr.Title,
 		URL:         pr.Links.HTML.Href,
 		State:       pr.State,

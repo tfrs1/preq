@@ -81,6 +81,22 @@ func DefaultClient() (pullrequest.Repository, error) {
 	}, nil
 }
 
+func DefaultClient1(repo *preqClient.Repository) (pullrequest.Repository, error) {
+	config, err := getDefaultConfiguration()
+	if err != nil {
+		return nil, err
+	}
+
+	return &GithubCloudClient{
+		Repository: domain.GitRepository{
+			Name: fmt.Sprintf("%s/%s", repo.Owner, repo.Name),
+		},
+		Username: config.username,
+		Token:    config.token,
+		UUID:     config.uuid,
+	}, nil
+}
+
 type ghPRSourceBranchOptions struct {
 	Name string `json:"name,omitempty"`
 }
@@ -118,8 +134,14 @@ type bbError struct {
 // }
 
 type GithubPullRequestPageList struct {
-	c *GithubCloudClient
-	o *pullrequest.GetOptions
+	counter int
+	c       *GithubCloudClient
+	o       *pullrequest.GetOptions
+}
+
+func (pl *GithubPullRequestPageList) Next() ([]*pullrequest.Entity, error) {
+	pl.counter++
+	return pl.GetPage(pl.counter)
 }
 
 func (pl *GithubPullRequestPageList) GetPage(page int) ([]*pullrequest.Entity, error) {
@@ -136,6 +158,7 @@ func (pl *GithubPullRequestPageList) GetPage(page int) ([]*pullrequest.Entity, e
 	r, err := rc.R().
 		SetAuthToken(pl.c.Token).
 		SetQueryParam("state", string(pl.o.State)).
+		SetQueryParam("page", fmt.Sprint(page)).
 		SetError(bbError{}).
 		Get(url)
 
@@ -174,8 +197,9 @@ func (pl *GithubPullRequestPageList) GetPage(page int) ([]*pullrequest.Entity, e
 
 func (c *GithubCloudClient) Get(o *pullrequest.GetOptions) (pullrequest.EntityPageList, error) {
 	return &GithubPullRequestPageList{
-		c: c,
-		o: o,
+		counter: 0,
+		c:       c,
+		o:       o,
 	}, nil
 	// url := fmt.Sprintf(
 	// 	"https://api.github.com/repos/%s/pulls",

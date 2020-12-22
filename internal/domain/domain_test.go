@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"preq/internal/domain/pullrequest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,20 +20,20 @@ type MockClient struct {
 	GetPullRequestsCalls int
 }
 
-func (mc *MockClient) Get(*GetPullRequestOptions) (PullRequestPageList, error) {
+func (mc *MockClient) Get(*pullrequest.GetOptions) (pullrequest.EntityPageList, error) {
 	mc.GetPullRequestsCalls++
 	return nil, nil
 }
 
-func (mc *MockClient) Create(o *CreatePullRequestOptions) (*PullRequest, error) {
+func (mc *MockClient) Create(o *pullrequest.CreateOptions) (*pullrequest.Entity, error) {
 	return nil, nil
 }
 
-func (mc *MockClient) Approve(o *ApprovePullRequestOptions) (*PullRequest, error) {
+func (mc *MockClient) Approve(o *pullrequest.ApproveOptions) (*pullrequest.Entity, error) {
 	return nil, nil
 }
 
-func (mc *MockClient) Decline(o *DeclinePullRequestOptions) (*PullRequest, error) {
+func (mc *MockClient) Decline(o *pullrequest.DeclineOptions) (*pullrequest.Entity, error) {
 	return nil, nil
 }
 
@@ -40,7 +41,7 @@ type MockPullRequestUpdateListener struct {
 	UpdateCalls int
 }
 
-func (mprul *MockPullRequestUpdateListener) Update(prList PullRequestPageList) {
+func (mprul *MockPullRequestUpdateListener) Update(prList pullrequest.EntityPageList) {
 	mprul.UpdateCalls++
 }
 

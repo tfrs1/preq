@@ -2,6 +2,7 @@ package configutils
 
 import (
 	"io"
+	"preq/internal/config"
 	"preq/internal/pkg/fs"
 
 	"github.com/mitchellh/go-homedir"
@@ -72,7 +73,13 @@ var loadConfig = func(filename string) error {
 	return nil
 }
 
-func LoadDefault(path string) error {
+func LoadGlobal(pathOverride string) error {
+	path := config.DEFAULT_CONFIG_PATH
+	overridePath := pathOverride != ""
+	if overridePath {
+		path = pathOverride
+	}
+
 	hdCfgPath, err := homedir.Expand(path)
 	if err != nil {
 		return ErrHomeDirNotFound
@@ -85,7 +92,11 @@ func LoadDefault(path string) error {
 	// 	log.Fatal(err)
 	// }
 
-	configs := []string{hdCfgPath, ".preqcfg"}
+	configs := []string{hdCfgPath}
+	if !overridePath {
+		configs = append(configs, ".preqcfg")
+	}
+
 	for _, v := range configs {
 		err = loadConfig(v)
 		if err != nil {

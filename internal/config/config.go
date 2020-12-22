@@ -70,6 +70,7 @@ func FillDefaultRepositoryParams(params *RepositoryParams) {
 }
 
 func LoadLocal() (pullrequest.Repository, *client.Repository, error) {
+	// TODO: Rename and move somewhere appropriate, refactor
 	params := &RepositoryParams{}
 	FillDefaultRepositoryParams(params)
 
@@ -81,7 +82,7 @@ func LoadLocal() (pullrequest.Repository, *client.Repository, error) {
 		return nil, nil, err
 	}
 
-	c, err := clientutils.ClientFactory{}.DefaultPullRequestRepository(params.Provider)
+	c, err := clientutils.ClientFactory{}.DefaultPullRequestRepository1(params.Provider, r)
 	if err != nil {
 		return nil, nil, err
 	}

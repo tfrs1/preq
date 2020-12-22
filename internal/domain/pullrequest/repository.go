@@ -2,6 +2,7 @@ package pullrequest
 
 type EntityPageList interface {
 	GetPage(int) ([]*Entity, error)
+	Next() ([]*Entity, error)
 }
 
 type Repository interface {
