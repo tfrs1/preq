@@ -170,6 +170,10 @@ func (pl *BitbucketCloudPullRequestPageList) Next() ([]*pullrequest.Entity, erro
 	return nil, nil
 }
 
+func (pl *BitbucketCloudPullRequestPageList) HasNext() bool {
+	return false
+}
+
 func (c *BitbucketCloudClient) Get(o *pullrequest.GetOptions) (pullrequest.EntityPageList, error) {
 	return &BitbucketCloudPullRequestPageList{}, nil
 

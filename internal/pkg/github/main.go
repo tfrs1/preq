@@ -134,14 +134,37 @@ type bbError struct {
 // }
 
 type GithubPullRequestPageList struct {
-	counter int
-	c       *GithubCloudClient
-	o       *pullrequest.GetOptions
+	pageSize int
+	hasNext  bool
+	counter  int
+	c        *GithubCloudClient
+	o        *pullrequest.GetOptions
+}
+
+func NewPullRequestPageList(c *GithubCloudClient, o *pullrequest.GetOptions) pullrequest.EntityPageList {
+	return &GithubPullRequestPageList{
+		c:        c,
+		o:        o,
+		pageSize: 20,
+		hasNext:  true,
+		counter:  0,
+	}
+}
+
+func (pl *GithubPullRequestPageList) HasNext() bool {
+	return pl.hasNext
 }
 
 func (pl *GithubPullRequestPageList) Next() ([]*pullrequest.Entity, error) {
 	pl.counter++
-	return pl.GetPage(pl.counter)
+	prs, err := pl.GetPage(pl.counter)
+	if err != nil {
+		return nil, err
+	}
+
+	pl.hasNext = len(prs) < 100
+
+	return prs, nil
 }
 
 func (pl *GithubPullRequestPageList) GetPage(page int) ([]*pullrequest.Entity, error) {
@@ -196,11 +219,7 @@ func (pl *GithubPullRequestPageList) GetPage(page int) ([]*pullrequest.Entity, e
 }
 
 func (c *GithubCloudClient) Get(o *pullrequest.GetOptions) (pullrequest.EntityPageList, error) {
-	return &GithubPullRequestPageList{
-		counter: 0,
-		c:       c,
-		o:       o,
-	}, nil
+	return NewPullRequestPageList(c, o), nil
 	// url := fmt.Sprintf(
 	// 	"https://api.github.com/repos/%s/pulls",
 	// 	c.Repository.Name,
