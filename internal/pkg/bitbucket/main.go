@@ -29,7 +29,6 @@ type BitbucketCloudClient struct {
 	username   string
 	password   string
 	uuid       string
-	repository string
 }
 
 type ClientOptions struct {
@@ -95,10 +94,12 @@ func DefaultClient() (pullrequest.Repository, error) {
 	}
 
 	return &BitbucketCloudClient{
-		username:   config.username,
-		password:   config.password,
-		uuid:       config.uuid,
-		repository: config.repository,
+		username: config.username,
+		password: config.password,
+		uuid:     config.uuid,
+		Repository: domain.GitRepository{
+			Name: config.repository,
+		},
 	}, nil
 }
 
@@ -431,7 +432,7 @@ func (c *BitbucketCloudClient) GetDefaultReviewers(o *pullrequest.CreateOptions)
 		SetError(bbError{}).
 		Get(fmt.Sprintf(
 			"https://api.bitbucket.org/2.0/repositories/%s/default-reviewers",
-			c.repository,
+			c.Repository.Name,
 		))
 
 	if err != nil {
@@ -499,7 +500,7 @@ func (c *BitbucketCloudClient) Create(o *pullrequest.CreateOptions) (*pullreques
 		SetError(bbError{}).
 		Post(fmt.Sprintf(
 			"https://api.bitbucket.org/2.0/repositories/%s/pullrequests",
-			c.repository,
+			c.Repository.Name,
 		))
 
 	if err != nil {

@@ -2,9 +2,10 @@ package cmdcreate
 
 import (
 	"fmt"
+	"os"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
-	"preq/internal/clientutils"
+	"preq/internal/config"
 	"preq/internal/domain/pullrequest"
 
 	"github.com/spf13/cobra"
@@ -16,22 +17,26 @@ func setUpFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP("title", "t", "", "the title of the pull request (default last commit message)")
 	// TODO: Open default editor for description?
 	cmd.Flags().String("description", "", "the description of the pull request")
-	cmd.Flags().BoolP("interactive", "i", false, "the description of the pull request")
+	// TODO: Enable interactive in tui
+	// cmd.Flags().BoolP("interactive", "i", false, "the description of the pull request")
 	cmd.Flags().Bool("close", true, "do not close source branch")
 	cmd.Flags().Bool("draft", false, "mark the pull request as draft")
 }
 
 func runCmd(cmd *cobra.Command, args []string) error {
 	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
-	params := &createCmdParams{}
-	populateParams(params, flags)
-
-	err := params.Validate()
+	c, _, err := config.LoadLocal(flags)
 	if err != nil {
-		return err
+		fmt.Println("unknown error")
+		os.Exit(123)
 	}
 
-	c, err := clientutils.ClientFactory{}.DefaultPullRequestRepository(params.Repository.Provider)
+	params := &createCmdParams{}
+
+	populateParams(params, flags)
+	config.FillFlagRepositoryParams(flags, &params.Repository)
+
+	err = params.Validate()
 	if err != nil {
 		return err
 	}
@@ -50,6 +55,11 @@ func runCmd(cmd *cobra.Command, args []string) error {
 func execute(c pullrequest.Creator, params *pullrequest.CreateOptions) error {
 	service := pullrequest.NewCreateService(c)
 	pr, err := service.Create(params)
+
+	// TODO: Consider implementation like
+	// commandInvoker := getCommandInvoker()
+	// cmd := pullrequest.CreateCommand(c, params)
+	// commandInvoker.invoke(cmd)
 
 	if err != nil {
 		return err
