@@ -17,7 +17,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 
 	params := &approveCmdParams{}
 	config.FillDefaultRepositoryParams(&params.Repository)
-	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
+	config.FillFlagRepositoryParams(flags, &params.Repository)
 	err := paramutils.ValidateFlagRepositoryParams(&params.Repository)
 	if err != nil {
 		return err

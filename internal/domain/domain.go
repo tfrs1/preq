@@ -2,6 +2,7 @@ package domain
 
 import "preq/internal/domain/pullrequest"
 
+// TODO: VCRepository?
 type GitRepository struct {
 	Name string
 }

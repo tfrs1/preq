@@ -47,7 +47,7 @@ func populateParams(params *createCmdParams, flags paramutils.FlagSet) {
 }
 
 func fillFlagParams(flags paramutils.FlagSet, params *createCmdParams) {
-	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
+	config.FillFlagRepositoryParams(flags, &params.Repository)
 
 	var (
 		source      = flags.GetStringOrDefault("source", params.Source)

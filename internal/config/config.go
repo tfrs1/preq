@@ -60,8 +60,8 @@ type RepositoryInfo interface {
 
 func FillDefaultRepositoryParams(params *RepositoryParams) {
 	paramsFillers := []paramsFiller{
-		&localRepositoryParamsFiller{},
 		&viperConfigParamsFiller{},
+		&localRepositoryParamsFiller{},
 	}
 
 	for _, pf := range paramsFillers {
@@ -69,13 +69,32 @@ func FillDefaultRepositoryParams(params *RepositoryParams) {
 	}
 }
 
-func LoadLocal() (pullrequest.Repository, *client.Repository, error) {
+type FlagSet interface {
+	GetStringOrDefault(flag, d string) string
+	GetBoolOrDefault(flag string, d bool) bool
+}
+
+func FillFlagRepositoryParams(flags FlagSet, params *RepositoryParams) {
+	var (
+		repo     = flags.GetStringOrDefault("repository", params.Name)
+		provider = flags.GetStringOrDefault("provider", string(params.Provider))
+	)
+
+	params.Name = repo
+	params.Provider = client.RepositoryProvider(provider)
+}
+
+func LoadLocal(flags FlagSet) (pullrequest.Repository, *client.Repository, error) {
 	// TODO: Rename and move somewhere appropriate, refactor
 	params := &RepositoryParams{}
 	FillDefaultRepositoryParams(params)
+	if flags != nil {
+		FillFlagRepositoryParams(flags, params)
+	}
 
 	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider:           params.Provider,
+		Provider: params.Provider,
+		// TODO: use version control repository in git repo name?
 		FullRepositoryName: params.Name,
 	})
 	if err != nil {

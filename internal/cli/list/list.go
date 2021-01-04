@@ -17,17 +17,16 @@ import (
 )
 
 func runCmd(cmd *cobra.Command, args []string) error {
-	c, _, err := config.LoadLocal()
+	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
+	c, _, err := config.LoadLocal(flags)
 	if err != nil {
 		fmt.Println("unknown error")
 		os.Exit(123)
 	}
 
-	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
-
 	params := &listCmdParams{}
 	config.FillDefaultRepositoryParams(&params.Repository)
-	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
+	config.FillFlagRepositoryParams(flags, &params.Repository)
 	err = paramutils.ValidateFlagRepositoryParams(&params.Repository)
 	if err != nil {
 		return err
@@ -64,11 +63,6 @@ func execute(c pullrequest.Repository, params *listCmdParams) error {
 			return err
 		}
 
-		// TODO: not required with list.hasNext()
-		if prs == nil {
-			break
-		}
-
 		for _, v := range prs {
 			table.AddRow(
 				v.ID,
@@ -80,10 +74,9 @@ func execute(c pullrequest.Repository, params *listCmdParams) error {
 
 		fmt.Fprintln(writer, table.String())
 
-		// TODO: implement this hasNext()
-		// if !list.hasNext() {
-		// 	break
-		// }
+		if !list.HasNext() {
+			break
+		}
 
 		moreMsg := "Press Enter to show more..."
 		fmt.Fprintln(writer.Newline(), moreMsg)

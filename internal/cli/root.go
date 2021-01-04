@@ -9,6 +9,7 @@ import (
 	declinecmd "preq/internal/cli/decline"
 	listcmd "preq/internal/cli/list"
 	opencmd "preq/internal/cli/open"
+	"preq/internal/cli/paramutils"
 	updatecmd "preq/internal/cli/update"
 	"preq/internal/clientutils"
 	"preq/internal/config"
@@ -81,7 +82,8 @@ var rootCmd = &cobra.Command{
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		c, r, err := config.LoadLocal()
+		flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
+		c, r, err := config.LoadLocal(flags)
 		if err != nil {
 			// TODO: Do something
 		}

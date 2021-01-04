@@ -162,7 +162,7 @@ func (pl *GithubPullRequestPageList) Next() ([]*pullrequest.Entity, error) {
 		return nil, err
 	}
 
-	pl.hasNext = len(prs) < 100
+	pl.hasNext = len(prs) == pl.pageSize
 
 	return prs, nil
 }
@@ -180,6 +180,7 @@ func (pl *GithubPullRequestPageList) GetPage(page int) ([]*pullrequest.Entity, e
 	rc := resty.New()
 	r, err := rc.R().
 		SetAuthToken(pl.c.Token).
+		// TODO: Add pageSize query
 		SetQueryParam("state", string(pl.o.State)).
 		SetQueryParam("page", fmt.Sprint(page)).
 		SetError(bbError{}).

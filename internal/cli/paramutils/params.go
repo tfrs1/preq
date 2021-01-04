@@ -3,7 +3,6 @@ package paramutils
 import (
 	"preq/internal/config"
 	"preq/internal/errcodes"
-	"preq/internal/pkg/client"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -46,16 +45,6 @@ func (fs *PFlagSetWrapper) GetBoolOrDefault(flag string, d bool) bool {
 // 	params.Name = repo
 // 	params.Provider = client.RepositoryProvider(provider)
 // }
-
-func FillFlagRepositoryParams(flags FlagSet, params *config.RepositoryParams) {
-	var (
-		repo     = flags.GetStringOrDefault("repository", params.Name)
-		provider = flags.GetStringOrDefault("provider", string(params.Provider))
-	)
-
-	params.Name = repo
-	params.Provider = client.RepositoryProvider(provider)
-}
 
 func ValidateFlagRepositoryParams(params *config.RepositoryParams) error {
 	if (params.Name == "" && params.Provider != "") || (params.Name != "" && params.Provider == "") {

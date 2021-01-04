@@ -34,7 +34,7 @@ func fillFlagOpenCmdParams(cmd *cobra.Command, params *openCmdParams) {
 		interactive = flags.GetBoolOrDefault("interactive", false)
 	)
 
-	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
+	config.FillFlagRepositoryParams(flags, &params.Repository)
 	params.PrintOnly = printOnly
 	params.Interactive = interactive
 }
