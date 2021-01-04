@@ -135,7 +135,7 @@ func Execute() {
 	rootCmd.PersistentFlags().StringP("repository", "r", "", "repository in form of owner/repo")
 	// TODO: Shorthand names for providers?
 	rootCmd.PersistentFlags().StringP("provider", "p", "", "repository host, values - (bitbucket)")
-	rootCmd.PersistentFlags().String("config", "", "default config path")
+	rootCmd.PersistentFlags().String("config", "", "config path")
 
 	rootCmd.Execute()
 }

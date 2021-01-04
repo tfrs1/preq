@@ -203,14 +203,12 @@ func (pl *BitbucketCloudPullRequestPageList) GetPage(page int) ([]*pullrequest.E
 		pl.client.Repository.Name,
 	)
 
-	// if o.Next != "" {
-	// 	url = o.Next
-	// }
-
 	rc := resty.New()
 	r, err := rc.R().
 		SetBasicAuth(pl.client.username, pl.client.password).
 		// SetQueryParam("state", string(o.State)).
+		// TODO: get the actual page from page param
+		// TODO: user state from the options param
 		SetQueryParam("state", "OPEN").
 		SetError(bbError{}).
 		Get(url)
@@ -251,6 +249,7 @@ func (pl *BitbucketCloudPullRequestPageList) GetPage(page int) ([]*pullrequest.E
 
 func (pl *BitbucketCloudPullRequestPageList) Next() ([]*pullrequest.Entity, error) {
 	pl.counter++
+	// TODO: Actually implement Next() with nextURL
 	prs, err := pl.GetPage(pl.counter)
 	if err != nil {
 		return nil, err
