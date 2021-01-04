@@ -71,6 +71,7 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 	}, nil
 }
 
+// TODO: rename
 func DefaultClient1(repo *client.Repository) (pullrequest.Repository, error) {
 	config, err := getDefaultConfiguration()
 	if err != nil {
@@ -379,6 +380,14 @@ func (c *BitbucketCloudClient) Approve(o *pullrequest.ApproveOptions) (*pullrequ
 	}
 
 	return unmarshalPR(r.Body())
+}
+
+func (c *BitbucketCloudClient) WebPageList() string {
+	return fmt.Sprintf("https://bitbucket.org/%s/pull-requests/", c.Repository.Name)
+}
+
+func (c *BitbucketCloudClient) WebPage(id pullrequest.EntityID) string {
+	return fmt.Sprintf("https://bitbucket.org/%s/pull-requests/%s", c.Repository.Name, id)
 }
 
 func verifyCreatePullRequestOptions(o *pullrequest.CreateOptions) error {

@@ -11,6 +11,8 @@ type Repository interface {
 	Create(*CreateOptions) (*Entity, error)
 	Approve(*ApproveOptions) (*Entity, error)
 	Decline(*DeclineOptions) (*Entity, error)
+	WebPageList() string
+	WebPage(EntityID) string
 }
 
 type GetOptions struct {

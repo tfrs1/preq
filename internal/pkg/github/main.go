@@ -324,6 +324,14 @@ func (c *GithubCloudClient) Decline(o *pullrequest.DeclineOptions) (*pullrequest
 	return unmarshalPR(r.Body())
 }
 
+func (c *GithubCloudClient) WebPageList() string {
+	return fmt.Sprintf("https://github.com/%s/pulls", c.Repository.Name)
+}
+
+func (c *GithubCloudClient) WebPage(id pullrequest.EntityID) string {
+	return fmt.Sprintf("https://github.com/%s/pull/%s", c.Repository.Name, id)
+}
+
 type getReviewsOptions struct {
 	Repository preqClient.Repository
 	ID         string
