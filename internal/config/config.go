@@ -2,8 +2,6 @@ package config
 
 import (
 	"fmt"
-	"preq/internal/clientutils"
-	"preq/internal/domain/pullrequest"
 	"preq/internal/gitutils"
 	"preq/internal/pkg/client"
 
@@ -82,29 +80,4 @@ func FillFlagRepositoryParams(flags FlagSet, params *RepositoryParams) {
 
 	params.Name = repo
 	params.Provider = client.RepositoryProvider(provider)
-}
-
-func LoadLocal(flags FlagSet) (pullrequest.Repository, error) {
-	// TODO: Rename and move somewhere appropriate, refactor
-	params := &RepositoryParams{}
-	FillDefaultRepositoryParams(params)
-	if flags != nil {
-		FillFlagRepositoryParams(flags, params)
-	}
-
-	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider: params.Provider,
-		// TODO: use version control repository in git repo name?
-		FullRepositoryName: params.Name,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	c, err := clientutils.ClientFactory{}.DefaultPullRequestRepository1(params.Provider, r)
-	if err != nil {
-		return nil, err
-	}
-
-	return c, nil
 }

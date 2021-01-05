@@ -2,6 +2,7 @@ package clientutils
 
 import (
 	"errors"
+	"preq/internal/config"
 	"preq/internal/domain/pullrequest"
 	"preq/internal/pkg/bitbucket"
 	"preq/internal/pkg/client"
@@ -9,6 +10,21 @@ import (
 )
 
 type ClientFactory struct{}
+
+func (cf ClientFactory) DefaultWithFlags(flags config.FlagSet) (pullrequest.Repository, error) {
+	params := &config.RepositoryParams{}
+	config.FillDefaultRepositoryParams(params)
+	if flags != nil {
+		config.FillFlagRepositoryParams(flags, params)
+	}
+
+	c, err := cf.DefaultPullRequestRepository1(params.Provider, params.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
 
 func (cf ClientFactory) DefaultPullRequestRepository(provider client.RepositoryProvider) (pullrequest.Repository, error) {
 	switch provider {
@@ -21,7 +37,7 @@ func (cf ClientFactory) DefaultPullRequestRepository(provider client.RepositoryP
 	return nil, errors.New("unknown provider")
 }
 
-func (cf ClientFactory) DefaultPullRequestRepository1(provider client.RepositoryProvider, repo *client.Repository) (pullrequest.Repository, error) {
+func (cf ClientFactory) DefaultPullRequestRepository1(provider client.RepositoryProvider, repo string) (pullrequest.Repository, error) {
 	switch provider {
 	case client.RepositoryProviderEnum.BITBUCKET:
 		return bitbucket.DefaultClient1(repo)

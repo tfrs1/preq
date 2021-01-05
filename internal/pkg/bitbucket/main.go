@@ -71,7 +71,7 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 }
 
 // TODO: rename
-func DefaultClient1(repo *client.Repository) (pullrequest.Repository, error) {
+func DefaultClient1(repo string) (pullrequest.Repository, error) {
 	config, err := getDefaultConfiguration()
 	if err != nil {
 		return nil, err
@@ -82,7 +82,7 @@ func DefaultClient1(repo *client.Repository) (pullrequest.Repository, error) {
 		password: config.password,
 		uuid:     config.uuid,
 		Repository: domain.GitRepository{
-			Name: fmt.Sprintf("%s/%s", repo.Owner, repo.Name),
+			Name: repo,
 		},
 	}, nil
 }

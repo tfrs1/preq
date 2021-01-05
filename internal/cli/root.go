@@ -12,11 +12,9 @@ import (
 	"preq/internal/cli/paramutils"
 	updatecmd "preq/internal/cli/update"
 	"preq/internal/clientutils"
-	"preq/internal/config"
 	"preq/internal/configutils"
 	"preq/internal/domain"
 	"preq/internal/domain/pullrequest"
-	"preq/internal/pkg/client"
 	"preq/internal/tui"
 
 	"github.com/spf13/cobra"
@@ -27,26 +25,6 @@ var (
 	commit  = "none"
 	date    = "unknown"
 )
-
-func loadConfig() (pullrequest.Repository, error) {
-	params := &config.RepositoryParams{}
-	config.FillDefaultRepositoryParams(params)
-
-	_, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider:           params.Provider,
-		FullRepositoryName: params.Name,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	c, err := clientutils.ClientFactory{}.DefaultPullRequestRepository(params.Provider)
-	if err != nil {
-		return nil, err
-	}
-
-	return c, nil
-}
 
 type MockStorage struct{}
 
@@ -82,7 +60,7 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
-		c, err := config.LoadLocal(flags)
+		c, err := clientutils.ClientFactory{}.DefaultWithFlags(flags)
 		if err != nil {
 			// TODO: Do something
 			os.Exit(123)

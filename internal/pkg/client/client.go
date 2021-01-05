@@ -64,12 +64,12 @@ type Repository struct {
 }
 
 type RepositoryOptions struct {
-	Provider           RepositoryProvider
-	FullRepositoryName string
+	Provider RepositoryProvider
+	Name     string
 }
 
 func NewRepositoryFromOptions(options *RepositoryOptions) (*Repository, error) {
-	r := strings.Split(options.FullRepositoryName, "/")
+	r := strings.Split(options.Name, "/")
 	if len(r) != 2 {
 		return nil, errors.New("invalid repo name")
 	}

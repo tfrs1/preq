@@ -5,6 +5,7 @@ import (
 	"os"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
+	"preq/internal/clientutils"
 	"preq/internal/config"
 	"preq/internal/domain/pullrequest"
 
@@ -15,7 +16,7 @@ var processPullRequestMap = utils.ProcessPullRequestMap
 
 func runCmd(cmd *cobra.Command, args []string) error {
 	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
-	c, err := config.LoadLocal(flags)
+	c, err := clientutils.ClientFactory{}.DefaultWithFlags(flags)
 	if err != nil {
 		fmt.Println("unknown error")
 		os.Exit(123)
@@ -32,12 +33,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = execute(c, cmdArgs, params)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return execute(c, cmdArgs, params)
 }
 
 func execute(c pullrequest.Repository, args *cmdArgs, params *cmdParams) error {

@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
-	"preq/internal/config"
+	"preq/internal/clientutils"
 	"preq/internal/domain/pullrequest"
 	"runtime"
 
@@ -16,34 +16,23 @@ import (
 
 func runCmd(cmd *cobra.Command, args []string) error {
 	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
-	c, err := config.LoadLocal(flags)
+	c, err := clientutils.ClientFactory{}.DefaultWithFlags(flags)
 	if err != nil {
 		fmt.Println("unknown error")
 		os.Exit(123)
 	}
 
-	params := &openCmdParams{}
-	cmdArgs := parseArgs(args)
+	params := newOpenCmdParams()
+	fillFlagOpenCmdParams(params, cmd)
+	fillArgParams(params, args)
 
-	fillDefaultOpenCmdParams(params)
-	fillFlagOpenCmdParams(cmd, params)
-	err = validateFlagOpenCmdParams(params)
-	if err != nil {
-		return err
-	}
-
-	err = execute(c, cmdArgs, params)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return execute(c, params)
 }
 
-func execute(c pullrequest.Repository, args *cmdArgs, params *openCmdParams) error {
+func execute(c pullrequest.Repository, params *openCmdParams) error {
 	url := c.WebPageList()
-	if args.ID != "" {
-		url = c.WebPage(pullrequest.EntityID(args.ID))
+	if params.ID != "" {
+		url = c.WebPage(pullrequest.EntityID(params.ID))
 	}
 
 	if params.PrintOnly {

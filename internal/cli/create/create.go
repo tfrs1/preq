@@ -5,6 +5,7 @@ import (
 	"os"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
+	"preq/internal/clientutils"
 	"preq/internal/config"
 	"preq/internal/domain/pullrequest"
 
@@ -25,7 +26,7 @@ func setUpFlags(cmd *cobra.Command) {
 
 func runCmd(cmd *cobra.Command, args []string) error {
 	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
-	c, err := config.LoadLocal(flags)
+	c, err := clientutils.ClientFactory{}.DefaultWithFlags(flags)
 	if err != nil {
 		fmt.Println("unknown error")
 		os.Exit(123)

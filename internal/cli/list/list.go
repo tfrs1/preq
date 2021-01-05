@@ -7,7 +7,7 @@ import (
 	"os"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
-	"preq/internal/config"
+	"preq/internal/clientutils"
 	"preq/internal/domain/pullrequest"
 	"preq/internal/pkg/client"
 
@@ -18,29 +18,16 @@ import (
 
 func runCmd(cmd *cobra.Command, args []string) error {
 	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
-	c, err := config.LoadLocal(flags)
+	c, err := clientutils.ClientFactory{}.DefaultWithFlags(flags)
 	if err != nil {
 		fmt.Println("unknown error")
 		os.Exit(123)
 	}
 
-	params := &listCmdParams{}
-	config.FillDefaultRepositoryParams(&params.Repository)
-	config.FillFlagRepositoryParams(flags, &params.Repository)
-	err = paramutils.ValidateFlagRepositoryParams(&params.Repository)
-	if err != nil {
-		return err
-	}
-
-	err = execute(c, params)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return execute(c)
 }
 
-func execute(c pullrequest.Repository, params *listCmdParams) error {
+func execute(c pullrequest.Repository) error {
 	list, err := c.Get(&pullrequest.GetOptions{
 		State: client.PullRequestState_OPEN,
 	})
@@ -110,6 +97,7 @@ func New() *cobra.Command {
 	return cmd
 }
 
+// TODO: Add attribution
 func clearLine(out io.Writer) {
 	var clear = fmt.Sprintf("%c[%dA%c[2K", 27, 1, 27)
 	_, _ = fmt.Fprint(out, clear)
