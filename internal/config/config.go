@@ -84,7 +84,7 @@ func FillFlagRepositoryParams(flags FlagSet, params *RepositoryParams) {
 	params.Provider = client.RepositoryProvider(provider)
 }
 
-func LoadLocal(flags FlagSet) (pullrequest.Repository, *client.Repository, error) {
+func LoadLocal(flags FlagSet) (pullrequest.Repository, error) {
 	// TODO: Rename and move somewhere appropriate, refactor
 	params := &RepositoryParams{}
 	FillDefaultRepositoryParams(params)
@@ -98,13 +98,13 @@ func LoadLocal(flags FlagSet) (pullrequest.Repository, *client.Repository, error
 		FullRepositoryName: params.Name,
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	c, err := clientutils.ClientFactory{}.DefaultPullRequestRepository1(params.Provider, r)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return c, r, nil
+	return c, nil
 }

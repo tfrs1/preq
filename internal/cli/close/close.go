@@ -15,7 +15,7 @@ var processPullRequestMap = utils.ProcessPullRequestMap
 
 func runCmd(cmd *cobra.Command, args []string) error {
 	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
-	c, _, err := config.LoadLocal(flags)
+	c, err := config.LoadLocal(flags)
 	if err != nil {
 		fmt.Println("unknown error")
 		os.Exit(123)

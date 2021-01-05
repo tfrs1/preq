@@ -17,7 +17,6 @@ import (
 	"preq/internal/domain"
 	"preq/internal/domain/pullrequest"
 	"preq/internal/pkg/client"
-	"preq/internal/pkg/github"
 	"preq/internal/tui"
 
 	"github.com/spf13/cobra"
@@ -29,24 +28,24 @@ var (
 	date    = "unknown"
 )
 
-func loadConfig() (pullrequest.Repository, *client.Repository, error) {
+func loadConfig() (pullrequest.Repository, error) {
 	params := &config.RepositoryParams{}
 	config.FillDefaultRepositoryParams(params)
 
-	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
+	_, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
 		Provider:           params.Provider,
 		FullRepositoryName: params.Name,
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	c, err := clientutils.ClientFactory{}.DefaultPullRequestRepository(params.Provider)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return c, r, nil
+	return c, nil
 }
 
 type MockStorage struct{}
@@ -83,26 +82,13 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
-		c, r, err := config.LoadLocal(flags)
+		c, err := config.LoadLocal(flags)
 		if err != nil {
 			// TODO: Do something
-		}
-
-		fmt.Println(c, r)
-		c, _, err = loadConfig()
-		if err != nil {
 			os.Exit(123)
 		}
 
-		ghc := &github.GithubCloudClient{
-			Repository: domain.GitRepository{
-				Name: "tfrs1/preq",
-			},
-			Username: "tfrs1",
-			Token:    "",
-		}
-
-		tui := tui.NewTui([]pullrequest.Repository{ghc})
+		tui := tui.NewTui([]pullrequest.Repository{c})
 		tui.Start()
 		// storage := NewStorage()
 		// domain := &domain.Domain{
