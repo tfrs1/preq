@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"preq/internal/domain"
 	"preq/internal/domain/pullrequest"
@@ -10,10 +11,11 @@ import (
 )
 
 type pullRequestTableItem struct {
-	ID          string
+	ID          pullrequest.EntityID
 	Title       string
 	Source      string
 	Destination string
+	Selected    bool
 }
 
 type pullRequestTable struct {
@@ -21,6 +23,8 @@ type pullRequestTable struct {
 	items           []*pullRequestTableItem
 	selectedStyle   tcell.Style
 	unselectedStyle tcell.Style
+	observers       map[EventType][]Observer
+	pages           *tview.Pages
 }
 
 func newPullRequestTable() *pullRequestTable {
@@ -31,6 +35,8 @@ func newPullRequestTable() *pullRequestTable {
 	// 	SetTitle("preq").
 	// 	SetBorder(true)
 
+	// TODO: Make style configurable
+	// NewRGBColor NewHexColor
 	var styleInstance tcell.Style
 	unselectedStyle := styleInstance.
 		Background(tcell.ColorDefault).
@@ -39,12 +45,18 @@ func newPullRequestTable() *pullRequestTable {
 	selectedStyle := styleInstance.
 		Italic(true).
 		Bold(true).
-		Background(tcell.ColorDarkRed)
-
-	selected := false
+		Background(tcell.ColorNames["maroon"]).
+		Foreground(tcell.ColorNames["white"])
 
 	items := []*pullRequestTableItem{}
-	instance := &pullRequestTable{table, items, selectedStyle, unselectedStyle}
+	instance := &pullRequestTable{
+		table,
+		items,
+		selectedStyle,
+		unselectedStyle,
+		make(map[EventType][]Observer),
+		&tview.Pages{},
+	}
 	// Set table options
 	table.
 		SetBorders(false).
@@ -63,20 +75,44 @@ func newPullRequestTable() *pullRequestTable {
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Rune() {
 			case ' ':
-				row, _ := table.GetSelection()
-				// Disable selecting the header row
-				if row == 0 {
+				row, err := instance.HighlightedRow()
+				if err != nil {
 					return nil
 				}
 
-				if selected {
-					selected = false
+				if !instance.RowSelected(row) {
 					instance.selectRow(row)
 				} else {
-					selected = true
 					instance.unselectRow(row)
 				}
 
+				return nil
+			}
+
+			switch event.Key() {
+			// TODO: Make keybindings configurable
+			case tcell.KeyCtrlD:
+				items := instance.SelectedItems()
+				if len(items) == 0 {
+					// items = append(items, instance.HighlightedItem())
+					return nil
+				}
+
+				// TODO: Show confirmation modal, continue only if confirmed
+				modal := tview.NewModal().
+					SetText(fmt.Sprintf("Are you sure you want close (%d) pull requests?", len(items))).
+					AddButtons([]string{"Yes", "No"}).
+					SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+						if buttonIndex == 1 {
+							// HACK: Event handle sends focus back to the table
+							// so the hack is to remove zero items
+							items = []*pullRequestTableItem{}
+						}
+
+						instance.pages.RemovePage("ConfirmDelete")
+						instance.Notify(EVENT_CLOSE_PULL_REQUEST, items)
+					})
+				instance.pages.AddPage("ConfirmDelete", modal, true, true)
 				return nil
 			}
 
@@ -86,16 +122,51 @@ func newPullRequestTable() *pullRequestTable {
 	return instance
 }
 
-func (prt *pullRequestTable) selectRow(row int) {
-	for i := 0; i < prt.View.GetColumnCount(); i++ {
-		prt.View.GetCell(row, i).SetStyle(prt.selectedStyle)
+func (prt *pullRequestTable) RowSelected(row int) bool {
+	return prt.items[row].Selected
+}
+
+func (prt *pullRequestTable) SelectedItems() []*pullRequestTableItem {
+	result := []*pullRequestTableItem{}
+	for _, v := range prt.items {
+		if v.Selected {
+			result = append(result, v)
+		}
 	}
+	return result
+}
+
+func (prt *pullRequestTable) HighlightedRow() (int, error) {
+	row, _ := prt.View.GetSelection()
+	// TODO: Check for header row
+	if row == 0 {
+		return -1, errors.New("no row selected")
+	}
+	return row - 1, nil
+}
+
+func (prt *pullRequestTable) selectRow(row int) {
+	// TODO: Rename
+	inTableRow := prt.inTableRow(row)
+	for i := 0; i < prt.View.GetColumnCount(); i++ {
+		prt.View.GetCell(inTableRow, i).SetStyle(prt.selectedStyle)
+	}
+
+	prt.items[row].Selected = true
+}
+
+func (prt *pullRequestTable) inTableRow(row int) int {
+	return row + 1
 }
 
 func (prt *pullRequestTable) unselectRow(row int) {
+	// TODO: Rename
+	inTableRow := prt.inTableRow(row)
 	for i := 0; i < prt.View.GetColumnCount(); i++ {
-		prt.View.GetCell(row, i).SetStyle(prt.unselectedStyle)
+		prt.View.GetCell(inTableRow, i).SetStyle(prt.unselectedStyle)
 	}
+
+	prt.items[row].Selected = false
 }
 
 func (prt *pullRequestTable) filter(input string) {
@@ -104,6 +175,16 @@ func (prt *pullRequestTable) filter(input string) {
 
 func (prt *pullRequestTable) resetFilter() {
 
+}
+
+func (prt *pullRequestTable) Notify(et EventType, data interface{}) {
+	for _, f := range prt.observers[et] {
+		f(et, data)
+	}
+}
+
+func (prt *pullRequestTable) Subscribe(et EventType, o Observer) {
+	prt.observers[et] = append(prt.observers[et], o)
 }
 
 func (prt *pullRequestTable) Clear() {
@@ -116,9 +197,50 @@ func (prt *pullRequestTable) Clear() {
 func (prt *pullRequestTable) AddRow(prti *pullRequestTableItem) {
 	prt.items = append(prt.items, prti)
 	i := len(prt.items)
-	prt.View.SetCell(i, 0, tview.NewTableCell(prti.ID))
+	prt.View.SetCell(i, 0, tview.NewTableCell(fmt.Sprint(prti.ID)))
 	prt.View.SetCell(i, 1, tview.NewTableCell(prti.Title))
 	prt.View.SetCell(i, 2, tview.NewTableCell(fmt.Sprintf("%s -> %s", prti.Source, prti.Destination)))
+}
+
+func (prt *pullRequestTable) FindIndex(prti *pullRequestTableItem) (error, int) {
+	for i, v := range prt.items {
+		if v.ID == prti.ID {
+			return nil, i
+		}
+	}
+
+	return errors.New("item not found"), -1
+}
+
+func (prt *pullRequestTable) findTableRow(prti *pullRequestTableItem) (error, int) {
+	for i, v := range prt.items {
+		if v.ID == prti.ID {
+			return nil, i + 1
+		}
+	}
+
+	return errors.New("item not found"), -1
+}
+
+func (prt *pullRequestTable) RemoveItem(prti *pullRequestTableItem) {
+	err, itemIndex := prt.FindIndex(prti)
+	if err != nil {
+		return
+	}
+
+	copy(prt.items[itemIndex:], prt.items[itemIndex+1:])
+	prt.items = prt.items[:len(prt.items)-1]
+	prt.View.RemoveRow(prt.inTableRow(itemIndex))
+}
+
+func (prt *pullRequestTable) SetItemState(prti *pullRequestTableItem, state string) {
+	err, i := prt.findTableRow(prti)
+	if err != nil {
+		return
+	}
+
+	prt.View.SetCellSimple(i, 1, "Closing...")
+	prt.View.SetCell(i, 2, nil)
 }
 
 type grid struct {
@@ -152,7 +274,7 @@ func loadPRs(app *tview.Application, prList pullrequest.EntityPageList, table *p
 
 		for _, v := range values {
 			table.AddRow(&pullRequestTableItem{
-				// ID:          v.ID,
+				ID:          v.ID,
 				Title:       v.Title,
 				Source:      v.Source,
 				Destination: v.Destination,
@@ -182,6 +304,7 @@ func NewTui(c []pullrequest.Repository) *TuiPresenter {
 }
 
 type app struct {
+	modal       *tview.Modal
 	tui         *tview.Application
 	table       *pullRequestTable
 	searchInput *tview.InputField
@@ -195,11 +318,53 @@ func (app *app) Update(prList pullrequest.EntityPageList) {
 
 func (app *app) UpdateFailed(error) {}
 
-func newApp() *app {
+type Observer func(EventType, interface{})
+
+type Subject interface {
+	Subscribe(EventType, Observer)
+	Unsubscribe()
+}
+
+type EventType string
+
+const (
+	EVENT_CLOSE_PULL_REQUEST = "CLOSE_PULL_REQUEST"
+)
+
+func newApp(c pullrequest.Repository) *app {
 	tui := tview.NewApplication()
 	table := newPullRequestTable()
 	searchInput := tview.NewInputField()
 	grid := &grid{tview.NewGrid(), table.View, searchInput}
+
+	table.Subscribe(EVENT_CLOSE_PULL_REQUEST, func(et EventType, i interface{}) {
+		switch et {
+		case EVENT_CLOSE_PULL_REQUEST:
+			// TODO: Move to a more appropriate place
+			tui.SetFocus(table.View)
+
+			items, ok := i.([]*pullRequestTableItem)
+			if !ok {
+				// TODO: Notify unexpected data
+				return
+			}
+
+			service := pullrequest.NewCloseService(c)
+			for _, v := range items {
+				go func(v *pullRequestTableItem) {
+					tui.QueueUpdateDraw(func() {
+						table.SetItemState(v, "CLOSING")
+					})
+
+					service.Close(&pullrequest.CloseOptions{ID: v.ID})
+
+					tui.QueueUpdateDraw(func() {
+						table.RemoveItem(v)
+					})
+				}(v)
+			}
+		}
+	})
 
 	// newPrimitive := func(text string) tview.Primitive {
 	// 	return tview.NewTextView().
@@ -212,16 +377,7 @@ func newApp() *app {
 
 	table.View.
 		SetBorder(true).
-		SetTitle("Pull requests").
-		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-			switch event.Key() {
-			case tcell.KeyCtrlD:
-				fmt.Println("delete?")
-				return nil
-			}
-
-			return event
-		})
+		SetTitle("Pull requests")
 
 	searchInput.SetPlaceholder("Filter pull requests")
 	searchInput.
@@ -293,10 +449,16 @@ func newApp() *app {
 	// 	panic(err)
 	// }
 
-	tui.SetFocus(table.View)
-	tui = tui.SetRoot(grid.grid, true).EnableMouse(true)
+	pages := tview.NewPages().
+		AddPage("main", grid.grid, true, true)
+
+	table.pages = pages
+
+	// TODO: Make enable mouse configurable
+	tui = tui.SetRoot(pages, true).EnableMouse(true)
 
 	return &app{
+		// modal:       modal,
 		tui:         tui,
 		table:       table,
 		grid:        grid,
@@ -304,12 +466,16 @@ func newApp() *app {
 	}
 }
 
+func (app *app) Run() error {
+	app.tui.SetFocus(app.table.View)
+	return app.tui.Run()
+}
+
 func run(c pullrequest.Repository) {
-	app := newApp()
+	app := newApp(c)
 	go domain.LoadPullRequests(c, app)
 
-	if err := app.tui.Run(); err != nil {
+	if err := app.Run(); err != nil {
 		panic(err)
 	}
-
 }

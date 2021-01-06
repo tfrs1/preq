@@ -308,9 +308,7 @@ func (c *GithubCloudClient) post(url string) (*resty.Response, error) {
 func (c *GithubCloudClient) Close(o *pullrequest.CloseOptions) (*pullrequest.Entity, error) {
 	r, err := resty.New().R().
 		SetAuthToken(c.Token).
-		SetBody(ghPROptions{
-			State: "closed",
-		}).
+		SetBody(ghPROptions{State: "closed"}).
 		SetError(bbError{}).
 		Patch(fmt.Sprintf(
 			"https://api.github.com/repos/%s/pulls/%s",

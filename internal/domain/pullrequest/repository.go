@@ -34,5 +34,5 @@ type ApproveOptions struct {
 }
 
 type CloseOptions struct {
-	ID string
+	ID EntityID
 }

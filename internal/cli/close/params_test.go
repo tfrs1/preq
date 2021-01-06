@@ -2,6 +2,7 @@ package close
 
 import (
 	"preq/internal/cli/paramutils"
+	"preq/internal/config"
 	"preq/internal/errcodes"
 	"preq/internal/pkg/client"
 	"testing"
@@ -36,8 +37,8 @@ func Test_fillDefaultCloseCmdParams(t *testing.T) {
 
 		params := cmdParams{}
 		fillDefaultCloseCmdParams(&params)
-		assert.Equal(t, params.Provider, client.RepositoryProviderEnum.BITBUCKET)
-		assert.Equal(t, params.Repository, "owner/repo-name")
+		assert.Equal(t, params.Repository.Provider, client.RepositoryProviderEnum.BITBUCKET)
+		assert.Equal(t, params.Repository.Name, "owner/repo-name")
 	})
 }
 
@@ -50,7 +51,9 @@ func Test_validateFlagCloseCmdParams(t *testing.T) {
 
 	t.Run("only repo", func(t *testing.T) {
 		params := &cmdParams{
-			Repository: "owner/repo-name",
+			Repository: config.RepositoryParams{
+				Name: "owner/repo-name",
+			},
 		}
 		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, errcodes.ErrSomeRepoParamsMissing, err)
@@ -58,7 +61,9 @@ func Test_validateFlagCloseCmdParams(t *testing.T) {
 
 	t.Run("only provider", func(t *testing.T) {
 		params := &cmdParams{
-			Provider: "provider",
+			Repository: config.RepositoryParams{
+				Provider: "provider",
+			},
 		}
 		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, errcodes.ErrSomeRepoParamsMissing, err)
@@ -66,8 +71,10 @@ func Test_validateFlagCloseCmdParams(t *testing.T) {
 
 	t.Run("wrong repo", func(t *testing.T) {
 		params := &cmdParams{
-			Repository: "wrong",
-			Provider:   "provider",
+			Repository: config.RepositoryParams{
+				Name:     "wrong",
+				Provider: "provider",
+			},
 		}
 		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, errcodes.ErrRepositoryMustBeInFormOwnerRepo, err)
@@ -75,8 +82,10 @@ func Test_validateFlagCloseCmdParams(t *testing.T) {
 
 	t.Run("wrong provider", func(t *testing.T) {
 		params := &cmdParams{
-			Repository: "owner/repo-name",
-			Provider:   "wrong",
+			Repository: config.RepositoryParams{
+				Name:     "owner/repo-name",
+				Provider: "wrong",
+			},
 		}
 		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, errcodes.ErrorRepositoryProviderUnknown, err)
@@ -84,8 +93,10 @@ func Test_validateFlagCloseCmdParams(t *testing.T) {
 
 	t.Run("succeeds with valid repo and provider", func(t *testing.T) {
 		params := &cmdParams{
-			Repository: "owner/repo-name",
-			Provider:   client.RepositoryProviderEnum.BITBUCKET,
+			Repository: config.RepositoryParams{
+				Name:     "owner/repo-name",
+				Provider: client.RepositoryProviderEnum.BITBUCKET,
+			},
 		}
 		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, nil, err)
@@ -104,8 +115,8 @@ func Test_fillFlagCloseCmdParams(t *testing.T) {
 			&params,
 		)
 
-		assert.Equal(t, params.Repository, repo)
-		assert.Equal(t, params.Provider, client.RepositoryProviderEnum.BITBUCKET)
+		assert.Equal(t, params.Repository.Name, repo)
+		assert.Equal(t, params.Repository.Provider, client.RepositoryProviderEnum.BITBUCKET)
 	})
 
 	t.Run("fills with fallback parameters", func(t *testing.T) {
@@ -115,7 +126,7 @@ func Test_fillFlagCloseCmdParams(t *testing.T) {
 			&params,
 		)
 
-		assert.Equal(t, params.Repository, "")
-		assert.Equal(t, params.Provider.IsValid(), false)
+		assert.Equal(t, params.Repository.Name, "")
+		assert.Equal(t, params.Repository.Provider.IsValid(), false)
 	})
 }

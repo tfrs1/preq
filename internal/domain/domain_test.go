@@ -37,6 +37,14 @@ func (mc *MockClient) Close(o *pullrequest.CloseOptions) (*pullrequest.Entity, e
 	return nil, nil
 }
 
+func (mc *MockClient) WebPage(e pullrequest.EntityID) string {
+	return ""
+}
+
+func (mc *MockClient) WebPageList() string {
+	return ""
+}
+
 type MockPullRequestUpdateListener struct {
 	UpdateCalls int
 }

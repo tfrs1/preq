@@ -40,7 +40,7 @@ func execute(c pullrequest.Repository, args *cmdArgs, params *cmdParams) error {
 	if args.ID != "" {
 		service := pullrequest.NewCloseService(c)
 		_, err := service.Close(&pullrequest.CloseOptions{
-			ID: args.ID,
+			ID: pullrequest.EntityID(args.ID),
 		})
 		if err != nil {
 			return err
