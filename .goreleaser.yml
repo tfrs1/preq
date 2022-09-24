@@ -7,19 +7,26 @@ before:
     # you may remove this if you don't need go generate
     # - go generate ./...
 builds:
-- dir: cmd/preq
-  # main: ./cmd/preq/main.go
-  env:
-  - CGO_ENABLED=0
-  ldflags:
-    - -s -w -X preq/cmd.version={{.Version}} -X preq/cmd.commit={{.Commit}} -X preq/cmd.date={{.Date}}
+  - #dir: cmd/preq
+    main: ./cmd/preq/main.go
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X preq/cmd.version={{.Version}} -X preq/cmd.commit={{.Commit}} -X preq/cmd.date={{.Date}}
+    goos:
+      - windows
+      - linux
+      - darwin
 archives:
-- replacements:
-    darwin: Darwin
-    linux: Linux
-    windows: Windows
-    386: i386
-    amd64: x86_64
+  - replacements:
+      darwin: Darwin
+      linux: Linux
+      windows: Windows
+      386: i386
+      amd64: x86_64
+    format_overrides:
+      - goos: windows
+        format: zip
 checksum:
   name_template: 'checksums.txt'
 snapshot:
@@ -28,8 +35,8 @@ changelog:
   sort: asc
   filters:
     exclude:
-    - '^docs:'
-    - '^test:'
+      - '^docs:'
+      - '^test:'
 
 release:
   prerelease: auto

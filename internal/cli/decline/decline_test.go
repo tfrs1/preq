@@ -89,9 +89,15 @@ func Test_execute(t *testing.T) {
 	t.Run("execute succeeds when client calls succeed", func(t *testing.T) {
 		oldPromptPullRequestMultiSelect := promptPullRequestMultiSelect
 		oldProcessPullRequestMap := processPullRequestMap
-		processPullRequestMap = func(selectedPRs map[string]*utils.PromptPullRequest, cl client.Client, r *client.Repository, processFn func(cl client.Client, r *client.Repository, id string, c chan interface{}), fn func(interface{}) string) {
-			return
+		processPullRequestMap = func(
+			selectedPRs map[string]*utils.PromptPullRequest,
+			cl client.Client,
+			r *client.Repository,
+			processFn func(cl client.Client, r *client.Repository, id string, c chan interface{}),
+			fn func(interface{}) string,
+		) {
 		}
+
 		promptPullRequestMultiSelect = func(prList *client.PullRequestList) map[string]*utils.PromptPullRequest {
 			return map[string]*utils.PromptPullRequest{}
 		}
