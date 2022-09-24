@@ -86,8 +86,14 @@ func loadPRs(app *tview.Application, c client.Client, repo *client.Repository, t
 			Next:       nextURL,
 		})
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(134)
+			app.QueueUpdateDraw(func() {
+				table.SetCell(0, 0,
+					tview.
+						NewTableCell(err.Error()).
+						SetAlign(tview.AlignCenter),
+				)
+			})
+			return
 		}
 
 		nextURL = prs.NextURL
@@ -121,6 +127,7 @@ func Run() {
 	}
 
 	app := tview.NewApplication()
+	// app.SetScreen(tcell.NewSimulationScreen("sim"))
 
 	// newPrimitive := func(text string) tview.Primitive {
 	// 	return tview.NewTextView().
