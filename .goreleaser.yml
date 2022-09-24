@@ -53,5 +53,5 @@ brews:
     folder: Formula
     # homepage: https://example.com
     # description: "Here be description"
-    test: |
-      system "#{bin}/program --version"
+    # test: |
+    #   system "#{bin}/program --version"
