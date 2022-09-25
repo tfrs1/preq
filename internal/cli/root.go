@@ -8,6 +8,7 @@ import (
 	declinecmd "preq/internal/cli/decline"
 	listcmd "preq/internal/cli/list"
 	opencmd "preq/internal/cli/open"
+	"preq/internal/cli/paramutils"
 	updatecmd "preq/internal/cli/update"
 	"preq/internal/tui"
 
@@ -26,7 +27,12 @@ var rootCmd = &cobra.Command{
 	Long:    `Command-line utility for all your pull request needs.`,
 	Version: fmt.Sprintf("%v, commit %v, built at %v", version, commit, date),
 	Run: func(cmd *cobra.Command, args []string) {
-		tui.Run()
+		params := &paramutils.RepositoryParams{}
+		paramutils.FillDefaultRepositoryParams(params)
+		flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
+		paramutils.FillFlagRepositoryParams(flags, params)
+
+		tui.Run(params)
 	},
 }
 

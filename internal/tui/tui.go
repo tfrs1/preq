@@ -53,10 +53,7 @@ func (prt *pullRequestTable) resetFilter() {
 
 }
 
-func loadConfig() (client.Client, *client.Repository, error) {
-	params := &paramutils.RepositoryParams{}
-	paramutils.FillDefaultRepositoryParams(params)
-
+func loadConfig(params *paramutils.RepositoryParams) (client.Client, *client.Repository, error) {
 	c, err := clientutils.ClientFactory{}.DefaultClient(params.Provider)
 	if err != nil {
 		return nil, nil, err
@@ -120,8 +117,8 @@ func loadPRs(app *tview.Application, c client.Client, repo *client.Repository, t
 	}
 }
 
-func Run() {
-	c, repo, err := loadConfig()
+func Run(params *paramutils.RepositoryParams) {
+	c, repo, err := loadConfig(params)
 	if err != nil {
 		os.Exit(123)
 	}
