@@ -12,7 +12,8 @@ import (
 )
 
 type pullRequestTable struct {
-	View *tview.Table
+	View       *tview.Table
+	rowCounter int
 }
 
 func newPullRequestTable() *pullRequestTable {
@@ -42,7 +43,15 @@ func newPullRequestTable() *pullRequestTable {
 			table.SetSelectable(false, false)
 		})
 
-	return &pullRequestTable{table}
+	return &pullRequestTable{View: table, rowCounter: 0}
+}
+
+func (prt *pullRequestTable) addRow(v *client.PullRequest) {
+	i := prt.rowCounter
+	prt.View.SetCell(i+1, 0, tview.NewTableCell(v.ID))
+	prt.View.SetCell(i+1, 1, tview.NewTableCell(v.Title))
+	prt.View.SetCell(i+1, 2, tview.NewTableCell(fmt.Sprintf("%s -> %s", v.Source, v.Destination)))
+	prt.rowCounter++
 }
 
 func (prt *pullRequestTable) filter(input string) {
@@ -70,9 +79,9 @@ func loadConfig(params *paramutils.RepositoryParams) (client.Client, *client.Rep
 	return c, r, nil
 }
 
-func loadPRs(app *tview.Application, c client.Client, repo *client.Repository, table *tview.Table) {
+func loadPRs(app *tview.Application, c client.Client, repo *client.Repository, table *pullRequestTable) {
 	app.QueueUpdateDraw(func() {
-		table.SetCell(0, 0, tview.NewTableCell("Loading...").SetAlign(tview.AlignCenter))
+		table.View.SetCell(0, 0, tview.NewTableCell("Loading...").SetAlign(tview.AlignCenter))
 	})
 
 	nextURL := ""
@@ -84,7 +93,7 @@ func loadPRs(app *tview.Application, c client.Client, repo *client.Repository, t
 		})
 		if err != nil {
 			app.QueueUpdateDraw(func() {
-				table.SetCell(0, 0,
+				table.View.SetCell(0, 0,
 					tview.
 						NewTableCell(err.Error()).
 						SetAlign(tview.AlignCenter),
@@ -96,14 +105,12 @@ func loadPRs(app *tview.Application, c client.Client, repo *client.Repository, t
 		nextURL = prs.NextURL
 
 		app.QueueUpdateDraw(func() {
-			table.Clear()
-			table.SetCell(0, 0, tview.NewTableCell("#"))
-			table.SetCell(0, 1, tview.NewTableCell("Title"))
-			table.SetCell(0, 2, tview.NewTableCell("Source -> Destination"))
-			for i, v := range prs.Values {
-				table.SetCell(i+1, 0, tview.NewTableCell(v.ID))
-				table.SetCell(i+1, 1, tview.NewTableCell(v.Title))
-				table.SetCell(i+1, 2, tview.NewTableCell(fmt.Sprintf("%s -> %s", v.Source, v.Destination)))
+			table.View.Clear()
+			table.View.SetCell(0, 0, tview.NewTableCell("#"))
+			table.View.SetCell(0, 1, tview.NewTableCell("Title"))
+			table.View.SetCell(0, 2, tview.NewTableCell("Source -> Destination"))
+			for _, v := range prs.Values {
+				table.addRow((v))
 			}
 		})
 
@@ -112,7 +119,7 @@ func loadPRs(app *tview.Application, c client.Client, repo *client.Repository, t
 		}
 
 		app.QueueUpdateDraw(func() {
-			table.SetCell(len(prs.Values), 0, tview.NewTableCell("Loading..."))
+			table.View.SetCell(len(prs.Values), 0, tview.NewTableCell("Loading..."))
 		})
 	}
 }
@@ -149,32 +156,42 @@ func Run(params *paramutils.RepositoryParams) {
 	searchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEscape:
-			searchInput.SetText("")
+			if searchInput.GetText() != "" {
+				searchInput.SetText("")
+			} else {
+				app.SetFocus(table.View)
+			}
+		}
+
+		return event
+	})
+
+	table.View.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape:
+			app.Stop()
+			return nil
+		case tcell.KeyCtrlD:
+			// Decline pull requests
+			return nil
+		}
+
+		switch event.Rune() {
+		case 'q':
+			app.Stop()
+			return nil
+		case '/':
+			app.SetFocus(searchInput)
+			return nil
+		case ' ':
+			// TODO: Mark the PR
+			return nil
 		}
 
 		return event
 	})
 
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEscape:
-			if app.GetFocus() != searchInput || searchInput.GetText() == "" {
-				app.Stop()
-			}
-		}
-
-		switch event.Rune() {
-		case 'q':
-			if app.GetFocus() != searchInput {
-				app.Stop()
-			}
-		case '/':
-			if app.GetFocus() != searchInput {
-				app.SetFocus(searchInput)
-				return nil
-			}
-		}
-
 		return event
 	})
 
@@ -207,10 +224,11 @@ func Run(params *paramutils.RepositoryParams) {
 	// 	panic(err)
 	// }
 
+	go loadPRs(app, c, repo, table)
+	app.SetRoot(grid, true).EnableMouse(true)
 	app.SetFocus(table.View)
-	go loadPRs(app, c, repo, table.View)
 
-	if err := app.SetRoot(grid, true).EnableMouse(true).Run(); err != nil {
+	if err := app.Run(); err != nil {
 		panic(err)
 	}
 }
