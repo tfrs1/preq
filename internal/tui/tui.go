@@ -12,8 +12,10 @@ import (
 )
 
 type pullRequestTable struct {
-	View       *tview.Table
-	rowCounter int
+	View          *tview.Table
+	totalRowCount int
+	currentRow    int
+	selectedMap   map[int]bool
 }
 
 func newPullRequestTable() *pullRequestTable {
@@ -39,19 +41,49 @@ func newPullRequestTable() *pullRequestTable {
 			// }
 		}).
 		SetSelectedFunc(func(row int, column int) {
-			table.GetCell(row, column).SetTextColor(tcell.ColorRed)
-			table.SetSelectable(false, false)
+			// table.GetCell(row, column).SetTextColor(tcell.ColorRed)
+			// table.SetSelectable(false, false)
 		})
 
-	return &pullRequestTable{View: table, rowCounter: 0}
+	return &pullRequestTable{
+		View: table, totalRowCount: 0, currentRow: 0,
+		selectedMap: make(map[int]bool),
+	}
 }
 
 func (prt *pullRequestTable) addRow(v *client.PullRequest) {
-	i := prt.rowCounter
+	i := prt.totalRowCount
 	prt.View.SetCell(i+1, 0, tview.NewTableCell(v.ID))
 	prt.View.SetCell(i+1, 1, tview.NewTableCell(v.Title))
 	prt.View.SetCell(i+1, 2, tview.NewTableCell(fmt.Sprintf("%s -> %s", v.Source, v.Destination)))
-	prt.rowCounter++
+	prt.selectedMap[i] = false
+	prt.totalRowCount++
+}
+
+func (prt *pullRequestTable) selectCurrentRow() {
+	if prt.selectedMap[prt.currentRow] {
+		for i := 0; i < prt.View.GetColumnCount(); i++ {
+			prt.View.GetCell(prt.currentRow+1, i).SetTextColor(tcell.ColorWhite)
+		}
+		prt.selectedMap[prt.currentRow] = false
+	} else {
+		for i := 0; i < prt.View.GetColumnCount(); i++ {
+			prt.View.GetCell(prt.currentRow+1, i).SetTextColor(tcell.ColorRed)
+		}
+		prt.selectedMap[prt.currentRow] = true
+	}
+}
+
+func (prt *pullRequestTable) moveSelectionUp() {
+	if prt.currentRow > 0 {
+		prt.currentRow--
+	}
+}
+
+func (prt *pullRequestTable) moveSelectionDown() {
+	if prt.currentRow < prt.totalRowCount-1 {
+		prt.currentRow++
+	}
 }
 
 func (prt *pullRequestTable) filter(input string) {
@@ -106,9 +138,9 @@ func loadPRs(app *tview.Application, c client.Client, repo *client.Repository, t
 
 		app.QueueUpdateDraw(func() {
 			table.View.Clear()
-			table.View.SetCell(0, 0, tview.NewTableCell("#"))
-			table.View.SetCell(0, 1, tview.NewTableCell("Title"))
-			table.View.SetCell(0, 2, tview.NewTableCell("Source -> Destination"))
+			table.View.SetCell(0, 0, tview.NewTableCell("#").SetSelectable(false))
+			table.View.SetCell(0, 1, tview.NewTableCell("Title").SetSelectable(false))
+			table.View.SetCell(0, 2, tview.NewTableCell("Source -> Destination").SetSelectable(false))
 			for _, v := range prs.Values {
 				table.addRow((v))
 			}
@@ -174,9 +206,17 @@ func Run(params *paramutils.RepositoryParams) {
 		case tcell.KeyCtrlD:
 			// Decline pull requests
 			return nil
+		case tcell.KeyUp:
+			table.moveSelectionUp()
+		case tcell.KeyDown:
+			table.moveSelectionDown()
 		}
 
 		switch event.Rune() {
+		case 'j':
+			table.moveSelectionDown()
+		case 'k':
+			table.moveSelectionUp()
 		case 'q':
 			app.Stop()
 			return nil
@@ -184,7 +224,7 @@ func Run(params *paramutils.RepositoryParams) {
 			app.SetFocus(searchInput)
 			return nil
 		case ' ':
-			// TODO: Mark the PR
+			table.selectCurrentRow()
 			return nil
 		}
 
