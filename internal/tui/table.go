@@ -9,12 +9,16 @@ import (
 	"github.com/rivo/tview"
 )
 
+type pullRequestTableRow struct {
+	pullRequest *client.PullRequest
+	selected    bool
+	visible     bool
+}
+
 type pullRequestTable struct {
-	View                *tview.Table
-	totalRowCount       int
-	selectedMap         map[int]bool
-	pullRequestList     []*client.PullRequest
-	filteredRequestList []*client.PullRequest
+	View          *tview.Table
+	totalRowCount int
+	rows          []*pullRequestTableRow
 }
 
 func newPullRequestTable() *pullRequestTable {
@@ -22,17 +26,14 @@ func newPullRequestTable() *pullRequestTable {
 	table.
 		SetBorder(true).
 		SetTitle("Pull requests")
-
 	// // Set box options
 	// table.
 	// 	SetTitle("preq").
 	// 	SetBorder(true)
 	prt := &pullRequestTable{
-		View:                table,
-		totalRowCount:       0,
-		selectedMap:         make(map[int]bool),
-		pullRequestList:     make([]*client.PullRequest, 0),
-		filteredRequestList: make([]*client.PullRequest, 0),
+		View:          table,
+		totalRowCount: 0,
+		rows:          make([]*pullRequestTableRow, 0),
 	}
 
 	// Set table options
@@ -58,8 +59,14 @@ func newPullRequestTable() *pullRequestTable {
 }
 
 func (prt *pullRequestTable) Init(prList []*client.PullRequest) {
-	prt.pullRequestList = prList
-	prt.filteredRequestList = prList
+	prt.rows = make([]*pullRequestTableRow, 0)
+	for _, v := range prList {
+		prt.rows = append(prt.rows, &pullRequestTableRow{
+			pullRequest: v,
+			selected:    false,
+			visible:     true,
+		})
+	}
 
 	prt.redraw()
 }
@@ -70,8 +77,13 @@ func (prt *pullRequestTable) redraw() {
 	prt.View.SetCell(0, 1, tview.NewTableCell("Title").SetSelectable(false))
 	prt.View.SetCell(0, 2, tview.NewTableCell("Source -> Destination").SetSelectable(false))
 
-	for i, v := range prt.filteredRequestList {
-		prt.addRow(v, i)
+	i := 0
+	for _, v := range prt.rows {
+		if v.visible {
+			prt.addRow(v.pullRequest, i)
+			prt.colorRow(i, v.selected)
+			i++
+		}
 	}
 }
 
@@ -79,30 +91,46 @@ func (prt *pullRequestTable) addRow(v *client.PullRequest, i int) {
 	prt.View.SetCell(i+1, 0, tview.NewTableCell(v.ID))
 	prt.View.SetCell(i+1, 1, tview.NewTableCell(v.Title))
 	prt.View.SetCell(i+1, 2, tview.NewTableCell(fmt.Sprintf("%s -> %s", v.Source, v.Destination)))
-	prt.selectedMap[i] = false
+}
+
+func (prt *pullRequestTable) colorRow(rowId int, selected bool) {
+	color := tcell.ColorWhite
+	if selected {
+		color = tcell.ColorRed
+	}
+
+	for i := 0; i < prt.View.GetColumnCount(); i++ {
+		prt.View.GetCell(rowId+1, i).SetTextColor(color)
+	}
 }
 
 func (prt *pullRequestTable) selectCurrentRow() {
 	row, _ := prt.View.GetSelection()
 	selectedRow := row - 1
 
-	color := tcell.ColorRed
-	if prt.selectedMap[selectedRow] {
-		color = tcell.ColorWhite
+	rowId := 0
+	for _, v := range prt.rows {
+		if v.visible {
+			if rowId == selectedRow {
+				v.selected = !v.selected
+				// TODO: Instead of redrawing just color the row? possible dangerous
+				// prt.colorRow(rowId, v.selected)
+				break
+			}
+
+			rowId++
+		}
 	}
 
-	for i := 0; i < prt.View.GetColumnCount(); i++ {
-		prt.View.GetCell(selectedRow+1, i).SetTextColor(color)
-	}
-	prt.selectedMap[selectedRow] = !prt.selectedMap[selectedRow]
+	prt.redraw()
 }
 
 func (prt *pullRequestTable) Filter(input string) {
-	prt.filteredRequestList = make([]*client.PullRequest, 0)
-	for _, v := range prt.pullRequestList {
-		if strings.Contains(strings.ToLower(v.Title), strings.ToLower(input)) {
-			prt.filteredRequestList = append(prt.filteredRequestList, v)
-		}
+	for _, v := range prt.rows {
+		v.visible = strings.Contains(
+			strings.ToLower(v.pullRequest.Title),
+			strings.ToLower(input),
+		)
 	}
 
 	prt.redraw()

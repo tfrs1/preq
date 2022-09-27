@@ -103,6 +103,8 @@ func Run(params *paramutils.RepositoryParams) {
 			} else {
 				app.SetFocus(table.View)
 			}
+		case tcell.KeyEnter:
+			app.SetFocus(table.View)
 		}
 
 		return event
