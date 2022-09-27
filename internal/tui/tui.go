@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"os"
 	"preq/internal/cli/paramutils"
 	"preq/internal/clientutils"
@@ -10,89 +9,6 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
-
-type pullRequestTable struct {
-	View          *tview.Table
-	totalRowCount int
-	currentRow    int
-	selectedMap   map[int]bool
-}
-
-func newPullRequestTable() *pullRequestTable {
-	table := tview.NewTable()
-
-	// // Set box options
-	// table.
-	// 	SetTitle("preq").
-	// 	SetBorder(true)
-
-	// Set table options
-	table.
-		SetBorders(false).
-		Select(0, 0).
-		SetFixed(1, 1).
-		SetSelectable(true, false).
-		SetDoneFunc(func(key tcell.Key) {
-			// if key == tcell.KeyEscape {
-			// 	app.Stop()
-			// }
-			// if key == tcell.KeyEnter {
-			// 	table.SetSelectable(true, false)
-			// }
-		}).
-		SetSelectedFunc(func(row int, column int) {
-			// table.GetCell(row, column).SetTextColor(tcell.ColorRed)
-			// table.SetSelectable(false, false)
-		})
-
-	return &pullRequestTable{
-		View: table, totalRowCount: 0, currentRow: 0,
-		selectedMap: make(map[int]bool),
-	}
-}
-
-func (prt *pullRequestTable) addRow(v *client.PullRequest) {
-	i := prt.totalRowCount
-	prt.View.SetCell(i+1, 0, tview.NewTableCell(v.ID))
-	prt.View.SetCell(i+1, 1, tview.NewTableCell(v.Title))
-	prt.View.SetCell(i+1, 2, tview.NewTableCell(fmt.Sprintf("%s -> %s", v.Source, v.Destination)))
-	prt.selectedMap[i] = false
-	prt.totalRowCount++
-}
-
-func (prt *pullRequestTable) selectCurrentRow() {
-	if prt.selectedMap[prt.currentRow] {
-		for i := 0; i < prt.View.GetColumnCount(); i++ {
-			prt.View.GetCell(prt.currentRow+1, i).SetTextColor(tcell.ColorWhite)
-		}
-		prt.selectedMap[prt.currentRow] = false
-	} else {
-		for i := 0; i < prt.View.GetColumnCount(); i++ {
-			prt.View.GetCell(prt.currentRow+1, i).SetTextColor(tcell.ColorRed)
-		}
-		prt.selectedMap[prt.currentRow] = true
-	}
-}
-
-func (prt *pullRequestTable) moveSelectionUp() {
-	if prt.currentRow > 0 {
-		prt.currentRow--
-	}
-}
-
-func (prt *pullRequestTable) moveSelectionDown() {
-	if prt.currentRow < prt.totalRowCount-1 {
-		prt.currentRow++
-	}
-}
-
-func (prt *pullRequestTable) filter(input string) {
-
-}
-
-func (prt *pullRequestTable) resetFilter() {
-
-}
 
 func loadConfig(params *paramutils.RepositoryParams) (client.Client, *client.Repository, error) {
 	c, err := clientutils.ClientFactory{}.DefaultClient(params.Provider)
@@ -137,13 +53,7 @@ func loadPRs(app *tview.Application, c client.Client, repo *client.Repository, t
 		nextURL = prs.NextURL
 
 		app.QueueUpdateDraw(func() {
-			table.View.Clear()
-			table.View.SetCell(0, 0, tview.NewTableCell("#").SetSelectable(false))
-			table.View.SetCell(0, 1, tview.NewTableCell("Title").SetSelectable(false))
-			table.View.SetCell(0, 2, tview.NewTableCell("Source -> Destination").SetSelectable(false))
-			for _, v := range prs.Values {
-				table.addRow((v))
-			}
+			table.Init(prs.Values)
 		})
 
 		if nextURL == "" {
@@ -175,13 +85,13 @@ func Run(params *paramutils.RepositoryParams) {
 	// sideBar := newPrimitive("Side Bar")
 
 	table := newPullRequestTable()
-	table.View.
-		SetBorder(true).
-		SetTitle("Pull requests")
 
-	searchInput := tview.NewInputField().
-		SetPlaceholder("Filter pull requests")
+	searchInput := tview.NewInputField()
 	searchInput.
+		SetPlaceholder("Filter pull requests").
+		SetChangedFunc(func(text string) {
+			table.Filter(text)
+		}).
 		SetBorder(true).
 		SetTitle("Filter")
 
@@ -206,17 +116,17 @@ func Run(params *paramutils.RepositoryParams) {
 		case tcell.KeyCtrlD:
 			// Decline pull requests
 			return nil
-		case tcell.KeyUp:
-			table.moveSelectionUp()
-		case tcell.KeyDown:
-			table.moveSelectionDown()
+			// case tcell.KeyUp:
+			// 	table.moveSelectionUp()
+			// case tcell.KeyDown:
+			// 	table.moveSelectionDown()
 		}
 
 		switch event.Rune() {
-		case 'j':
-			table.moveSelectionDown()
-		case 'k':
-			table.moveSelectionUp()
+		// case 'j':
+		// 	table.moveSelectionDown()
+		// case 'k':
+		// 	table.moveSelectionUp()
 		case 'q':
 			app.Stop()
 			return nil
