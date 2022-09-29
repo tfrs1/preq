@@ -24,6 +24,7 @@ type pullRequestTable struct {
 func newPullRequestTable() *pullRequestTable {
 	table := tview.NewTable()
 	table.
+		SetFixed(2, 0).
 		SetBorder(true).
 		SetTitle("Pull requests")
 	// // Set box options
@@ -76,6 +77,7 @@ func (prt *pullRequestTable) redraw() {
 	prt.View.SetCell(0, 0, tview.NewTableCell("#").SetSelectable(false))
 	prt.View.SetCell(0, 1, tview.NewTableCell("Title").SetSelectable(false))
 	prt.View.SetCell(0, 2, tview.NewTableCell("Source -> Destination").SetSelectable(false))
+	prt.View.SetCell(0, 3, tview.NewTableCell("STATUS").SetSelectable(false))
 
 	i := 0
 	for _, v := range prt.rows {
@@ -91,6 +93,7 @@ func (prt *pullRequestTable) addRow(v *client.PullRequest, i int) {
 	prt.View.SetCell(i+1, 0, tview.NewTableCell(v.ID))
 	prt.View.SetCell(i+1, 1, tview.NewTableCell(v.Title))
 	prt.View.SetCell(i+1, 2, tview.NewTableCell(fmt.Sprintf("%s -> %s", v.Source, v.Destination)))
+	prt.View.SetCell(i+1, 3, tview.NewTableCell("Open"))
 }
 
 func (prt *pullRequestTable) colorRow(rowId int, selected bool) {

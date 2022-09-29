@@ -110,14 +110,16 @@ func Run(params *paramutils.RepositoryParams) {
 		return event
 	})
 
+	pages := tview.NewPages()
 	table.View.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEscape:
 			app.Stop()
 			return nil
 		case tcell.KeyCtrlD:
+			pages.ShowPage("confirmation_modal")
 			// Decline pull requests
-			return nil
+			return event
 			// case tcell.KeyUp:
 			// 	table.moveSelectionUp()
 			// case tcell.KeyDown:
@@ -176,8 +178,66 @@ func Run(params *paramutils.RepositoryParams) {
 	// 	panic(err)
 	// }
 
+	pages.AddPage("main", grid, true, true)
+	pages.AddPage("confirmation_modal", tview.NewModal().
+		SetText("Are you sure you want to decline %d pull requests?").
+		AddButtons([]string{"Decline", "Cancel"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonIndex == 0 {
+				selectedPRs := make(map[string]*promptPullRequest)
+				for _, row := range table.rows {
+					if row.selected && row.visible {
+						selectedPRs[row.pullRequest.ID] = &promptPullRequest{
+							ID:    row.pullRequest.ID,
+							Title: row.pullRequest.Title,
+						}
+					}
+				}
+
+				for _, v := range selectedPRs {
+					for i := 0; i < table.View.GetRowCount(); i++ {
+						if table.View.GetCell(i, 0).Text == v.ID {
+							table.View.GetCell(i, 3).SetText("Declining...")
+						}
+					}
+				}
+
+				go execute(c, repo, selectedPRs,
+					func(msg interface{}) string {
+						m := msg.(declineResponse)
+						for i := 0; i < table.View.GetRowCount(); i++ {
+							app.QueueUpdateDraw(func() {
+								if table.View.GetCell(i, 0).Text == m.ID {
+									if m.Status == "Done" {
+										table.View.GetCell(i, 3).SetText("Declined")
+									}
+								}
+							})
+						}
+						return ""
+						// return fmt.Sprintf("Declining #%s... %s\n", m.ID, m.Status)
+					},
+				)
+			}
+
+			pages.SwitchToPage("main")
+			app.SetFocus(table.View)
+		}),
+		false,
+		false,
+	)
+	pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Rune() {
+		case 'h':
+			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModNone)
+		case 'l':
+			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone)
+		}
+		return event
+	})
+
 	go loadPRs(app, c, repo, table)
-	app.SetRoot(grid, true).EnableMouse(true)
+	app.SetRoot(pages, true).EnableMouse(true)
 	app.SetFocus(table.View)
 
 	if err := app.Run(); err != nil {
