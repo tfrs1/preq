@@ -19,3 +19,14 @@ func (cf ClientFactory) DefaultClient(provider client.RepositoryProvider) (clien
 
 	return nil, errors.New("unknown provider")
 }
+
+func (cf ClientFactory) DefaultClientCustom(provider client.RepositoryProvider, project string) (client.Client, error) {
+	switch provider {
+	case client.RepositoryProviderEnum.BITBUCKET:
+		return bitbucket.DefaultClientCustom(project)
+	case client.RepositoryProviderEnum.GITHUB:
+		return github.DefaultClient()
+	}
+
+	return nil, errors.New("unknown provider")
+}

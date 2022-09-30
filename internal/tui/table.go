@@ -83,7 +83,19 @@ func (prt *pullRequestTable) redraw() {
 	for _, v := range prt.rows {
 		if v.visible {
 			prt.addRow(v.pullRequest, i)
-			prt.colorRow(i, v.selected)
+			// TODO: If merged green
+			// TODO: If declined red
+			if v.pullRequest.State == client.PullRequestState_DECLINED {
+				prt.View.GetCell(i+1, 3).SetText("Declined").SetSelectable(false)
+				for j := 0; j < prt.View.GetColumnCount(); j++ {
+					prt.View.GetCell(i+1, j).SetSelectable(false)
+				}
+				prt.colorRow(i, DeclinedColor)
+			} else if v.selected {
+				prt.colorRow(i, SelectedColor)
+			} else {
+				prt.colorRow(i, NormalColor)
+			}
 			i++
 		}
 	}
@@ -96,12 +108,7 @@ func (prt *pullRequestTable) addRow(v *client.PullRequest, i int) {
 	prt.View.SetCell(i+1, 3, tview.NewTableCell("Open"))
 }
 
-func (prt *pullRequestTable) colorRow(rowId int, selected bool) {
-	color := tcell.ColorWhite
-	if selected {
-		color = tcell.ColorRed
-	}
-
+func (prt *pullRequestTable) colorRow(rowId int, color tcell.Color) {
 	for i := 0; i < prt.View.GetColumnCount(); i++ {
 		prt.View.GetCell(rowId+1, i).SetTextColor(color)
 	}
@@ -116,7 +123,7 @@ func (prt *pullRequestTable) selectCurrentRow() {
 		if v.visible {
 			if rowId == selectedRow {
 				v.selected = !v.selected
-				// TODO: Instead of redrawing just color the row? possible dangerous
+				// TODO: Instead of redrawing just color the row? possibly dangerous
 				// prt.colorRow(rowId, v.selected)
 				break
 			}

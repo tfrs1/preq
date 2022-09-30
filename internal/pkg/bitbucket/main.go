@@ -68,6 +68,20 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 	}, nil
 }
 
+func DefaultClientCustom(repository string) (client.Client, error) {
+	config, err := getDefaultConfiguration()
+	if err != nil {
+		return nil, err
+	}
+
+	return &BitbucketCloudClient{
+		username:   config.username,
+		password:   config.password,
+		uuid:       config.uuid,
+		repository: repository,
+	}, nil
+}
+
 func DefaultClient() (client.Client, error) {
 	config, err := getDefaultConfiguration()
 	if err != nil {

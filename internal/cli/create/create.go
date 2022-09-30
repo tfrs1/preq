@@ -41,7 +41,11 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
+	c, err := clientutils.ClientFactory{}.DefaultClientCustom(
+		params.Repository.Provider,
+		params.Repository.Name,
+	)
+
 	if err != nil {
 		return err
 	}

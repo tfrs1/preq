@@ -10,6 +10,12 @@ import (
 	"github.com/rivo/tview"
 )
 
+var (
+	SelectedColor tcell.Color = tcell.ColorYellow
+	NormalColor               = tcell.ColorWhite
+	DeclinedColor             = tcell.ColorRed
+)
+
 func loadConfig(params *paramutils.RepositoryParams) (client.Client, *client.Repository, error) {
 	c, err := clientutils.ClientFactory{}.DefaultClient(params.Provider)
 	if err != nil {
@@ -205,14 +211,23 @@ func Run(params *paramutils.RepositoryParams) {
 				go execute(c, repo, selectedPRs,
 					func(msg interface{}) string {
 						m := msg.(declineResponse)
-						for i := 0; i < table.View.GetRowCount(); i++ {
-							app.QueueUpdateDraw(func() {
-								if table.View.GetCell(i, 0).Text == m.ID {
-									if m.Status == "Done" {
-										table.View.GetCell(i, 3).SetText("Declined")
-									}
+						if m.Status == "Done" {
+							for _, v := range table.rows {
+								if v.pullRequest.ID == m.ID {
+									v.pullRequest.State = client.PullRequestState_DECLINED
 								}
-							})
+							}
+						}
+
+						for i := 0; i < table.View.GetRowCount(); i++ {
+							if table.View.GetCell(i, 0).Text == m.ID {
+								if m.Status == "Done" {
+									app.QueueUpdateDraw(func() {
+										table.View.GetCell(i, 3).SetText("Declined")
+										table.redraw()
+									})
+								}
+							}
 						}
 						return ""
 						// return fmt.Sprintf("Declining #%s... %s\n", m.ID, m.Status)
