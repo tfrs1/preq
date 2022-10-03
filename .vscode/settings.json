@@ -1,0 +1,13 @@
+{
+    "gopls": {
+        "ui.semanticTokens": true
+    },
+    "emeraldwalk.runonsave": {
+        "commands": [
+            {
+                "match": "\\.go$",
+                "cmd": "golines ${file} -w -m 80"
+            }
+        ]
+    }
+}
