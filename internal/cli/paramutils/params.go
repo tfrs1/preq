@@ -89,8 +89,8 @@ func (pf *viperConfigParamsFiller) Fill(params *RepositoryParams) {
 
 func FillDefaultRepositoryParams(params *RepositoryParams) {
 	paramsFillers := []paramsFiller{
-		&localRepositoryParamsFiller{},
 		&viperConfigParamsFiller{},
+		&localRepositoryParamsFiller{},
 	}
 
 	for _, pf := range paramsFillers {
@@ -109,7 +109,8 @@ func FillFlagRepositoryParams(flags FlagSet, params *RepositoryParams) {
 }
 
 func ValidateFlagRepositoryParams(params *RepositoryParams) error {
-	if (params.Name == "" && params.Provider != "") || (params.Name != "" && params.Provider == "") {
+	if (params.Name == "" && params.Provider != "") ||
+		(params.Name != "" && params.Provider == "") {
 		return errcodes.ErrSomeRepoParamsMissing
 	}
 

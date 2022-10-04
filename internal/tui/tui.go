@@ -16,7 +16,9 @@ var (
 	DeclinedColor             = tcell.ColorRed
 )
 
-func loadConfig(params *paramutils.RepositoryParams) (client.Client, *client.Repository, error) {
+func loadConfig(
+	params *paramutils.RepositoryParams,
+) (client.Client, *client.Repository, error) {
 	c, err := clientutils.ClientFactory{}.DefaultClient(params.Provider)
 	if err != nil {
 		return nil, nil, err
@@ -33,9 +35,19 @@ func loadConfig(params *paramutils.RepositoryParams) (client.Client, *client.Rep
 	return c, r, nil
 }
 
-func loadPRs(app *tview.Application, c client.Client, repo *client.Repository, table *pullRequestTable) {
+func loadPRs(
+	app *tview.Application,
+	c client.Client,
+	repo *client.Repository,
+	table *pullRequestTable,
+) {
 	app.QueueUpdateDraw(func() {
-		table.View.SetCell(0, 0, tview.NewTableCell("Loading...").SetAlign(tview.AlignCenter))
+		table.View.SetCell(
+			0,
+			0,
+			tview.NewTableCell("Loading...").
+				SetAlign(tview.AlignCenter),
+		)
 	})
 
 	nextURL := ""
@@ -67,7 +79,11 @@ func loadPRs(app *tview.Application, c client.Client, repo *client.Repository, t
 		}
 
 		app.QueueUpdateDraw(func() {
-			table.View.SetCell(len(prs.Values), 0, tview.NewTableCell("Loading..."))
+			table.View.SetCell(
+				len(prs.Values),
+				0,
+				tview.NewTableCell("Loading..."),
+			)
 		})
 	}
 }
@@ -119,24 +135,17 @@ func Run(params *paramutils.RepositoryParams) {
 	pages := tview.NewPages()
 	table.View.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyEscape:
-			app.Stop()
-			return nil
 		case tcell.KeyCtrlD:
 			pages.ShowPage("confirmation_modal")
 			// Decline pull requests
 			return event
-			// case tcell.KeyUp:
-			// 	table.moveSelectionUp()
-			// case tcell.KeyDown:
-			// 	table.moveSelectionDown()
+		case tcell.KeyCtrlM:
+			pages.ShowPage("confirmation_modal")
+			// Merge pull requests
+			return event
 		}
 
 		switch event.Rune() {
-		// case 'j':
-		// 	table.moveSelectionDown()
-		// case 'k':
-		// 	table.moveSelectionUp()
 		case 'q':
 			app.Stop()
 			return nil
@@ -223,7 +232,8 @@ func Run(params *paramutils.RepositoryParams) {
 							if table.View.GetCell(i, 0).Text == m.ID {
 								if m.Status == "Done" {
 									app.QueueUpdateDraw(func() {
-										table.View.GetCell(i, 3).SetText("Declined")
+										table.View.GetCell(i, 3).
+											SetText("Declined")
 										table.redraw()
 									})
 								}

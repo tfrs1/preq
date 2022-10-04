@@ -173,7 +173,9 @@ type defaultReviewersResponse struct {
 // 	Values     []*client.PullRequest `json:"values"`
 // }
 
-func (c *BitbucketCloudClient) GetPullRequests(o *client.GetPullRequestsOptions) (*client.PullRequestList, error) {
+func (c *BitbucketCloudClient) GetPullRequests(
+	o *client.GetPullRequestsOptions,
+) (*client.PullRequestList, error) {
 	url := fmt.Sprintf(
 		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests",
 		o.Repository.Owner,
@@ -258,7 +260,9 @@ func (c *BitbucketCloudClient) post(url string) (*resty.Response, error) {
 	return r, nil
 }
 
-func (c *BitbucketCloudClient) DeclinePullRequest(o *client.DeclinePullRequestOptions) (*client.PullRequest, error) {
+func (c *BitbucketCloudClient) DeclinePullRequest(
+	o *client.DeclinePullRequestOptions,
+) (*client.PullRequest, error) {
 	url := fmt.Sprintf(
 		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/decline",
 		o.Repository.Owner,
@@ -274,7 +278,9 @@ func (c *BitbucketCloudClient) DeclinePullRequest(o *client.DeclinePullRequestOp
 	return unmarshalPR(r.Body())
 }
 
-func (c *BitbucketCloudClient) ApprovePullRequest(o *client.ApprovePullRequestOptions) (*client.PullRequest, error) {
+func (c *BitbucketCloudClient) ApprovePullRequest(
+	o *client.ApprovePullRequestOptions,
+) (*client.PullRequest, error) {
 	url := fmt.Sprintf(
 		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/approve",
 		o.Repository.Owner,
@@ -325,7 +331,9 @@ func (c *BitbucketCloudClient) GetCurrentUser() (*client.User, error) {
 	}, nil
 }
 
-func (c *BitbucketCloudClient) GetDefaultReviewers(o *client.CreatePullRequestOptions) ([]*Reviewer, error) {
+func (c *BitbucketCloudClient) GetDefaultReviewers(
+	o *client.CreatePullRequestOptions,
+) ([]*Reviewer, error) {
 	r, err := resty.New().R().
 		SetBasicAuth(c.username, c.password).
 		SetError(bbError{}).
@@ -347,7 +355,9 @@ func (c *BitbucketCloudClient) GetDefaultReviewers(o *client.CreatePullRequestOp
 	return pr.Values, nil
 }
 
-func (c *BitbucketCloudClient) CreatePullRequest(o *client.CreatePullRequestOptions) (*client.PullRequest, error) {
+func (c *BitbucketCloudClient) CreatePullRequest(
+	o *client.CreatePullRequestOptions,
+) (*client.PullRequest, error) {
 	err := verifyCreatePullRequestOptions(o)
 	if err != nil {
 		return nil, err

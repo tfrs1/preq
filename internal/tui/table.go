@@ -43,14 +43,14 @@ func newPullRequestTable() *pullRequestTable {
 		Select(0, 0).
 		SetFixed(1, 1).
 		SetSelectable(true, false).
-		SetDoneFunc(func(key tcell.Key) {
-			// if key == tcell.KeyEscape {
-			// 	app.Stop()
-			// }
-			// if key == tcell.KeyEnter {
-			// 	table.SetSelectable(true, false)
-			// }
-		}).
+		// SetDoneFunc(func(key tcell.Key) {
+		// 	if key == tcell.KeyEscape {
+		// 		app.Stop()
+		// 	}
+		// 	if key == tcell.KeyEnter {
+		// 		table.SetSelectable(true, false)
+		// 	}
+		// }).
 		SetSelectedFunc(func(row int, column int) {
 			// table.GetCell(row, column).SetTextColor(tcell.ColorRed)
 			// table.SetSelectable(false, false)
@@ -76,7 +76,11 @@ func (prt *pullRequestTable) redraw() {
 	prt.View.Clear()
 	prt.View.SetCell(0, 0, tview.NewTableCell("#").SetSelectable(false))
 	prt.View.SetCell(0, 1, tview.NewTableCell("Title").SetSelectable(false))
-	prt.View.SetCell(0, 2, tview.NewTableCell("Source -> Destination").SetSelectable(false))
+	prt.View.SetCell(
+		0,
+		2,
+		tview.NewTableCell("Source -> Destination").SetSelectable(false),
+	)
 	prt.View.SetCell(0, 3, tview.NewTableCell("STATUS").SetSelectable(false))
 
 	i := 0
@@ -86,7 +90,9 @@ func (prt *pullRequestTable) redraw() {
 			// TODO: If merged green
 			// TODO: If declined red
 			if v.pullRequest.State == client.PullRequestState_DECLINED {
-				prt.View.GetCell(i+1, 3).SetText("Declined").SetSelectable(false)
+				prt.View.GetCell(i+1, 3).
+					SetText("Declined").
+					SetSelectable(false)
 				for j := 0; j < prt.View.GetColumnCount(); j++ {
 					prt.View.GetCell(i+1, j).SetSelectable(false)
 				}
@@ -104,7 +110,11 @@ func (prt *pullRequestTable) redraw() {
 func (prt *pullRequestTable) addRow(v *client.PullRequest, i int) {
 	prt.View.SetCell(i+1, 0, tview.NewTableCell(v.ID))
 	prt.View.SetCell(i+1, 1, tview.NewTableCell(v.Title))
-	prt.View.SetCell(i+1, 2, tview.NewTableCell(fmt.Sprintf("%s -> %s", v.Source, v.Destination)))
+	prt.View.SetCell(
+		i+1,
+		2,
+		tview.NewTableCell(fmt.Sprintf("%s -> %s", v.Source, v.Destination)),
+	)
 	prt.View.SetCell(i+1, 3, tview.NewTableCell("Open"))
 }
 

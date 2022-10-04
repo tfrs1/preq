@@ -27,7 +27,9 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
+	c, err := clientutils.ClientFactory{}.DefaultClient(
+		params.Repository.Provider,
+	)
 	if err != nil {
 		return err
 	}
@@ -48,7 +50,11 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execute(c client.Client, params *listCmdParams, repo *client.Repository) error {
+func execute(
+	c client.Client,
+	params *listCmdParams,
+	repo *client.Repository,
+) error {
 	nextURL := ""
 	reader := bufio.NewReader(os.Stdin)
 
