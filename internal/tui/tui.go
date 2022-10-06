@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	SelectedColor tcell.Color = tcell.ColorYellow
-	NormalColor               = tcell.ColorWhite
-	DeclinedColor             = tcell.ColorRed
+	SelectedColor = tcell.ColorYellow
+	NormalColor   = tcell.ColorWhite
+	DeclinedColor = tcell.ColorRed
 )
 
 func loadConfig(
@@ -97,25 +97,16 @@ func Run(params *paramutils.RepositoryParams) {
 	app := tview.NewApplication()
 	// app.SetScreen(tcell.NewSimulationScreen("sim"))
 
-	// newPrimitive := func(text string) tview.Primitive {
-	// 	return tview.NewTextView().
-	// 		SetTextAlign(tview.AlignCenter).
-	// 		SetText(text)
-	// }
-	// menu := newPrimitive("Menu")
-	// main := newPrimitive("Main content")
-	// sideBar := newPrimitive("Side Bar")
-
 	table := newPullRequestTable()
 
-	searchInput := tview.NewInputField()
+	searchInput := tview.NewInputField().
+		SetLabel(" Filter ").
+		SetLabelColor(tcell.ColorRed)
 	searchInput.
-		SetPlaceholder("Filter pull requests").
+		SetPlaceholder(" Filter pull requests").
 		SetChangedFunc(func(text string) {
 			table.Filter(text)
-		}).
-		SetBorder(true).
-		SetTitle("Filter")
+		})
 
 	searchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -132,7 +123,39 @@ func Run(params *paramutils.RepositoryParams) {
 		return event
 	})
 
+	grid := tview.NewGrid().
+		SetRows(0, 1).
+		AddItem(table.View, 0, 0, 1, 1, 0, 0, false).
+		AddItem(searchInput, 1, 0, 1, 1, 0, 0, false)
+
+	grid.
+		SetBorders(false).
+		SetBorder(false)
 	pages := tview.NewPages()
+	detailsPage := tview.NewBox().SetBorder(true).SetTitle("Details")
+	flex := tview.NewFlex().
+		AddItem(grid, 0, 1, false)
+	helpPage := tview.NewBox().
+		SetTitle("Help")
+
+	showDetailsPage := false
+
+	helpPage.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEsc:
+			pages.HidePage("HelpPage")
+			return nil
+		}
+
+		switch event.Rune() {
+		case 'h':
+			pages.HidePage("HelpPage")
+			return nil
+		}
+
+		return event
+	})
+
 	table.View.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlD:
@@ -143,9 +166,20 @@ func Run(params *paramutils.RepositoryParams) {
 			pages.ShowPage("confirmation_modal")
 			// Merge pull requests
 			return event
+		case tcell.KeyCtrlH:
+			pages.ShowPage("HelpPage")
+			return nil
 		}
 
 		switch event.Rune() {
+		case 'o':
+			showDetailsPage = !showDetailsPage
+			if showDetailsPage {
+				flex.AddItem(detailsPage, 0, 1, false)
+			} else {
+				flex.RemoveItem(detailsPage)
+			}
+			return nil
 		case 'q':
 			app.Stop()
 			return nil
@@ -164,56 +198,27 @@ func Run(params *paramutils.RepositoryParams) {
 		return event
 	})
 
-	grid := tview.NewGrid().
-		// SetRows(3, 0, 3).
-		// SetColumns(30, 0, 30).
-		SetRows(0, 3).
-		SetBorders(true).
-		AddItem(table.View, 0, 0, 1, 1, 0, 0, false).
-		AddItem(searchInput, 1, 0, 1, 1, 0, 0, false)
-	// AddItem(newPrimitive("Header"), 0, 0, 1, 3, 0, 0, false).
-	// 	AddItem(newPrimitive("Footer"), 2, 0, 1, 3, 0, 0, false)
-
-	grid.
-		// 	SetTitle("preq").
-		SetBorders(false).
-		SetBorder(false)
-
-	// // Layout for screens narrower than 100 cells (menu and side bar are hidden).
-	// grid.AddItem(menu, 0, 0, 0, 0, 0, 0, false).
-	// 	AddItem(table, 1, 0, 1, 3, 0, 0, false).
-	// 	AddItem(sideBar, 0, 0, 0, 0, 0, 0, false)
-
-	// // Layout for screens wider than 100 cells.
-	// grid.AddItem(menu, 1, 0, 1, 1, 0, 100, false).
-	// 	AddItem(table, 1, 1, 1, 1, 0, 100, false).
-	// 	AddItem(sideBar, 1, 2, 1, 1, 0, 100, false)
-
-	// if err := app.SetRoot(table, true).EnableMouse(true).Run(); err != nil {
-	// 	panic(err)
-	// }
-
-	pages.AddPage("main", grid, true, true)
+	pages.AddPage("main", flex, true, true)
 	pages.AddPage("confirmation_modal", tview.NewModal().
 		SetText("Are you sure you want to decline %d pull requests?").
 		AddButtons([]string{"Decline", "Cancel"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			if buttonIndex == 0 {
 				selectedPRs := make(map[string]*promptPullRequest)
-				for _, row := range table.rows {
+				for index, row := range table.rows {
 					if row.selected && row.visible {
 						selectedPRs[row.pullRequest.ID] = &promptPullRequest{
 							ID:    row.pullRequest.ID,
 							Title: row.pullRequest.Title,
 						}
-					}
-				}
 
-				for _, v := range selectedPRs {
-					for i := 0; i < table.View.GetRowCount(); i++ {
-						if table.View.GetCell(i, 0).Text == v.ID {
-							table.View.GetCell(i, 3).SetText("Declining...")
+						table.View.GetCell(index+1, 4).
+							SetText(pad("Declining..."))
+
+						for i := 0; i < table.View.GetColumnCount(); i++ {
+							table.View.GetCell(index+1, i).SetSelectable(false)
 						}
+
 					}
 				}
 
@@ -227,20 +232,11 @@ func Run(params *paramutils.RepositoryParams) {
 								}
 							}
 						}
+						app.QueueUpdateDraw(func() {
+							table.redraw()
+						})
 
-						for i := 0; i < table.View.GetRowCount(); i++ {
-							if table.View.GetCell(i, 0).Text == m.ID {
-								if m.Status == "Done" {
-									app.QueueUpdateDraw(func() {
-										table.View.GetCell(i, 3).
-											SetText("Declined")
-										table.redraw()
-									})
-								}
-							}
-						}
 						return ""
-						// return fmt.Sprintf("Declining #%s... %s\n", m.ID, m.Status)
 					},
 				)
 			}
@@ -251,6 +247,7 @@ func Run(params *paramutils.RepositoryParams) {
 		false,
 		false,
 	)
+	pages.AddPage("HelpPage", helpPage, true, false)
 	pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case 'h':
