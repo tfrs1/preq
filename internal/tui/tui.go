@@ -16,6 +16,44 @@ var (
 	DeclinedColor = tcell.ColorRed
 )
 
+var (
+	app     = tview.NewApplication()
+	flex    = tview.NewFlex()
+	details = newDetailsPage()
+	table   = newPullRequestTable()
+)
+
+var (
+	eventBus = NewEventBus()
+)
+
+type EventBus struct {
+	subscribers map[string][]EventBusEventCallback
+}
+
+type EventBusEventCallback func()
+
+func (bus *EventBus) Publish(name string) {
+	for _, v := range bus.subscribers[name] {
+		v()
+	}
+}
+
+func (bus *EventBus) Subscribe(name string, callback EventBusEventCallback) {
+	if eventBus.subscribers[name] == nil {
+		eventBus.subscribers[name] = make([]EventBusEventCallback, 0)
+	}
+
+	eventBus.subscribers[name] = append(eventBus.subscribers[name], callback)
+}
+
+func NewEventBus() *EventBus {
+	subscribers := make(map[string][]EventBusEventCallback)
+	return &EventBus{
+		subscribers: subscribers,
+	}
+}
+
 func loadConfig(
 	params *paramutils.RepositoryParams,
 ) (client.Client, *client.Repository, error) {
@@ -94,10 +132,17 @@ func Run(params *paramutils.RepositoryParams) {
 		os.Exit(123)
 	}
 
-	app := tview.NewApplication()
 	// app.SetScreen(tcell.NewSimulationScreen("sim"))
 
-	table := newPullRequestTable()
+	eventBus.Subscribe("detailsPage:close", func() {
+		flex.RemoveItem(details.View)
+		app.SetFocus(table.View)
+	})
+
+	eventBus.Subscribe("detailsPage:open", func() {
+		flex.AddItem(details.View, 0, 1, false)
+		app.SetFocus(details.View)
+	})
 
 	searchInput := tview.NewInputField().
 		SetLabel(" Filter ").
@@ -132,13 +177,9 @@ func Run(params *paramutils.RepositoryParams) {
 		SetBorders(false).
 		SetBorder(false)
 	pages := tview.NewPages()
-	detailsPage := tview.NewBox().SetBorder(true).SetTitle("Details")
-	flex := tview.NewFlex().
-		AddItem(grid, 0, 1, false)
+	flex.AddItem(grid, 0, 1, false)
 	helpPage := tview.NewBox().
 		SetTitle("Help")
-
-	showDetailsPage := false
 
 	helpPage.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -160,11 +201,9 @@ func Run(params *paramutils.RepositoryParams) {
 		switch event.Key() {
 		case tcell.KeyCtrlD:
 			pages.ShowPage("confirmation_modal")
-			// Decline pull requests
 			return event
 		case tcell.KeyCtrlM:
 			pages.ShowPage("confirmation_modal")
-			// Merge pull requests
 			return event
 		case tcell.KeyCtrlH:
 			pages.ShowPage("HelpPage")
@@ -173,13 +212,7 @@ func Run(params *paramutils.RepositoryParams) {
 
 		switch event.Rune() {
 		case 'o':
-			showDetailsPage = !showDetailsPage
-			if showDetailsPage {
-				flex.AddItem(detailsPage, 0, 1, false)
-			} else {
-				flex.RemoveItem(detailsPage)
-			}
-			return nil
+			eventBus.Publish("detailsPage:open")
 		case 'q':
 			app.Stop()
 			return nil
