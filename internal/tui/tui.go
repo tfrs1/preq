@@ -17,11 +17,15 @@ var (
 )
 
 var (
-	app     = tview.NewApplication()
-	flex    = tview.NewFlex()
-	details = newDetailsPage()
-	table   = newPullRequestTable()
+	app      = tview.NewApplication()
+	flex     = tview.NewFlex()
+	details  = newDetailsPage()
+	table    = newPullRequestTable()
+	prClient client.Client
+	prRepo   *client.Repository
 )
+
+// var prClient client.Client
 
 var (
 	eventBus = NewEventBus()
@@ -62,6 +66,8 @@ func loadConfig(
 		return nil, nil, err
 	}
 
+	prClient = c
+
 	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
 		Provider:           params.Provider,
 		FullRepositoryName: params.Name,
@@ -69,6 +75,12 @@ func loadConfig(
 	if err != nil {
 		return nil, nil, err
 	}
+	// prRepo = r
+
+	// prClient.GetPullRequestInfo(&client.ApprovePullRequestOptions{
+	// 	Repository: prRepo,
+	// 	ID:         "77",
+	// })
 
 	return c, r, nil
 }

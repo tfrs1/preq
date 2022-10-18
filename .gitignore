@@ -2,3 +2,5 @@
 .preqcfg
 dist/
 cmd/driver/
+
+.history/

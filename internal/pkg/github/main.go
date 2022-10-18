@@ -114,7 +114,9 @@ type bbError struct {
 // 	Values     []*client.PullRequest `json:"values"`
 // }
 
-func (c *GithubCloudClient) GetPullRequests(o *preqClient.GetPullRequestsOptions) (*preqClient.PullRequestList, error) {
+func (c *GithubCloudClient) GetPullRequests(
+	o *preqClient.GetPullRequestsOptions,
+) (*preqClient.PullRequestList, error) {
 	url := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/pulls",
 		o.Repository.Owner,
@@ -143,10 +145,12 @@ func (c *GithubCloudClient) GetPullRequests(o *preqClient.GetPullRequestsOptions
 	parsed := gjson.ParseBytes(r.Body())
 	parsed.ForEach(func(key, value gjson.Result) bool {
 		pr.Values = append(pr.Values, &preqClient.PullRequest{
-			ID:          value.Get("number").String(),
-			Title:       value.Get("title").String(),
-			URL:         value.Get("html_url").String(),
-			State:       preqClient.PullRequestState(value.Get("state").String()),
+			ID:    value.Get("number").String(),
+			Title: value.Get("title").String(),
+			URL:   value.Get("html_url").String(),
+			State: preqClient.PullRequestState(
+				value.Get("state").String(),
+			),
 			Source:      value.Get("head.ref").String(),
 			Destination: value.Get("base.ref").String(),
 			Created:     value.Get("created_at").Time(),
@@ -200,7 +204,9 @@ func (c *GithubCloudClient) post(url string) (*resty.Response, error) {
 	return r, nil
 }
 
-func (c *GithubCloudClient) DeclinePullRequest(o *preqClient.DeclinePullRequestOptions) (*preqClient.PullRequest, error) {
+func (c *GithubCloudClient) DeclinePullRequest(
+	o *preqClient.DeclinePullRequestOptions,
+) (*preqClient.PullRequest, error) {
 	r, err := resty.New().R().
 		SetAuthToken(c.token).
 		SetBody(ghPROptions{
@@ -218,6 +224,12 @@ func (c *GithubCloudClient) DeclinePullRequest(o *preqClient.DeclinePullRequestO
 	}
 
 	return unmarshalPR(r.Body())
+}
+
+func (c *GithubCloudClient) GetPullRequestInfo(
+	o *preqClient.ApprovePullRequestOptions,
+) (*preqClient.PullRequest, error) {
+	return nil, nil
 }
 
 type getReviewsOptions struct {
@@ -252,7 +264,9 @@ type reviewRequest struct {
 	SiteAdmin         bool   `json:"site_admin"`
 }
 
-func (c *GithubCloudClient) getReviewRequests(o *getReviewsOptions) ([]int64, error) {
+func (c *GithubCloudClient) getReviewRequests(
+	o *getReviewsOptions,
+) ([]int64, error) {
 	r, err := resty.New().R().
 		SetAuthToken(c.token).
 		SetError(githubError{}).
@@ -282,7 +296,9 @@ func (c *GithubCloudClient) getReviewRequests(o *getReviewsOptions) ([]int64, er
 	return filteredUsers, nil
 }
 
-func (c *GithubCloudClient) getReviews(o *getReviewsOptions) (*[]review, error) {
+func (c *GithubCloudClient) getReviews(
+	o *getReviewsOptions,
+) (*[]review, error) {
 	r, err := resty.New().R().
 		SetAuthToken(c.token).
 		SetError(githubError{}).
@@ -308,7 +324,9 @@ func (c *GithubCloudClient) getReviews(o *getReviewsOptions) (*[]review, error) 
 	return reviews, nil
 }
 
-func (c *GithubCloudClient) ApprovePullRequest(o *preqClient.ApprovePullRequestOptions) (*preqClient.PullRequest, error) {
+func (c *GithubCloudClient) ApprovePullRequest(
+	o *preqClient.ApprovePullRequestOptions,
+) (*preqClient.PullRequest, error) {
 	_, err := resty.New().R().
 		SetAuthToken(c.token).
 		SetHeader("content-type", "application/json").
@@ -332,7 +350,9 @@ func (c *GithubCloudClient) ApprovePullRequest(o *preqClient.ApprovePullRequestO
 	}, nil
 }
 
-func verifyCreatePullRequestOptions(o *preqClient.CreatePullRequestOptions) error {
+func verifyCreatePullRequestOptions(
+	o *preqClient.CreatePullRequestOptions,
+) error {
 	if o.Source == "" {
 		return errors.New("missing source branch")
 	}
@@ -378,7 +398,9 @@ func (c *GithubCloudClient) GetCurrentUser() (*preqClient.User, error) {
 	}, nil
 }
 
-func (c *GithubCloudClient) CreatePullRequest(o *preqClient.CreatePullRequestOptions) (*preqClient.PullRequest, error) {
+func (c *GithubCloudClient) CreatePullRequest(
+	o *preqClient.CreatePullRequestOptions,
+) (*preqClient.PullRequest, error) {
 	err := verifyCreatePullRequestOptions(o)
 	if err != nil {
 		return nil, err

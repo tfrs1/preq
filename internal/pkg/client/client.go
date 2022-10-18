@@ -20,6 +20,7 @@ type Client interface {
 	GetPullRequests(o *GetPullRequestsOptions) (*PullRequestList, error)
 	CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error)
 	ApprovePullRequest(o *ApprovePullRequestOptions) (*PullRequest, error)
+	GetPullRequestInfo(o *ApprovePullRequestOptions) (*PullRequest, error)
 }
 
 type RepositoryProvider string
@@ -122,14 +123,15 @@ type CreatePullRequestOptions struct {
 }
 
 type PullRequest struct {
-	ID          string
-	Title       string
-	URL         string
-	State       PullRequestState
-	Source      string
-	Destination string
-	Created     time.Time
-	Updated     time.Time
+	ID           string
+	Title        string
+	URL          string
+	State        PullRequestState
+	CommentCount uint
+	Source       string
+	Destination  string
+	Created      time.Time
+	Updated      time.Time
 }
 
 type User struct {

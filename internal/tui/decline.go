@@ -34,7 +34,10 @@ func processPullRequestMap(
 	}
 }
 
-func execute(c client.Client, repo *client.Repository, selectedPRs map[string]*promptPullRequest,
+func execute(
+	c client.Client,
+	repo *client.Repository,
+	selectedPRs map[string]*promptPullRequest,
 	fn func(interface{}) string,
 ) error {
 	processPullRequestMap(
@@ -54,7 +57,12 @@ type declineResponse struct {
 	Error  error
 }
 
-func declinePR(cl client.Client, r *client.Repository, id string, c chan interface{}) {
+func declinePR(
+	cl client.Client,
+	r *client.Repository,
+	id string,
+	c chan interface{},
+) {
 	_, err := cl.DeclinePullRequest(&client.DeclinePullRequestOptions{
 		Repository: r,
 		ID:         id,

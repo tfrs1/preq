@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"preq/internal/pkg/client"
+	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -10,7 +11,8 @@ import (
 )
 
 const (
-	statusColumn = 4
+	statusColumn   = 4
+	commentsColumn = 5
 )
 
 type pullRequestTableRow struct {
@@ -82,41 +84,19 @@ func (prt *pullRequestTable) redraw() {
 	headerStyle := tcell.StyleDefault.
 		Bold(true)
 
-	prt.View.SetCell(
-		0,
-		0,
-		tview.NewTableCell(pad("#")).
-			SetSelectable(false).
-			SetStyle(headerStyle),
-	)
-	prt.View.SetCell(
-		0,
-		1,
-		tview.NewTableCell(pad("TITLE")).
-			SetSelectable(false).
-			SetStyle(headerStyle),
-	)
-	prt.View.SetCell(
-		0,
-		2,
-		tview.NewTableCell(pad("SOURCE")).
-			SetSelectable(false).
-			SetStyle(headerStyle),
-	)
-	prt.View.SetCell(
-		0,
-		3,
-		tview.NewTableCell(pad("DESTINATION")).
-			SetSelectable(false).
-			SetStyle(headerStyle),
-	)
-	prt.View.SetCell(
-		0,
-		statusColumn,
-		tview.NewTableCell(pad("STATUS")).
-			SetSelectable(false).
-			SetStyle(headerStyle),
-	)
+	headers := []string{
+		"#", "TITLE", "SOURCE", "DESTINATION", "STATUS", "COMMENTS",
+	}
+
+	for i := 0; i < len(headers); i++ {
+		prt.View.SetCell(
+			0,
+			i,
+			tview.NewTableCell(pad(headers[i])).
+				SetSelectable(false).
+				SetStyle(headerStyle),
+		)
+	}
 
 	i := 0
 	for _, v := range prt.rows {
@@ -160,6 +140,17 @@ func (prt *pullRequestTable) addRow(v *client.PullRequest, i int) {
 		tview.NewTableCell(pad(v.Destination)),
 	)
 	prt.View.SetCell(i+1, statusColumn, tview.NewTableCell(pad("Open")))
+
+	commentCount := ""
+	if v.CommentCount > 0 {
+		commentCount = strconv.FormatUint(uint64(v.CommentCount), 10)
+	}
+
+	prt.View.SetCell(
+		i+1,
+		commentsColumn,
+		tview.NewTableCell(pad(commentCount)),
+	)
 }
 
 func (prt *pullRequestTable) colorRow(rowId int, color tcell.Color) {

@@ -209,14 +209,15 @@ func (c *BitbucketCloudClient) GetPullRequests(
 	result := parsed.Get("values")
 	result.ForEach(func(key, value gjson.Result) bool {
 		pr.Values = append(pr.Values, &client.PullRequest{
-			ID:          value.Get("id").String(),
-			Title:       value.Get("title").String(),
-			URL:         value.Get("links.html.href").String(),
-			State:       client.PullRequestState(value.Get("state").String()),
-			Source:      value.Get("source.branch.name").String(),
-			Destination: value.Get("destination.branch.name").String(),
-			Created:     value.Get("created_on").Time(),
-			Updated:     value.Get("updated_on").Time(),
+			ID:           value.Get("id").String(),
+			Title:        value.Get("title").String(),
+			URL:          value.Get("links.html.href").String(),
+			State:        client.PullRequestState(value.Get("state").String()),
+			Source:       value.Get("source.branch.name").String(),
+			Destination:  value.Get("destination.branch.name").String(),
+			Created:      value.Get("created_on").Time(),
+			Updated:      value.Get("updated_on").Time(),
+			CommentCount: uint(value.Get("comment_count").Uint()),
 		})
 
 		return true
@@ -240,6 +241,24 @@ func unmarshalPR(data []byte) (*client.PullRequest, error) {
 		Source:      pr.Source.Branch.Name,
 		Destination: pr.Destination.Branch.Name,
 	}, nil
+}
+
+func (c *BitbucketCloudClient) get(url string) (*resty.Response, error) {
+	rc := resty.New()
+	r, err := rc.R().
+		SetBasicAuth(c.username, c.password).
+		SetError(bbError{}).
+		Get(url)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if r.IsError() {
+		return nil, errors.New(string(r.Body()))
+	}
+
+	return r, nil
 }
 
 func (c *BitbucketCloudClient) post(url string) (*resty.Response, error) {
@@ -294,6 +313,12 @@ func (c *BitbucketCloudClient) ApprovePullRequest(
 	}
 
 	return unmarshalPR(r.Body())
+}
+
+func (c *BitbucketCloudClient) GetPullRequestInfo(
+	o *client.ApprovePullRequestOptions,
+) (*client.PullRequest, error) {
+	return nil, errors.New("not implemented")
 }
 
 func verifyCreatePullRequestOptions(o *client.CreatePullRequestOptions) error {

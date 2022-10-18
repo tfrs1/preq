@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"preq/internal/pkg/client"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -27,6 +29,11 @@ func newDetailsPage() *detailsPage {
 
 	eventBus.Subscribe("detailsPage:open", func() {
 		// TODO: clear page and start loading the PR info
+		id := "1"
+		prClient.GetPullRequestInfo(&client.ApprovePullRequestOptions{
+			Repository: prRepo,
+			ID:         id,
+		})
 	})
 
 	return &detailsPage{
