@@ -122,35 +122,28 @@ func (prt *pullRequestTable) redraw() {
 	}
 }
 
-func (prt *pullRequestTable) addRow(v *client.PullRequest, i int) {
-	prt.View.SetCell(
-		i+1,
-		0,
-		tview.NewTableCell(pad(v.ID)),
-	)
-	prt.View.SetCell(i+1, 1, tview.NewTableCell(pad(v.Title)))
-	prt.View.SetCell(
-		i+1,
-		2,
-		tview.NewTableCell(pad(v.Source)),
-	)
-	prt.View.SetCell(
-		i+1,
-		3,
-		tview.NewTableCell(pad(v.Destination)),
-	)
-	prt.View.SetCell(i+1, statusColumn, tview.NewTableCell(pad("Open")))
-
+func (prt *pullRequestTable) addRow(v *client.PullRequest, rowId int) {
 	commentCount := ""
 	if v.CommentCount > 0 {
 		commentCount = strconv.FormatUint(uint64(v.CommentCount), 10)
 	}
 
-	prt.View.SetCell(
-		i+1,
-		commentsColumn,
-		tview.NewTableCell(pad(commentCount)),
-	)
+	values := []string{
+		v.ID,
+		v.Title,
+		v.Source,
+		v.Destination,
+		"Open",
+		commentCount,
+	}
+
+	for i := 0; i < len(values); i++ {
+		prt.View.SetCell(
+			rowId+1,
+			i,
+			tview.NewTableCell(pad(values[i])),
+		)
+	}
 }
 
 func (prt *pullRequestTable) colorRow(rowId int, color tcell.Color) {

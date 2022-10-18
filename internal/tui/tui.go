@@ -1,10 +1,14 @@
 package tui
 
 import (
+	"fmt"
+	"log"
 	"os"
+	"os/exec"
 	"preq/internal/cli/paramutils"
 	"preq/internal/clientutils"
 	"preq/internal/pkg/client"
+	"runtime"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -35,11 +39,11 @@ type EventBus struct {
 	subscribers map[string][]EventBusEventCallback
 }
 
-type EventBusEventCallback func()
+type EventBusEventCallback func(data interface{})
 
-func (bus *EventBus) Publish(name string) {
+func (bus *EventBus) Publish(name string, data interface{}) {
 	for _, v := range bus.subscribers[name] {
-		v()
+		v(data)
 	}
 }
 
@@ -146,14 +150,34 @@ func Run(params *paramutils.RepositoryParams) {
 
 	// app.SetScreen(tcell.NewSimulationScreen("sim"))
 
-	eventBus.Subscribe("detailsPage:close", func() {
+	eventBus.Subscribe("detailsPage:close", func(_ interface{}) {
 		flex.RemoveItem(details.View)
 		app.SetFocus(table.View)
 	})
 
-	eventBus.Subscribe("detailsPage:open", func() {
+	eventBus.Subscribe("detailsPage:open", func(_ interface{}) {
 		flex.AddItem(details.View, 0, 1, false)
 		app.SetFocus(details.View)
+	})
+
+	eventBus.Subscribe("BrowserUrlOpen", func(data interface{}) {
+		url := data.(string)
+		var err error
+
+		switch runtime.GOOS {
+		case "linux":
+			err = exec.Command("xdg-open", url).Start()
+		case "windows":
+			err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).
+				Start()
+		case "darwin":
+			err = exec.Command("open", url).Start()
+		default:
+			err = fmt.Errorf("unsupported platform")
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
 	})
 
 	searchInput := tview.NewInputField().
@@ -220,11 +244,15 @@ func Run(params *paramutils.RepositoryParams) {
 		case tcell.KeyCtrlH:
 			pages.ShowPage("HelpPage")
 			return nil
+		case tcell.KeyCtrlO:
+			rowId, _ := table.View.GetSelection()
+			r := table.rows[rowId-1]
+			eventBus.Publish("BrowserUrlOpen", r.pullRequest.URL)
 		}
 
 		switch event.Rune() {
 		case 'o':
-			eventBus.Publish("detailsPage:open")
+			eventBus.Publish("detailsPage:open", nil)
 		case 'q':
 			app.Stop()
 			return nil

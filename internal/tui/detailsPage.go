@@ -16,18 +16,18 @@ func newDetailsPage() *detailsPage {
 	box.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEscape:
-			eventBus.Publish("detailsPage:close")
+			eventBus.Publish("detailsPage:close", nil)
 		}
 
 		switch event.Rune() {
 		case 'o':
-			eventBus.Publish("detailsPage:close")
+			eventBus.Publish("detailsPage:close", nil)
 		}
 
 		return event
 	})
 
-	eventBus.Subscribe("detailsPage:open", func() {
+	eventBus.Subscribe("detailsPage:open", func(_ interface{}) {
 		// TODO: clear page and start loading the PR info
 		id := "1"
 		prClient.GetPullRequestInfo(&client.ApprovePullRequestOptions{
