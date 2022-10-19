@@ -12,7 +12,10 @@ import (
 	updatecmd "preq/internal/cli/update"
 	"preq/internal/tui"
 
+	"github.com/mitchellh/go-homedir"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var (
@@ -20,6 +23,20 @@ var (
 	commit  = "none"
 	date    = "unknown"
 )
+
+func init() {
+	logFile, err := homedir.Expand("~/.local/state/preq/full.log")
+	if err != nil {
+		fileLogger := &lumberjack.Logger{
+			Filename:   logFile,
+			MaxSize:    20, // megabytes
+			MaxBackups: 3,
+			MaxAge:     28, //days
+			// Compress:   true, // disabled by default
+		}
+		log.Logger = log.Output(fileLogger)
+	}
+}
 
 var rootCmd = &cobra.Command{
 	Use:     "preq",
@@ -44,9 +61,11 @@ func Execute() {
 	rootCmd.AddCommand(opencmd.New())
 	rootCmd.AddCommand(updatecmd.New())
 
-	rootCmd.PersistentFlags().StringP("repository", "r", "", "repository in form of owner/repo")
+	rootCmd.PersistentFlags().
+		StringP("repository", "r", "", "repository in form of owner/repo")
 	// TODO: Shorthand names for providers?
-	rootCmd.PersistentFlags().StringP("provider", "p", "", "repository host, values - (bitbucket)")
+	rootCmd.PersistentFlags().
+		StringP("provider", "p", "", "repository host, values - (bitbucket)")
 
 	rootCmd.Execute()
 }

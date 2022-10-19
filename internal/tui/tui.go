@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"preq/internal/cli/paramutils"
@@ -12,12 +11,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-)
-
-var (
-	SelectedColor = tcell.ColorYellow
-	NormalColor   = tcell.ColorWhite
-	DeclinedColor = tcell.ColorRed
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -143,6 +137,7 @@ func loadPRs(
 }
 
 func Run(params *paramutils.RepositoryParams) {
+	log.Debug().Msg("stated")
 	c, repo, err := loadConfig(params)
 	if err != nil {
 		os.Exit(123)
@@ -176,7 +171,7 @@ func Run(params *paramutils.RepositoryParams) {
 			err = fmt.Errorf("unsupported platform")
 		}
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal().Msg("Unknown system for url open")
 		}
 	})
 

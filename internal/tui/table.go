@@ -10,11 +10,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-const (
-	statusColumn   = 4
-	commentsColumn = 5
-)
-
 type pullRequestTableRow struct {
 	pullRequest *client.PullRequest
 	selected    bool
@@ -85,7 +80,7 @@ func (prt *pullRequestTable) redraw() {
 		Bold(true)
 
 	headers := []string{
-		"#", "TITLE", "SOURCE", "DESTINATION", "STATUS", "COMMENTS",
+		TableHeaderId, TableHeaderTitle, "SOURCE", "DESTINATION", "STATUS", "COMMENTS",
 	}
 
 	for i := 0; i < len(headers); i++ {
