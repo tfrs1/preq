@@ -137,10 +137,16 @@ func loadPRs(
 }
 
 func Run(params *paramutils.RepositoryParams) {
-	log.Debug().Msg("stated")
 	c, repo, err := loadConfig(params)
 	if err != nil {
 		os.Exit(123)
+	}
+
+	if repo != nil {
+		persistanceRepo.AddVisited(
+			fmt.Sprintf("%s/%s", repo.Owner, repo.Name),
+			string(repo.Provider),
+		)
 	}
 
 	// app.SetScreen(tcell.NewSimulationScreen("sim"))
