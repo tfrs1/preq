@@ -12,12 +12,16 @@ import (
 )
 
 func setUpFlags(cmd *cobra.Command) {
-	cmd.Flags().StringP("destination", "d", "", "destination branch of your pull request")
-	cmd.Flags().StringP("source", "s", "", "destination branch of your pull request (default checked out branch)")
-	cmd.Flags().StringP("title", "t", "", "the title of the pull request (default last commit message)")
+	cmd.Flags().
+		StringP("destination", "d", "", "destination branch of your pull request")
+	cmd.Flags().
+		StringP("source", "s", "", "destination branch of your pull request (default checked out branch)")
+	cmd.Flags().
+		StringP("title", "t", "", "the title of the pull request (default last commit message)")
 	// TODO: Open default editor for description?
 	cmd.Flags().String("description", "", "the description of the pull request")
-	cmd.Flags().BoolP("interactive", "i", false, "the description of the pull request")
+	cmd.Flags().
+		BoolP("interactive", "i", false, "the description of the pull request")
 	cmd.Flags().Bool("close", true, "do not close source branch")
 	cmd.Flags().Bool("draft", false, "mark the pull request as draft")
 }
@@ -58,11 +62,13 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-type creatorAdatapter struct {
+type creatorAdapter struct {
 	Client client.Client
 }
 
-func (ca *creatorAdatapter) Create(o *pullrequest.CreateOptions) (*pullrequest.Entity, error) {
+func (ca *creatorAdapter) Create(
+	o *pullrequest.CreateOptions,
+) (*pullrequest.Entity, error) {
 	cpro := &client.CreatePullRequestOptions{
 		CloseBranch: o.CloseBranch,
 		Destination: o.Destination,
@@ -85,7 +91,7 @@ func (ca *creatorAdatapter) Create(o *pullrequest.CreateOptions) (*pullrequest.E
 }
 
 func execute(c client.Client, params *createCmdParams) error {
-	ca := &creatorAdatapter{Client: c}
+	ca := &creatorAdapter{Client: c}
 
 	service := pullrequest.NewCreateService(ca)
 	pr, err := service.Create(&pullrequest.CreateOptions{
@@ -100,7 +106,13 @@ func execute(c client.Client, params *createCmdParams) error {
 		return err
 	}
 
-	fmt.Println(fmt.Sprintf("Created a pull request: %s -> %s", pr.Source, pr.Destination))
+	fmt.Println(
+		fmt.Sprintf(
+			"Created a pull request: %s -> %s",
+			pr.Source,
+			pr.Destination,
+		),
+	)
 	fmt.Println("  ", pr.URL)
 
 	return nil
