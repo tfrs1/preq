@@ -10,10 +10,18 @@ import (
 )
 
 var (
-	ErrCannotGetLocalRepository         = errors.New("cannot get local repository")
-	ErrUnableToParseRemoteRepositoryURI = errors.New("unable to parse remote repository URI")
-	ErrAncestorCommitNotFound           = errors.New("ancestor commit not found")
-	ErrCannotFindAnyBranchReference     = errors.New("cannot find any branch reference")
+	ErrCannotGetLocalRepository = errors.New(
+		"cannot get local repository",
+	)
+	ErrUnableToParseRemoteRepositoryURI = errors.New(
+		"unable to parse remote repository URI",
+	)
+	ErrAncestorCommitNotFound = errors.New(
+		"ancestor commit not found",
+	)
+	ErrCannotFindAnyBranchReference = errors.New(
+		"cannot find any branch reference",
+	)
 )
 
 var getWorkingDir = func(fs fs.Filesystem) (string, error) {
@@ -143,7 +151,11 @@ var getBranchCommits = func(r gitRepository, branches []string) (branchCommitMap
 }
 
 // TODO: Find a more appropriate name
-func walkHistory(c *object.Commit, goalMap branchCommitMap, depth int) (string, error) {
+func walkHistory(
+	c *object.Commit,
+	goalMap branchCommitMap,
+	depth int,
+) (string, error) {
 	p := c
 	for i := 0; i < depth; i++ {
 		p, err := p.Parent(0)

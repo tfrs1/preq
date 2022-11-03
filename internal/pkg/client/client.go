@@ -2,9 +2,12 @@ package client
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -53,6 +56,9 @@ func ParseRepositoryProvider(s string) (RepositoryProvider, error) {
 		return RepositoryProviderEnum.BITBUCKET, nil
 	case "github.com", "github":
 		return RepositoryProviderEnum.GITHUB, nil
+	default:
+		log.Warn().
+			Msg(fmt.Sprintf("Parsing unknown provider: %v. Add repository info to local preq configuration (.preqcfg)", s))
 	}
 
 	return "", ErrUnknownRepositoryProvider

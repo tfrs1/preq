@@ -139,6 +139,7 @@ func loadPRs(
 func Run(params *paramutils.RepositoryParams) {
 	c, repo, err := loadConfig(params)
 	if err != nil {
+		log.Error().Msg(err.Error())
 		os.Exit(123)
 	}
 

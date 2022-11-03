@@ -66,6 +66,7 @@ type viperConfigParamsFiller struct{}
 func (pf *viperConfigParamsFiller) Fill(params *RepositoryParams) {
 	if dp := viper.GetString("default.provider"); dp != "" {
 		provider, err := client.ParseRepositoryProvider(dp)
+
 		if err == nil {
 			params.Provider = provider
 		}
