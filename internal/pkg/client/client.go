@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -57,8 +58,18 @@ func ParseRepositoryProvider(s string) (RepositoryProvider, error) {
 	case "github.com", "github":
 		return RepositoryProviderEnum.GITHUB, nil
 	default:
-		log.Warn().
-			Msg(fmt.Sprintf("Parsing unknown provider: %v. Add repository info to local preq configuration (.preqcfg)", s))
+		aliases := viper.GetStringSlice("bitbucket.aliases")
+		if aliases == nil {
+			log.Warn().
+				Msg(fmt.Sprintf("Parsing unknown provider: %v. Add repository info to local preq configuration (.preqcfg)", s))
+			break
+		}
+
+		for _, a := range aliases {
+			if a == s {
+				return RepositoryProviderEnum.BITBUCKET, nil
+			}
+		}
 	}
 
 	return "", ErrUnknownRepositoryProvider
