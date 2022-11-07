@@ -153,7 +153,6 @@ type bitbucketPullRequest struct {
 }
 
 type Reviewer struct {
-	Username    string `json:"username"`
 	DisplayName string `json:"display_name"`
 	UUID        string
 	Nickname    string
@@ -162,7 +161,9 @@ type Reviewer struct {
 }
 
 type defaultReviewersResponse struct {
-	Values []*Reviewer
+	Values []struct {
+		Reviewer *Reviewer `json:"user"`
+	}
 }
 
 // type PullRequestList struct {
@@ -363,7 +364,7 @@ func (c *BitbucketCloudClient) GetDefaultReviewers(
 		SetBasicAuth(c.username, c.password).
 		SetError(bbError{}).
 		Get(fmt.Sprintf(
-			"https://api.bitbucket.org/2.0/repositories/%s/default-reviewers",
+			"https://api.bitbucket.org/2.0/repositories/%s/effective-default-reviewers",
 			c.repository,
 		))
 
@@ -377,7 +378,12 @@ func (c *BitbucketCloudClient) GetDefaultReviewers(
 		return nil, err
 	}
 
-	return pr.Values, nil
+	res := make([]*Reviewer, 0, len(pr.Values))
+	for _, v := range pr.Values {
+		res = append(res, v.Reviewer)
+	}
+
+	return res, nil
 }
 
 func (c *BitbucketCloudClient) CreatePullRequest(
