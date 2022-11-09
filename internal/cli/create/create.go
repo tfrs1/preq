@@ -106,12 +106,10 @@ func execute(c client.Client, params *createCmdParams) error {
 		return err
 	}
 
-	fmt.Println(
-		fmt.Sprintf(
-			"Created a pull request: %s -> %s",
-			pr.Source,
-			pr.Destination,
-		),
+	fmt.Printf(
+		"Created a pull request: %s -> %s\n",
+		pr.Source,
+		pr.Destination,
 	)
 	fmt.Println("  ", pr.URL)
 

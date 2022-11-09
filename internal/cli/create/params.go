@@ -46,19 +46,14 @@ func (params *createCmdParams) Validate() error {
 func fillFlagParams(flags paramutils.FlagSet, params *createCmdParams) {
 	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
 
-	var (
-		source      = flags.GetStringOrDefault("source", params.Source)
-		destination = flags.GetStringOrDefault("destination", params.Destination)
-		title       = flags.GetStringOrDefault("title", params.Title)
-		close       = flags.GetBoolOrDefault("close", params.CloseBranch)
-		draft       = flags.GetBoolOrDefault("draft", params.Draft)
+	params.Source = flags.GetStringOrDefault("source", params.Source)
+	params.Title = flags.GetStringOrDefault("title", params.Title)
+	params.CloseBranch = flags.GetBoolOrDefault("close", params.CloseBranch)
+	params.Draft = flags.GetBoolOrDefault("draft", params.Draft)
+	params.Destination = flags.GetStringOrDefault(
+		"destination",
+		params.Destination,
 	)
-
-	params.Title = title
-	params.Source = source
-	params.Destination = destination
-	params.CloseBranch = close
-	params.Draft = draft
 }
 
 func fillDefaultParams(p *createCmdParams) {
