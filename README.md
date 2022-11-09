@@ -44,14 +44,7 @@ The create command supports the following flags, but none of them are required. 
 
 #### Default reviewers
 
-Default reviewer will be automatically added to the pull requests created with `preq`. Your user will be automatically excluded from the reviewers list, but in order to do that `preq` has to make an additional to fetch your user ID. This makes the create command much slower and requires additional token permissions. In order to fix this, you can your UUID to the configuration like so
-
-```toml
-[bitbucket]
-  username = "username"
-  password = "user_password"
-  uuid = "{universally-unique-identifier}"
-```
+Default reviewers will be automatically added to the pull requests created with `preq`.
 
 #### Git repository example
 ```bash

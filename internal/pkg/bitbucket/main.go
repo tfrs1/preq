@@ -25,7 +25,6 @@ var (
 type BitbucketCloudClient struct {
 	username   string
 	password   string
-	uuid       string
 	repository string
 }
 
@@ -44,7 +43,6 @@ func New(o *ClientOptions) client.Client {
 type clientConfiguration struct {
 	username   string
 	password   string
-	uuid       string
 	repository string
 }
 
@@ -57,13 +55,11 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 	if password == "" {
 		return nil, ErrMissingBitbucketPassword
 	}
-	uuid := viper.GetString("bitbucket.uuid")
 	repository := viper.GetString("default.repository")
 
 	return &clientConfiguration{
 		username:   username,
 		password:   password,
-		uuid:       uuid,
 		repository: repository,
 	}, nil
 }
@@ -77,7 +73,6 @@ func DefaultClientCustom(repository string) (client.Client, error) {
 	return &BitbucketCloudClient{
 		username:   config.username,
 		password:   config.password,
-		uuid:       config.uuid,
 		repository: repository,
 	}, nil
 }
@@ -91,7 +86,6 @@ func DefaultClient() (client.Client, error) {
 	return &BitbucketCloudClient{
 		username:   config.username,
 		password:   config.password,
-		uuid:       config.uuid,
 		repository: config.repository,
 	}, nil
 }
@@ -235,7 +229,7 @@ func unmarshalPR(data []byte) (*client.PullRequest, error) {
 	}
 
 	return &client.PullRequest{
-		ID:          string(pr.ID),
+		ID:          fmt.Sprint(pr.ID),
 		Title:       pr.Title,
 		URL:         pr.Links.HTML.Href,
 		State:       pr.State,
@@ -399,18 +393,9 @@ func (c *BitbucketCloudClient) CreatePullRequest(
 		return nil, err
 	}
 
-	uuid := c.uuid
-	if uuid == "" {
-		u, err := c.GetCurrentUser()
-		if err != nil {
-			return nil, err
-		}
-		uuid = u.ID
-	}
-
 	ddr := make([]bbPROptionsReviewer, 0, len(dr))
 	for _, v := range dr {
-		if v.UUID != uuid {
+		if v.Nickname != c.username {
 			ddr = append(ddr, bbPROptionsReviewer{UUID: v.UUID})
 		}
 	}

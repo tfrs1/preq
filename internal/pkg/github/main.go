@@ -25,7 +25,6 @@ var (
 type GithubCloudClient struct {
 	username string
 	token    string
-	uuid     string
 }
 
 type ClientOptions struct {
@@ -44,7 +43,6 @@ func New(o *ClientOptions) preqClient.Client {
 type clientConfiguration struct {
 	username string
 	token    string
-	uuid     string
 }
 
 func getDefaultConfiguration() (*clientConfiguration, error) {
@@ -56,12 +54,10 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 	if token == "" {
 		return nil, ErrMissingGithubPassword
 	}
-	uuid := viper.GetString("bitbucket.uuid")
 
 	return &clientConfiguration{
 		username: username,
 		token:    token,
-		uuid:     uuid,
 	}, nil
 }
 
@@ -74,7 +70,6 @@ func DefaultClient() (preqClient.Client, error) {
 	return &GithubCloudClient{
 		username: config.username,
 		token:    config.token,
-		uuid:     config.uuid,
 	}, nil
 }
 
@@ -405,15 +400,6 @@ func (c *GithubCloudClient) CreatePullRequest(
 	if err != nil {
 		return nil, err
 	}
-
-	// uuid := c.uuid
-	// if uuid == "" {
-	// 	u, err := c.GetCurrentUser()
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	uuid = (string)u.ID
-	// }
 
 	r, err := resty.New().R().
 		SetAuthToken(c.token).
