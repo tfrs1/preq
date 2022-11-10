@@ -22,20 +22,31 @@ type updateCmdParams struct {
 func fillDefaultUpdateCmdParams(params *updateCmdParams) {
 	defaultRepo, err := gitutils.GetRemoteInfo()
 	if err == nil {
-		params.Repository = fmt.Sprintf("%s/%s", defaultRepo.Owner, defaultRepo.Name)
+		params.Repository = fmt.Sprintf(
+			"%s/%s",
+			defaultRepo.Owner,
+			defaultRepo.Name,
+		)
 		params.Provider = string(defaultRepo.Provider)
 	}
 }
 
-func fillFlagUpdateCmdParams(cmd *cobra.Command, params *updateCmdParams) error {
+func fillFlagUpdateCmdParams(
+	cmd *cobra.Command,
+	params *updateCmdParams,
+) error {
 	var (
-		repo     = configutils.GetStringFlagOrDefault(cmd.Flags(), "repository", "")
-		provider = configutils.GetStringFlagOrDefault(cmd.Flags(), "provider", "")
+		repo = configutils.GetStringFlagOrDefault(
+			cmd.Flags(),
+			"repository",
+			"",
+		)
+		provider = configutils.GetStringFlagOrDefault(
+			cmd.Flags(),
+			"provider",
+			"",
+		)
 	)
-
-	if (repo == "" && provider != "") || (repo != "" && provider == "") {
-		return errcodes.ErrSomeRepoParamsMissing
-	}
 
 	if repo != "" && provider != "" {
 		v := strings.Split(repo, "/")

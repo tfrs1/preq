@@ -42,7 +42,11 @@ func parseArgs(args []string) *cmdArgs {
 func fillDefaultDeclineCmdParams(params *cmdParams) {
 	defaultRepo, err := getRemoteInfo()
 	if err == nil {
-		params.Repository = fmt.Sprintf("%s/%s", defaultRepo.Owner, defaultRepo.Name)
+		params.Repository = fmt.Sprintf(
+			"%s/%s",
+			defaultRepo.Owner,
+			defaultRepo.Name,
+		)
 		params.Provider = defaultRepo.Provider
 	}
 }
@@ -58,10 +62,6 @@ func fillFlagDeclineCmdParams(flags paramutils.FlagSet, params *cmdParams) {
 }
 
 var validateFlagDeclineCmdParams = func(params *cmdParams) error {
-	if (params.Repository == "" && params.Provider != "") || (params.Repository != "" && params.Provider == "") {
-		return errcodes.ErrSomeRepoParamsMissing
-	}
-
 	if params.Repository != "" && params.Provider != "" {
 		v := strings.Split(params.Repository, "/")
 		if len(v) != 2 || v[0] == "" || v[1] == "" {

@@ -66,6 +66,7 @@ func Execute() {
 	// TODO: Shorthand names for providers?
 	rootCmd.PersistentFlags().
 		StringP("provider", "p", "", "repository host, values - (bitbucket)")
+	rootCmd.MarkFlagsRequiredTogether("repository", "provider")
 
 	rootCmd.Execute()
 }

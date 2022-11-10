@@ -110,11 +110,6 @@ func FillFlagRepositoryParams(flags FlagSet, params *RepositoryParams) {
 }
 
 func ValidateFlagRepositoryParams(params *RepositoryParams) error {
-	if (params.Name == "" && params.Provider != "") ||
-		(params.Name != "" && params.Provider == "") {
-		return errcodes.ErrSomeRepoParamsMissing
-	}
-
 	if params.Name != "" && params.Provider != "" {
 		v := strings.Split(params.Name, "/")
 		if len(v) != 2 || v[0] == "" || v[1] == "" {
