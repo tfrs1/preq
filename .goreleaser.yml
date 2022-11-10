@@ -12,7 +12,7 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      - -s -w -X cli/cmd.version={{.Version}} -X cli/cmd.commit={{.Commit}} -X cli/cmd.date={{.Date}}
+      - -s -w -X preq/internal/cli.version={{.Version}} -X preq/internal/cli.commit={{.Commit}} -X preq/internal/cli.date={{.Date}}
     goos:
       - windows
       - linux
