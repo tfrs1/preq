@@ -116,6 +116,12 @@ type bbError struct {
 	Message string
 }
 
+type bbErrorReal struct {
+	Error struct {
+		Message string
+	}
+}
+
 type bitbucketPullRequest struct {
 	ID          int
 	Title       string
@@ -332,22 +338,47 @@ type user struct {
 	UUID string `json:"uuid"`
 }
 
+func (c *BitbucketCloudClient) GetDefaultReviewer(
+	username string,
+) (*client.User, error) {
+	r, err := resty.New().R().
+		SetBasicAuth(c.username, c.password).
+		SetResult(user{}).
+		SetError(bbErrorReal{}).
+		Get(fmt.Sprintf(
+			"https://api.bitbucket.org/2.0/repositories/%s/default-reviewers/%s",
+			c.repository,
+			username,
+		))
+	if err != nil {
+		return nil, err
+	}
+
+	if r.IsError() {
+		return nil, errors.New(r.Error().(*bbErrorReal).Error.Message)
+	}
+
+	return &client.User{
+		ID: r.Result().(*user).UUID,
+	}, nil
+}
+
 func (c *BitbucketCloudClient) GetCurrentUser() (*client.User, error) {
 	r, err := resty.New().R().
 		SetBasicAuth(c.username, c.password).
+		SetResult(user{}).
 		SetError(bbError{}).
 		Get("https://api.bitbucket.org/2.0/user")
 	if err != nil {
 		return nil, err
 	}
 
-	u := user{}
-	err = json.Unmarshal(r.Body(), &u)
-	if err != nil {
-		return nil, err
+	if r.IsError() {
+		return nil, errors.New(r.Error().(*bbError).Message)
 	}
+
 	return &client.User{
-		ID: u.UUID,
+		ID: r.Result().(*user).UUID,
 	}, nil
 }
 
@@ -393,9 +424,14 @@ func (c *BitbucketCloudClient) CreatePullRequest(
 		return nil, err
 	}
 
+	user, err := c.GetDefaultReviewer(c.username)
+	if err != nil {
+		return nil, err
+	}
+
 	ddr := make([]bbPROptionsReviewer, 0, len(dr))
 	for _, v := range dr {
-		if v.Nickname != c.username {
+		if v.UUID != user.ID {
 			ddr = append(ddr, bbPROptionsReviewer{UUID: v.UUID})
 		}
 	}
