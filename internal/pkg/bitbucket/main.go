@@ -25,6 +25,7 @@ var (
 type BitbucketCloudClient struct {
 	username   string
 	password   string
+	uuid       string
 	repository string
 }
 
@@ -43,6 +44,7 @@ func New(o *ClientOptions) client.Client {
 type clientConfiguration struct {
 	username   string
 	password   string
+	uuid       string
 	repository string
 }
 
@@ -55,11 +57,13 @@ func getDefaultConfiguration() (*clientConfiguration, error) {
 	if password == "" {
 		return nil, ErrMissingBitbucketPassword
 	}
+	uuid := viper.GetString("bitbucket.uuid")
 	repository := viper.GetString("default.repository")
 
 	return &clientConfiguration{
 		username:   username,
 		password:   password,
+		uuid:       uuid,
 		repository: repository,
 	}, nil
 }
@@ -73,6 +77,7 @@ func DefaultClientCustom(repository string) (client.Client, error) {
 	return &BitbucketCloudClient{
 		username:   config.username,
 		password:   config.password,
+		uuid:       config.uuid,
 		repository: repository,
 	}, nil
 }
@@ -86,6 +91,7 @@ func DefaultClient() (client.Client, error) {
 	return &BitbucketCloudClient{
 		username:   config.username,
 		password:   config.password,
+		uuid:       config.uuid,
 		repository: config.repository,
 	}, nil
 }
@@ -424,14 +430,9 @@ func (c *BitbucketCloudClient) CreatePullRequest(
 		return nil, err
 	}
 
-	user, err := c.GetDefaultReviewer(c.username)
-	if err != nil {
-		return nil, err
-	}
-
 	ddr := make([]bbPROptionsReviewer, 0, len(dr))
 	for _, v := range dr {
-		if v.UUID != user.ID {
+		if v.UUID != c.uuid {
 			ddr = append(ddr, bbPROptionsReviewer{UUID: v.UUID})
 		}
 	}
@@ -458,7 +459,7 @@ func (c *BitbucketCloudClient) CreatePullRequest(
 				},
 			},
 		}).
-		SetError(bbError{}).
+		SetError(bbErrorReal{}).
 		Post(fmt.Sprintf(
 			"https://api.bitbucket.org/2.0/repositories/%s/pullrequests",
 			c.repository,
@@ -468,6 +469,22 @@ func (c *BitbucketCloudClient) CreatePullRequest(
 		log.Fatal(err)
 	}
 	if r.IsError() {
+		m := r.Error().(*bbErrorReal).Error.Message
+		if strings.HasSuffix(
+			m,
+			"is the author and cannot be included as a reviewer.",
+		) {
+			errorMessage := "You have to add your UUID to the configuration\n\n"
+			for _, v := range dr {
+				errorMessage += fmt.Sprintf(
+					"%s - %s - %s\n",
+					v.DisplayName,
+					v.Nickname,
+					v.UUID,
+				)
+			}
+			log.Fatal(errorMessage)
+		}
 		log.Fatal(string(r.Body()))
 	}
 	pr := &bitbucketPullRequest{}

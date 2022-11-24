@@ -44,6 +44,15 @@ The create command supports the following flags, but none of them are required. 
 
 #### Default reviewers
 
+Default reviewers will be automatically added to the pull requests created with `preq`. Since the program is not able to determine the UUID of your user, the PR creation request will fail if your user one of the default reviewers. To fix this you need to add the UUID of your user to the config.
+
+```toml
+[bitbucket]
+  username = "username"
+  password = "user_password"
+  uuid = "{universally-unique-identifier}"
+```
+
 Default reviewers will be automatically added to the pull requests created with `preq`.
 
 #### Git repository example
