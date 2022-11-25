@@ -123,6 +123,8 @@ func (prt *pullRequestTable) addRow(v *client.PullRequest, rowId int) {
 		commentCount = strconv.FormatUint(uint64(v.CommentCount), 10)
 	}
 
+	v.Title = strings.ReplaceAll(v.Title, "]", "[]")
+
 	values := []string{
 		v.ID,
 		v.Title,

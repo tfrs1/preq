@@ -494,7 +494,7 @@ func (c *BitbucketCloudClient) CreatePullRequest(
 	}
 
 	return &client.PullRequest{
-		ID:          string(pr.ID),
+		ID:          fmt.Sprint(pr.ID),
 		Title:       pr.Title,
 		URL:         pr.Links.HTML.Href,
 		State:       pr.State,
