@@ -286,6 +286,24 @@ func (c *BitbucketCloudClient) post(url string) (*resty.Response, error) {
 	return r, nil
 }
 
+func (c *BitbucketCloudClient) Merge(
+	o *client.MergeOptions,
+) (*client.PullRequest, error) {
+	url := fmt.Sprintf(
+		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/merge",
+		o.Repository.Owner,
+		o.Repository.Name,
+		o.ID,
+	)
+
+	r, err := c.post(url)
+	if err != nil {
+		return nil, err
+	}
+
+	return unmarshalPR(r.Body())
+}
+
 func (c *BitbucketCloudClient) DeclinePullRequest(
 	o *client.DeclinePullRequestOptions,
 ) (*client.PullRequest, error) {

@@ -97,16 +97,18 @@ func (prt *pullRequestTable) redraw() {
 	for _, v := range prt.rows {
 		if v.visible {
 			prt.addRow(v.pullRequest, i)
-			// TODO: If merged green
-			// TODO: If declined red
 			if v.pullRequest.State == client.PullRequestState_DECLINED {
-				prt.View.GetCell(i+1, 4).
-					SetText(pad("Declined")).
-					SetSelectable(false)
+				prt.View.GetCell(i+1, 4).SetText(pad("Declined"))
 				for j := 0; j < prt.View.GetColumnCount(); j++ {
 					prt.View.GetCell(i+1, j).SetSelectable(false)
 				}
 				prt.colorRow(i, DeclinedColor)
+			} else if v.pullRequest.State == client.PullRequestState_MERGED {
+				prt.View.GetCell(i+1, 4).SetText(pad("Merged"))
+				for j := 0; j < prt.View.GetColumnCount(); j++ {
+					prt.View.GetCell(i+1, j).SetSelectable(false)
+				}
+				prt.colorRow(i, MergedColor)
 			} else if v.selected {
 				prt.colorRow(i, SelectedColor)
 			} else {

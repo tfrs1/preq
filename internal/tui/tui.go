@@ -241,7 +241,7 @@ func Run(params *paramutils.RepositoryParams) {
 			pages.ShowPage("confirmation_modal")
 			return event
 		case tcell.KeyCtrlM:
-			pages.ShowPage("confirmation_modal")
+			pages.ShowPage("merge_confirmation_modal")
 			return event
 		case tcell.KeyCtrlH:
 			pages.ShowPage("HelpPage")
@@ -277,48 +277,14 @@ func Run(params *paramutils.RepositoryParams) {
 	pages.AddPage("confirmation_modal", tview.NewModal().
 		SetText("Are you sure you want to decline %d pull requests?").
 		AddButtons([]string{"Decline", "Cancel"}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			if buttonIndex == 0 {
-				selectedPRs := make(map[string]*promptPullRequest)
-				for index, row := range table.rows {
-					if row.selected && row.visible {
-						selectedPRs[row.pullRequest.ID] = &promptPullRequest{
-							ID:    row.pullRequest.ID,
-							Title: row.pullRequest.Title,
-						}
-
-						table.View.GetCell(index+1, 4).
-							SetText(pad("Declining..."))
-
-						for i := 0; i < table.View.GetColumnCount(); i++ {
-							table.View.GetCell(index+1, i).SetSelectable(false)
-						}
-
-					}
-				}
-
-				go execute(c, repo, selectedPRs,
-					func(msg interface{}) string {
-						m := msg.(declineResponse)
-						if m.Status == "Done" {
-							for _, v := range table.rows {
-								if v.pullRequest.ID == m.ID {
-									v.pullRequest.State = client.PullRequestState_DECLINED
-								}
-							}
-						}
-						app.QueueUpdateDraw(func() {
-							table.redraw()
-						})
-
-						return ""
-					},
-				)
-			}
-
-			pages.SwitchToPage("main")
-			app.SetFocus(table.View)
-		}),
+		SetDoneFunc(declineConfirmationCallback(c, repo, pages)),
+		false,
+		false,
+	)
+	pages.AddPage("merge_confirmation_modal", tview.NewModal().
+		SetText("Are you sure you want to merge %d pull requests?").
+		AddButtons([]string{"Merge", "Cancel"}).
+		SetDoneFunc(mergeConfirmationCallback(c, repo, pages)),
 		false,
 		false,
 	)
@@ -339,5 +305,105 @@ func Run(params *paramutils.RepositoryParams) {
 
 	if err := app.Run(); err != nil {
 		panic(err)
+	}
+}
+
+func declineConfirmationCallback(
+	c client.Client,
+	repo *client.Repository,
+	pages *tview.Pages,
+) func(int, string) {
+	return func(buttonIndex int, buttonLabel string) {
+		if buttonIndex == 0 {
+			selectedPRs := make(map[string]*promptPullRequest)
+			for index, row := range table.rows {
+				if row.selected && row.visible {
+					selectedPRs[row.pullRequest.ID] = &promptPullRequest{
+						ID:    row.pullRequest.ID,
+						Title: row.pullRequest.Title,
+					}
+
+					table.View.GetCell(index+1, 4).
+						SetText(pad("Declining..."))
+
+					for i := 0; i < table.View.GetColumnCount(); i++ {
+						table.View.GetCell(index+1, i).SetSelectable(false)
+					}
+				}
+			}
+
+			go execute(c, repo, selectedPRs,
+				func(msg interface{}) string {
+					m := msg.(declineResponse)
+					if m.Status == "Done" {
+						for _, v := range table.rows {
+							if v.pullRequest.ID == m.ID {
+								v.pullRequest.State = client.PullRequestState_DECLINED
+							}
+						}
+					}
+					app.QueueUpdateDraw(func() {
+						table.redraw()
+					})
+
+					return ""
+				},
+			)
+		}
+
+		pages.SwitchToPage("main")
+		app.SetFocus(table.View)
+	}
+}
+
+func mergeConfirmationCallback(
+	c client.Client,
+	repo *client.Repository,
+	pages *tview.Pages,
+) func(int, string) {
+	return func(buttonIndex int, buttonLabel string) {
+		if buttonIndex == 0 {
+			selectedPRs := make(map[string]*promptPullRequest)
+			for index, row := range table.rows {
+				if row.selected && row.visible {
+					selectedPRs[row.pullRequest.ID] = &promptPullRequest{
+						ID:    row.pullRequest.ID,
+						Title: row.pullRequest.Title,
+					}
+
+					table.View.GetCell(index+1, 4).
+						SetText(pad("Merging..."))
+
+					for i := 0; i < table.View.GetColumnCount(); i++ {
+						table.View.GetCell(index+1, i).SetSelectable(false)
+					}
+				}
+			}
+
+			go processPullRequestMap(
+				selectedPRs,
+				c,
+				repo,
+				mergePR,
+				func(msg interface{}) string {
+					m := msg.(mergeResponse)
+					if m.Status == "Done" {
+						for _, v := range table.rows {
+							if v.pullRequest.ID == m.ID {
+								v.pullRequest.State = client.PullRequestState_MERGED
+							}
+						}
+					}
+					app.QueueUpdateDraw(func() {
+						table.redraw()
+					})
+
+					return ""
+				},
+			)
+		}
+
+		pages.SwitchToPage("main")
+		app.SetFocus(table.View)
 	}
 }

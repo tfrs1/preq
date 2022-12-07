@@ -21,6 +21,7 @@ var (
 
 type Client interface {
 	DeclinePullRequest(o *DeclinePullRequestOptions) (*PullRequest, error)
+	Merge(o *MergeOptions) (*PullRequest, error)
 	GetPullRequests(o *GetPullRequestsOptions) (*PullRequestList, error)
 	CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error)
 	ApprovePullRequest(o *ApprovePullRequestOptions) (*PullRequest, error)
@@ -121,6 +122,11 @@ type GetPullRequestsOptions struct {
 }
 
 type DeclinePullRequestOptions struct {
+	Repository *Repository
+	ID         string
+}
+
+type MergeOptions struct {
 	Repository *Repository
 	ID         string
 }

@@ -51,6 +51,12 @@ func execute(
 	return nil
 }
 
+type mergeResponse struct {
+	ID     string
+	Status string
+	Error  error
+}
+
 type declineResponse struct {
 	ID     string
 	Status string
@@ -69,6 +75,26 @@ func declinePR(
 	})
 
 	res := declineResponse{ID: id, Status: "Done"}
+	if err != nil {
+		res.Status = "Error"
+		res.Error = err
+	}
+
+	c <- res
+}
+
+func mergePR(
+	cl client.Client,
+	r *client.Repository,
+	id string,
+	c chan interface{},
+) {
+	_, err := cl.Merge(&client.MergeOptions{
+		Repository: r,
+		ID:         id,
+	})
+
+	res := mergeResponse{ID: id, Status: "Done"}
 	if err != nil {
 		res.Status = "Error"
 		res.Error = err

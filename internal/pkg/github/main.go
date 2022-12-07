@@ -199,6 +199,12 @@ func (c *GithubCloudClient) post(url string) (*resty.Response, error) {
 	return r, nil
 }
 
+func (c *GithubCloudClient) Merge(
+	o *preqClient.MergeOptions,
+) (*preqClient.PullRequest, error) {
+	return nil, ErrMissingGithubPassword
+}
+
 func (c *GithubCloudClient) DeclinePullRequest(
 	o *preqClient.DeclinePullRequestOptions,
 ) (*preqClient.PullRequest, error) {
