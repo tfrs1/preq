@@ -34,9 +34,16 @@ func runCmd(cmd *cobra.Command, args []string) error {
 }
 
 func execute(args *cmdArgs, params *openCmdParams) error {
-	url := fmt.Sprintf("https://bitbucket.org/%s/pull-requests/", params.Repository)
+	url := fmt.Sprintf(
+		"https://bitbucket.org/%s/pull-requests/",
+		params.Repository.Name,
+	)
 	if args.ID != "" {
-		url = fmt.Sprintf("https://bitbucket.org/%s/pull-requests/%s", params.Repository, args.ID)
+		url = fmt.Sprintf(
+			"https://bitbucket.org/%s/pull-requests/%s",
+			params.Repository.Name,
+			args.ID,
+		)
 	} else if params.Interactive {
 		cl, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
 		if err != nil {
@@ -62,7 +69,7 @@ func execute(args *cmdArgs, params *openCmdParams) error {
 			os.Exit(systemcodes.ErrorCodeGeneric)
 		}
 
-		url = fmt.Sprintf("https://bitbucket.org/%s/pull-requests/%s", params.Repository, selectedPR.ID)
+		url = fmt.Sprintf("https://bitbucket.org/%s/pull-requests/%s", params.Repository.Name, selectedPR.ID)
 	}
 
 	if params.PrintOnly {
@@ -97,7 +104,8 @@ func openInBrowser(url string) {
 	case "linux":
 		err = exec.Command("xdg-open", url).Start()
 	case "windows":
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).
+			Start()
 	case "darwin":
 		err = exec.Command("open", url).Start()
 	default:
