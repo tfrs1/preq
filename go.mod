@@ -18,6 +18,7 @@ require (
 	github.com/spf13/viper v1.14.0
 	github.com/stretchr/testify v1.8.1
 	github.com/tidwall/gjson v1.9.3
+	golang.org/x/exp v0.0.0-20221230185412-738e83a70c30
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/src-d/go-git.v4 v4.13.1
 )

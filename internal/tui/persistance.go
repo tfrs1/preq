@@ -7,12 +7,14 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/exp/slices"
 )
 
 type repoInfo struct {
 	Name        string    `json:"name"`
 	Provider    string    `json:"provider"`
 	LastVisited time.Time `json:"lastVisited"`
+	Path        string    `json:"path,omitempty"`
 }
 
 type state struct {
@@ -20,7 +22,7 @@ type state struct {
 }
 
 type PersistanceRepo interface {
-	AddVisited(name string, provider string)
+	AddVisited(name string, provider string, path string)
 }
 
 type XDGPersistanceRepo struct {
@@ -55,25 +57,38 @@ func (repo *XDGPersistanceRepo) save() {
 	}
 }
 
-func (repo *XDGPersistanceRepo) AddVisited(name string, provider string) {
+func (repo *XDGPersistanceRepo) AddVisited(
+	name string,
+	provider string,
+	path string,
+) {
 	repo.load()
 
-	found := false
-	for _, v := range repo.s.Visited {
-		if v.Name == name && v.Provider == provider {
-			found = true
-			break
-		}
+	index := slices.IndexFunc(repo.s.Visited, func(v *repoInfo) bool {
+		return v.Name == name && v.Provider == provider
+	})
+
+	if index != -1 {
+		slices.Replace(repo.s.Visited, index, index+1,
+			&repoInfo{
+				Name:        name,
+				Provider:    provider,
+				LastVisited: time.Now(),
+				Path:        path,
+			},
+		)
+	} else {
+		repo.s.Visited = append(
+			repo.s.Visited,
+			&repoInfo{
+				Name:        name,
+				Provider:    provider,
+				LastVisited: time.Now(),
+				Path:        path,
+			},
+		)
 	}
 
-	if found {
-		return
-	}
-
-	repo.s.Visited = append(
-		repo.s.Visited,
-		&repoInfo{Name: name, Provider: provider, LastVisited: time.Now()},
-	)
 	repo.save()
 }
 

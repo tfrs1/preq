@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	approvecmd "preq/internal/cli/approve"
 	createcmd "preq/internal/cli/create"
@@ -49,7 +50,13 @@ var rootCmd = &cobra.Command{
 		flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 		paramutils.FillFlagRepositoryParams(flags, params)
 
-		tui.Run(params)
+		_, err := cmd.Flags().GetString("repository")
+		wd := ""
+		if err == nil {
+			wd, _ = os.Getwd()
+		}
+
+		tui.Run(params, wd)
 	},
 }
 

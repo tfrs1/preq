@@ -136,17 +136,18 @@ func loadPRs(
 	}
 }
 
-func Run(params *paramutils.RepositoryParams) {
+func Run(params *paramutils.RepositoryParams, workingDirectory string) {
 	c, repo, err := loadConfig(params)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		os.Exit(123)
 	}
 
-	if repo != nil {
+	if repo != nil && strings.TrimSpace(workingDirectory) != "" {
 		persistanceRepo.AddVisited(
 			fmt.Sprintf("%s/%s", repo.Owner, repo.Name),
 			string(repo.Provider),
+			workingDirectory,
 		)
 	}
 
