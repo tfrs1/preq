@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -95,14 +96,14 @@ func Test_loadConfig(t *testing.T) {
 	t.Run("succeeds when file is loaded and merged", func(t *testing.T) {
 		loadFile = func(string, fs.Filesystem) (io.Reader, error) { return nil, nil }
 		mergeConfig = func(io.Reader, configMerger) error { return nil }
-		err := loadConfig("")
+		err := loadConfig("", nil)
 		assert.Equal(t, nil, err)
 	})
 
 	t.Run("doesn't throw error for missing files", func(t *testing.T) {
 		vErr := errors.New("load err")
 		loadFile = func(string, fs.Filesystem) (io.Reader, error) { return nil, vErr }
-		err := loadConfig("")
+		err := loadConfig("", nil)
 		assert.Equal(t, nil, err)
 	})
 
@@ -110,7 +111,7 @@ func Test_loadConfig(t *testing.T) {
 		vErr := errors.New("load err")
 		loadFile = func(string, fs.Filesystem) (io.Reader, error) { return nil, nil }
 		mergeConfig = func(io.Reader, configMerger) error { return vErr }
-		err := loadConfig("")
+		err := loadConfig("", nil)
 		assert.EqualError(t, err, vErr.Error())
 	})
 
@@ -123,7 +124,7 @@ func TestLoad(t *testing.T) {
 	oldGetGlobalConfigPath := getGlobalConfigPath
 
 	t.Run("", func(t *testing.T) {
-		loadConfig = func(string) error { return nil }
+		loadConfig = func(string, *viper.Viper) error { return nil }
 		getGlobalConfigPath = func() (string, error) { return "", nil }
 		err := Load()
 		assert.Equal(t, nil, err)
@@ -137,7 +138,7 @@ func TestLoad(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 		vErr := errors.New("load err")
-		loadConfig = func(string) error { return vErr }
+		loadConfig = func(string, *viper.Viper) error { return vErr }
 		getGlobalConfigPath = func() (string, error) { return "", nil }
 		err := Load()
 		assert.EqualError(t, err, vErr.Error())

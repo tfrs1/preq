@@ -2,6 +2,7 @@ package configutils
 
 import (
 	"io"
+	"path/filepath"
 	"preq/internal/pkg/fs"
 
 	"github.com/mitchellh/go-homedir"
@@ -60,10 +61,10 @@ var loadFile = func(filename string, fs fs.Filesystem) (io.Reader, error) {
 	return f, nil
 }
 
-var loadConfig = func(filename string) error {
+var loadConfig = func(filename string, v *viper.Viper) error {
 	f, err := loadFile(filename, fs.OS{})
 	if err == nil {
-		err = mergeConfig(f, viper.GetViper())
+		err = mergeConfig(f, v)
 		if err != nil {
 			return err
 		}
@@ -74,6 +75,24 @@ var loadConfig = func(filename string) error {
 
 var getGlobalConfigPath = func() (string, error) {
 	return homedir.Expand("~/.config/preq/config.toml")
+}
+
+func MergeLocalConfig(v *viper.Viper, path string) error {
+	// TODO: Extract .preqcfg file name to global
+	return loadConfig(filepath.Join(path, ".preqcfg"), v)
+}
+
+func DefaultConfig() (*viper.Viper, error) {
+	hdCfgPath, err := getGlobalConfigPath()
+	if err != nil {
+		return nil, ErrHomeDirNotFound
+	}
+
+	v := viper.New()
+	v.SetConfigType("toml")
+	err = loadConfig(hdCfgPath, v)
+
+	return v, err
 }
 
 func Load() error {
@@ -91,7 +110,7 @@ func Load() error {
 
 	configs := []string{hdCfgPath, ".preqcfg"}
 	for _, v := range configs {
-		err = loadConfig(v)
+		err = loadConfig(v, viper.GetViper())
 		if err != nil {
 			return err
 		}
