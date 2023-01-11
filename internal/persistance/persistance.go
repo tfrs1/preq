@@ -1,4 +1,4 @@
-package tui
+package persistance
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-type repoInfo struct {
+type PersistanceRepoInfo struct {
 	Name        string    `json:"name"`
 	Provider    string    `json:"provider"`
 	LastVisited time.Time `json:"lastVisited"`
@@ -18,11 +18,12 @@ type repoInfo struct {
 }
 
 type state struct {
-	Visited []*repoInfo `json:"visited,omitempty"`
+	Visited []*PersistanceRepoInfo `json:"visited,omitempty"`
 }
 
 type PersistanceRepo interface {
 	AddVisited(name string, provider string, path string)
+	GetVisited() []*PersistanceRepoInfo
 }
 
 type XDGPersistanceRepo struct {
@@ -56,6 +57,10 @@ func (repo *XDGPersistanceRepo) save() {
 		log.Error().Msg("cannot save the state file: " + err.Error())
 	}
 }
+func (repo *XDGPersistanceRepo) GetVisited() []*PersistanceRepoInfo {
+	repo.load()
+	return repo.s.Visited
+}
 
 func (repo *XDGPersistanceRepo) AddVisited(
 	name string,
@@ -64,13 +69,16 @@ func (repo *XDGPersistanceRepo) AddVisited(
 ) {
 	repo.load()
 
-	index := slices.IndexFunc(repo.s.Visited, func(v *repoInfo) bool {
-		return v.Name == name && v.Provider == provider
-	})
+	index := slices.IndexFunc(
+		repo.s.Visited,
+		func(v *PersistanceRepoInfo) bool {
+			return v.Name == name && v.Provider == provider
+		},
+	)
 
 	if index != -1 {
 		slices.Replace(repo.s.Visited, index, index+1,
-			&repoInfo{
+			&PersistanceRepoInfo{
 				Name:        name,
 				Provider:    provider,
 				LastVisited: time.Now(),
@@ -80,7 +88,7 @@ func (repo *XDGPersistanceRepo) AddVisited(
 	} else {
 		repo.s.Visited = append(
 			repo.s.Visited,
-			&repoInfo{
+			&PersistanceRepoInfo{
 				Name:        name,
 				Provider:    provider,
 				LastVisited: time.Now(),
@@ -94,4 +102,8 @@ func (repo *XDGPersistanceRepo) AddVisited(
 
 var persistanceRepo PersistanceRepo = &XDGPersistanceRepo{
 	s: &state{},
+}
+
+func GetRepo() PersistanceRepo {
+	return persistanceRepo
 }

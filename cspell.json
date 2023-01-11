@@ -1,9 +1,12 @@
 {
     "words": [
         "clientutils",
+        "configutils",
+        "mitchellh",
         "paramutils",
         "preq",
         "tcell",
-        "tview"
+        "tview",
+        "zerolog"
     ]
 }

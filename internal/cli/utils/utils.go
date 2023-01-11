@@ -16,7 +16,9 @@ type PromptPullRequest struct {
 	Title string
 }
 
-func PromptPullRequestMultiSelect(prList *client.PullRequestList) map[string]*PromptPullRequest {
+func PromptPullRequestMultiSelect(
+	prList *client.PullRequestList,
+) map[string]*PromptPullRequest {
 	prs := getPromptPullRequestSilce(prList)
 
 	answers := []string{}
@@ -41,6 +43,13 @@ func PromptPullRequestMultiSelect(prList *client.PullRequestList) map[string]*Pr
 	}
 
 	return selectedPRs
+}
+
+type ProcessPullRequestResponse struct {
+	ID       string
+	GlobalID string
+	Status   string
+	Error    error
 }
 
 func ProcessPullRequestMap(
@@ -84,7 +93,9 @@ func maxPRDescriptionLength(prs []*client.PullRequest, limit int) int {
 	return maxLen
 }
 
-func getPromptPullRequestSilce(prs *client.PullRequestList) []*PromptPullRequest {
+func getPromptPullRequestSilce(
+	prs *client.PullRequestList,
+) []*PromptPullRequest {
 	maxLen := maxPRDescriptionLength(prs.Values, 30)
 	prFormat := fmt.Sprintf("#%%s: %%-%ds %%s %%s", maxLen)
 	options := make([]*PromptPullRequest, 0, len(prs.Values))
@@ -105,7 +116,9 @@ func getPromptPullRequestSilce(prs *client.PullRequestList) []*PromptPullRequest
 	return options
 }
 
-func PromptPullRequestSelect(prList *client.PullRequestList) *PromptPullRequest {
+func PromptPullRequestSelect(
+	prList *client.PullRequestList,
+) *PromptPullRequest {
 	prs := getPromptPullRequestSilce(prList)
 
 	var answer string

@@ -1,24 +1,26 @@
 package tui
 
 import (
+	"preq/internal/cli/utils"
 	"preq/internal/pkg/client"
 )
 
 type promptPullRequest struct {
-	ID    string
-	Title string
+	ID         string
+	GlobalID   string
+	Title      string
+	Client     *client.Client
+	Repository *client.Repository
 }
 
 func processPullRequestMap(
 	selectedPRs map[string]*promptPullRequest,
-	cl client.Client,
-	r *client.Repository,
-	processFn func(cl client.Client, r *client.Repository, id string, c chan interface{}),
-	fn func(interface{}) string,
+	processFn func(cl *client.Client, r *client.Repository, id string, globalId string, c chan utils.ProcessPullRequestResponse),
+	fn func(utils.ProcessPullRequestResponse) string,
 ) {
-	c := make(chan interface{})
-	for id := range selectedPRs {
-		go processFn(cl, r, id, c)
+	c := make(chan utils.ProcessPullRequestResponse)
+	for _, v := range selectedPRs {
+		go processFn(v.Client, v.Repository, v.ID, v.GlobalID, c)
 	}
 
 	end := len(selectedPRs)
@@ -35,15 +37,11 @@ func processPullRequestMap(
 }
 
 func execute(
-	c client.Client,
-	repo *client.Repository,
 	selectedPRs map[string]*promptPullRequest,
-	fn func(interface{}) string,
+	fn func(utils.ProcessPullRequestResponse) string,
 ) error {
 	processPullRequestMap(
 		selectedPRs,
-		c,
-		repo,
 		declinePR,
 		fn,
 	)
@@ -51,30 +49,26 @@ func execute(
 	return nil
 }
 
-type mergeResponse struct {
-	ID     string
-	Status string
-	Error  error
-}
-
-type declineResponse struct {
-	ID     string
-	Status string
-	Error  error
-}
+// TODO: Creating pull request with -r -p it will read the history for working directory
+// So you need to find the path from visited state and load that Git repo instead of the one from wd
 
 func declinePR(
-	cl client.Client,
+	cl *client.Client,
 	r *client.Repository,
 	id string,
-	c chan interface{},
+	globalId string,
+	c chan utils.ProcessPullRequestResponse,
 ) {
-	_, err := cl.DeclinePullRequest(&client.DeclinePullRequestOptions{
+	_, err := (*cl).DeclinePullRequest(&client.DeclinePullRequestOptions{
 		Repository: r,
 		ID:         id,
 	})
 
-	res := declineResponse{ID: id, Status: "Done"}
+	res := utils.ProcessPullRequestResponse{
+		ID:       id,
+		GlobalID: globalId,
+		Status:   "Done",
+	}
 	if err != nil {
 		res.Status = "Error"
 		res.Error = err
@@ -84,17 +78,22 @@ func declinePR(
 }
 
 func mergePR(
-	cl client.Client,
+	cl *client.Client,
 	r *client.Repository,
 	id string,
-	c chan interface{},
+	globalId string,
+	c chan utils.ProcessPullRequestResponse,
 ) {
-	_, err := cl.Merge(&client.MergeOptions{
+	_, err := (*cl).Merge(&client.MergeOptions{
 		Repository: r,
 		ID:         id,
 	})
 
-	res := mergeResponse{ID: id, Status: "Done"}
+	res := utils.ProcessPullRequestResponse{
+		ID:       id,
+		GlobalID: globalId,
+		Status:   "Done",
+	}
 	if err != nil {
 		res.Status = "Error"
 		res.Error = err

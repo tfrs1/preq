@@ -110,8 +110,10 @@ type PullRequestState string
 
 const (
 	PullRequestState_DECLINED   = "DECLINED"
+	PullRequestState_DECLINING  = "DECLINING"
 	PullRequestState_OPEN       = "OPEN"
 	PullRequestState_MERGED     = "MERGED"
+	PullRequestState_MERGING    = "MERGING"
 	PullRequestState_SUPERSEDED = "SUPERSEDED"
 )
 

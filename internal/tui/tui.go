@@ -5,7 +5,10 @@ import (
 	"os"
 	"os/exec"
 	"preq/internal/cli/paramutils"
-	"preq/internal/clientutils"
+	"preq/internal/cli/utils"
+	"preq/internal/configutils"
+	"preq/internal/persistance"
+	"preq/internal/pkg/bitbucket"
 	"preq/internal/pkg/client"
 	"runtime"
 
@@ -19,14 +22,9 @@ var (
 	flex     = tview.NewFlex()
 	details  = newDetailsPage()
 	table    = newPullRequestTable()
+	eventBus = NewEventBus()
 	prClient client.Client
 	prRepo   *client.Repository
-)
-
-// var prClient client.Client
-
-var (
-	eventBus = NewEventBus()
 )
 
 type EventBus struct {
@@ -57,9 +55,20 @@ func NewEventBus() *EventBus {
 }
 
 func loadConfig(
-	params *paramutils.RepositoryParams,
+	repoInfo *persistance.PersistanceRepoInfo,
 ) (client.Client, *client.Repository, error) {
-	c, err := clientutils.ClientFactory{}.DefaultClient(params.Provider)
+	config, err := configutils.DefaultConfig()
+	if err != nil {
+		// TODO: Do something
+	}
+	err = configutils.MergeLocalConfig(config, repoInfo.Path)
+	if err != nil {
+		// TODO: Do something
+	}
+	c := bitbucket.New(&bitbucket.ClientOptions{
+		Username: config.GetString("bitbucket.username"),
+		Password: config.GetString("bitbucket.password"),
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -67,8 +76,8 @@ func loadConfig(
 	prClient = c
 
 	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider:           params.Provider,
-		FullRepositoryName: params.Name,
+		Provider:           client.RepositoryProvider(repoInfo.Provider),
+		FullRepositoryName: repoInfo.Name,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -88,6 +97,7 @@ func loadPRs(
 	c client.Client,
 	repo *client.Repository,
 	table *pullRequestTable,
+	values *[]*pullRequestTableRow,
 ) {
 	app.QueueUpdateDraw(func() {
 		table.View.SetCell(
@@ -118,17 +128,28 @@ func loadPRs(
 
 		nextURL = prs.NextURL
 
+		for _, v := range prs.Values {
+			*values = append(*values, &pullRequestTableRow{
+				pullRequest: v,
+				selected:    false,
+				visible:     true,
+				client:      &c,
+				repository:  repo,
+			})
+		}
+
 		app.QueueUpdateDraw(func() {
-			table.Init(prs.Values)
+			table.Init()
 		})
 
 		if nextURL == "" {
 			break
 		}
 
+		// Write loading if we're expecting more data
 		app.QueueUpdateDraw(func() {
 			table.View.SetCell(
-				len(prs.Values),
+				len(*values),
 				0,
 				tview.NewTableCell("Loading..."),
 			)
@@ -136,21 +157,12 @@ func loadPRs(
 	}
 }
 
-func Run(params *paramutils.RepositoryParams, workingDirectory string) {
-	c, repo, err := loadConfig(params)
-	if err != nil {
-		log.Error().Msg(err.Error())
-		os.Exit(123)
-	}
+var tableData = make([]*tableRepoData, 0)
 
-	if repo != nil && strings.TrimSpace(workingDirectory) != "" {
-		persistanceRepo.AddVisited(
-			fmt.Sprintf("%s/%s", repo.Owner, repo.Name),
-			string(repo.Provider),
-			workingDirectory,
-		)
-	}
-
+func Run(
+	params *paramutils.RepositoryParams,
+	repos []*persistance.PersistanceRepoInfo,
+) {
 	// app.SetScreen(tcell.NewSimulationScreen("sim"))
 
 	eventBus.Subscribe("detailsPage:close", func(_ interface{}) {
@@ -185,7 +197,8 @@ func Run(params *paramutils.RepositoryParams, workingDirectory string) {
 
 	searchInput := tview.NewInputField().
 		SetLabel(" Filter ").
-		SetLabelColor(tcell.ColorRed)
+		SetLabelColor(tcell.ColorRed).
+		SetPlaceholderTextColor(tcell.ColorLightGray)
 	searchInput.
 		SetPlaceholder(" Filter pull requests").
 		SetChangedFunc(func(text string) {
@@ -249,8 +262,12 @@ func Run(params *paramutils.RepositoryParams, workingDirectory string) {
 			return nil
 		case tcell.KeyCtrlO:
 			rowId, _ := table.View.GetSelection()
-			r := table.rows[rowId-1]
-			eventBus.Publish("BrowserUrlOpen", r.pullRequest.URL)
+			r, err := table.GetPullRequest(rowId)
+			if err != nil {
+				// TODO: Log error?
+			} else {
+				eventBus.Publish("BrowserUrlOpen", r.pullRequest.URL)
+			}
 		}
 
 		switch event.Rune() {
@@ -278,29 +295,45 @@ func Run(params *paramutils.RepositoryParams, workingDirectory string) {
 	pages.AddPage("confirmation_modal", tview.NewModal().
 		SetText("Are you sure you want to decline %d pull requests?").
 		AddButtons([]string{"Decline", "Cancel"}).
-		SetDoneFunc(declineConfirmationCallback(c, repo, pages)),
+		SetDoneFunc(declineConfirmationCallback(pages)),
 		false,
 		false,
 	)
 	pages.AddPage("merge_confirmation_modal", tview.NewModal().
 		SetText("Are you sure you want to merge %d pull requests?").
 		AddButtons([]string{"Merge", "Cancel"}).
-		SetDoneFunc(mergeConfirmationCallback(c, repo, pages)),
+		SetDoneFunc(mergeConfirmationCallback(pages)),
 		false,
 		false,
 	)
 	pages.AddPage("HelpPage", helpPage, true, false)
-	pages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Rune() {
-		case 'h':
-			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModNone)
-		case 'l':
-			return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone)
-		}
-		return event
-	})
 
-	go loadPRs(app, c, repo, table)
+	for _, v := range repos {
+		tableData = append(tableData, &tableRepoData{
+			Provider: client.RepositoryProvider(v.Provider),
+			Name:     v.Name,
+			Path:     v.Path,
+		})
+	}
+
+	for _, v := range tableData {
+		// TODO get data for each repo
+		// update table after getting repo data
+		// Throw event to redraw?
+		c, repo, err := loadConfig(&persistance.PersistanceRepoInfo{
+			Name:     v.Name,
+			Provider: string(v.Provider),
+			Path:     v.Path,
+		})
+
+		if err != nil {
+			log.Error().Msg(err.Error())
+			os.Exit(123)
+		}
+
+		go loadPRs(app, c, repo, table, &v.Values)
+	}
+
 	app.SetRoot(pages, true).EnableMouse(true)
 	app.SetFocus(table.View)
 
@@ -309,40 +342,50 @@ func Run(params *paramutils.RepositoryParams, workingDirectory string) {
 	}
 }
 
-func declineConfirmationCallback(
-	c client.Client,
-	repo *client.Repository,
-	pages *tview.Pages,
-) func(int, string) {
+type tableRepoData struct {
+	Provider client.RepositoryProvider
+	Name     string
+	Path     string
+	Values   []*pullRequestTableRow
+}
+
+func declineConfirmationCallback(pages *tview.Pages) func(int, string) {
 	return func(buttonIndex int, buttonLabel string) {
 		if buttonIndex == 0 {
 			selectedPRs := make(map[string]*promptPullRequest)
-			for index, row := range table.rows {
-				if row.selected && row.visible {
-					selectedPRs[row.pullRequest.ID] = &promptPullRequest{
-						ID:    row.pullRequest.ID,
-						Title: row.pullRequest.Title,
-					}
+			for _, trd := range tableData {
+				for _, row := range trd.Values {
+					if row.selected && row.visible {
+						selectedPRs[row.pullRequest.URL] = &promptPullRequest{
+							ID:         row.pullRequest.ID,
+							GlobalID:   row.pullRequest.URL,
+							Title:      row.pullRequest.Title,
+							Repository: row.repository,
+							Client:     row.client,
+						}
 
-					table.View.GetCell(index+1, 4).
-						SetText(pad("Declining..."))
-
-					for i := 0; i < table.View.GetColumnCount(); i++ {
-						table.View.GetCell(index+1, i).SetSelectable(false)
+						row.pullRequest.State = client.PullRequestState_DECLINING
+						row.selected = false
 					}
 				}
 			}
 
-			go execute(c, repo, selectedPRs,
-				func(msg interface{}) string {
-					m := msg.(declineResponse)
-					if m.Status == "Done" {
-						for _, v := range table.rows {
-							if v.pullRequest.ID == m.ID {
-								v.pullRequest.State = client.PullRequestState_DECLINED
+			table.redraw()
+
+			go processPullRequestMap(
+				selectedPRs,
+				declinePR,
+				func(msg utils.ProcessPullRequestResponse) string {
+					if msg.Status == "Done" {
+						for _, trd := range tableData {
+							for _, v := range trd.Values {
+								if v.pullRequest.URL == msg.GlobalID {
+									v.pullRequest.State = client.PullRequestState_DECLINED
+								}
 							}
 						}
 					}
+
 					app.QueueUpdateDraw(func() {
 						table.redraw()
 					})
@@ -357,44 +400,53 @@ func declineConfirmationCallback(
 	}
 }
 
-func mergeConfirmationCallback(
-	c client.Client,
-	repo *client.Repository,
-	pages *tview.Pages,
-) func(int, string) {
+func mergeConfirmationCallback(pages *tview.Pages) func(int, string) {
 	return func(buttonIndex int, buttonLabel string) {
 		if buttonIndex == 0 {
 			selectedPRs := make(map[string]*promptPullRequest)
-			for index, row := range table.rows {
-				if row.selected && row.visible {
-					selectedPRs[row.pullRequest.ID] = &promptPullRequest{
-						ID:    row.pullRequest.ID,
-						Title: row.pullRequest.Title,
-					}
 
-					table.View.GetCell(index+1, 4).
-						SetText(pad("Merging..."))
+			for _, trd := range tableData {
+				for _, row := range trd.Values {
+					if row.selected && row.visible {
+						selectedPRs[row.pullRequest.URL] = &promptPullRequest{
+							ID:         row.pullRequest.ID,
+							GlobalID:   row.pullRequest.URL,
+							Title:      row.pullRequest.Title,
+							Client:     row.client,
+							Repository: row.repository,
+						}
 
-					for i := 0; i < table.View.GetColumnCount(); i++ {
-						table.View.GetCell(index+1, i).SetSelectable(false)
+						row.pullRequest.State = client.PullRequestState_MERGING
+						row.selected = false
 					}
 				}
 			}
 
+			table.redraw()
+
 			go processPullRequestMap(
 				selectedPRs,
-				c,
-				repo,
 				mergePR,
-				func(msg interface{}) string {
-					m := msg.(mergeResponse)
-					if m.Status == "Done" {
-						for _, v := range table.rows {
-							if v.pullRequest.ID == m.ID {
-								v.pullRequest.State = client.PullRequestState_MERGED
+				func(msg utils.ProcessPullRequestResponse) string {
+					if msg.Status == "Done" {
+						// v, err := table.FindPullRequestFunc((v) {
+						// 	return v.pullRequest == m.ID
+						// })
+						// if err == nil {
+						// 	// TODO: Log error
+						// }
+						// v.pullRequest.State = client.PullRequestState_MERGED
+
+						for _, trd := range tableData {
+							for _, v := range trd.Values {
+								// TODO: Comparing URL to ID weird, but URL is the only true ID now because of multi repo table
+								if v.pullRequest.URL == msg.ID {
+									v.pullRequest.State = client.PullRequestState_MERGED
+								}
 							}
 						}
 					}
+
 					app.QueueUpdateDraw(func() {
 						table.redraw()
 					})

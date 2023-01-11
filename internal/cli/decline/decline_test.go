@@ -21,7 +21,7 @@ func Test_declinePR(t *testing.T) {
 			"",
 			ch,
 		)
-		v := (<-ch).(declineResponse)
+		v := (<-ch).(ProcessPullRequestResponse)
 		assert.Equal(t, "Error", v.Status)
 	})
 
@@ -33,7 +33,7 @@ func Test_declinePR(t *testing.T) {
 			"",
 			ch,
 		)
-		v := (<-ch).(declineResponse)
+		v := (<-ch).(ProcessPullRequestResponse)
 		assert.Equal(t, "Done", v.Status)
 	})
 }
@@ -79,7 +79,12 @@ func Test_execute(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := execute(tt.args.c, tt.args.args, tt.args.params, tt.args.repo)
+			err := execute(
+				tt.args.c,
+				tt.args.args,
+				tt.args.params,
+				tt.args.repo,
+			)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("execute() error = %v, wantErr %v", err, tt.wantErr)
 			}

@@ -18,7 +18,10 @@ func runCmd(cmd *cobra.Command, args []string) error {
 
 	params := &cmdParams{}
 	fillDefaultDeclineCmdParams(params)
-	fillFlagDeclineCmdParams(&paramutils.PFlagSetWrapper{Flags: cmd.Flags()}, params)
+	fillFlagDeclineCmdParams(
+		&paramutils.PFlagSetWrapper{Flags: cmd.Flags()},
+		params,
+	)
 	err := validateFlagDeclineCmdParams(params)
 	if err != nil {
 		return err
@@ -45,7 +48,12 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execute(c client.Client, args *cmdArgs, params *cmdParams, repo *client.Repository) error {
+func execute(
+	c client.Client,
+	args *cmdArgs,
+	params *cmdParams,
+	repo *client.Repository,
+) error {
 	if args.ID != "" {
 		_, err := c.DeclinePullRequest(&client.DeclinePullRequestOptions{
 			Repository: repo,
@@ -70,7 +78,7 @@ func execute(c client.Client, args *cmdArgs, params *cmdParams, repo *client.Rep
 			repo,
 			declinePR,
 			func(msg interface{}) string {
-				m := msg.(declineResponse)
+				m := msg.(ProcessPullRequestResponse)
 				return fmt.Sprintf("Declining #%s... %s\n", m.ID, m.Status)
 			},
 		)
@@ -92,19 +100,24 @@ func New() *cobra.Command {
 	return cmd
 }
 
-type declineResponse struct {
+type ProcessPullRequestResponse struct {
 	ID     string
 	Status string
 	Error  error
 }
 
-func declinePR(cl client.Client, r *client.Repository, id string, c chan interface{}) {
+func declinePR(
+	cl client.Client,
+	r *client.Repository,
+	id string,
+	c chan interface{},
+) {
 	_, err := cl.DeclinePullRequest(&client.DeclinePullRequestOptions{
 		Repository: r,
 		ID:         id,
 	})
 
-	res := declineResponse{ID: id, Status: "Done"}
+	res := ProcessPullRequestResponse{ID: id, Status: "Done"}
 	if err != nil {
 		res.Status = "Error"
 		res.Error = err

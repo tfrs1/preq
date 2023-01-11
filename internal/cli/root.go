@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
-
+	"path/filepath"
 	approvecmd "preq/internal/cli/approve"
 	createcmd "preq/internal/cli/create"
 	declinecmd "preq/internal/cli/decline"
@@ -11,6 +11,8 @@ import (
 	opencmd "preq/internal/cli/open"
 	"preq/internal/cli/paramutils"
 	updatecmd "preq/internal/cli/update"
+	"preq/internal/persistance"
+	"preq/internal/pkg/client"
 	"preq/internal/tui"
 
 	"github.com/mitchellh/go-homedir"
@@ -41,8 +43,8 @@ func init() {
 
 var rootCmd = &cobra.Command{
 	Use:     "preq",
-	Short:   "preq command-line utility for pull requests",
-	Long:    `Command-line utility for all your pull request needs.`,
+	Short:   "Pull request manager",
+	Long:    "TUI utility for managing pull requests.",
 	Version: fmt.Sprintf("%v, commit %v, built at %v", version, commit, date),
 	Run: func(cmd *cobra.Command, args []string) {
 		params := &paramutils.RepositoryParams{}
@@ -50,13 +52,71 @@ var rootCmd = &cobra.Command{
 		flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 		paramutils.FillFlagRepositoryParams(flags, params)
 
-		_, err := cmd.Flags().GetString("repository")
+		global, err := cmd.Flags().GetBool("global")
+		if err != nil {
+			global = false
+			// TODO: Log error
+		}
+
+		repo, err := client.NewRepositoryFromOptions(
+			&client.RepositoryOptions{
+				Provider: client.RepositoryProvider(
+					params.Provider,
+				),
+				FullRepositoryName: params.Name,
+			},
+		)
+
+		if err != nil {
+			log.Error().Msg(err.Error())
+			os.Exit(123)
+		}
+
+		// TODO: Check other configs (empty, no default, etc)
+
+		// Store working directory repo in visited state if startup config
+		// is not global or repo is not explicit with -r and -p flags
+		repoFlag, _ := cmd.Flags().GetString("repository")
+		providerFlag, _ := cmd.Flags().GetString("provider")
+		isExplicitRepo := repoFlag != "" && providerFlag != ""
 		wd := ""
-		if err == nil {
+		if !global && !isExplicitRepo {
 			wd, _ = os.Getwd()
 		}
 
-		tui.Run(params, wd)
+		isWdGitRepo := false
+		if wd != "" {
+			info, err := os.Stat(filepath.Join(wd, ".git"))
+			if err == nil && info.IsDir() {
+				isWdGitRepo = true
+			}
+		}
+
+		if isWdGitRepo {
+			persistance.GetRepo().AddVisited(
+				fmt.Sprintf("%s/%s", repo.Owner, repo.Name),
+				string(repo.Provider),
+				wd,
+			)
+		} else {
+			global = true
+		}
+
+		// Filter repos before sending them to TUI
+		repos := persistance.GetRepo().GetVisited()
+		if !global {
+			filtered := make([]*persistance.PersistanceRepoInfo, 0)
+			for _, v := range repos {
+				if v.Provider == string(repo.Provider) &&
+					v.Name == fmt.Sprintf("%s/%s", repo.Owner, repo.Name) {
+					filtered = append(filtered, v)
+				}
+			}
+
+			repos = filtered
+		}
+
+		tui.Run(params, repos)
 	},
 }
 
@@ -67,6 +127,9 @@ func Execute() {
 	rootCmd.AddCommand(listcmd.New())
 	rootCmd.AddCommand(opencmd.New())
 	rootCmd.AddCommand(updatecmd.New())
+
+	rootCmd.Flags().
+		BoolP("global", "g", false, "Show information about all known (previously visited) repositories.")
 
 	rootCmd.PersistentFlags().
 		StringP("repository", "r", "", "repository in form of owner/repo")

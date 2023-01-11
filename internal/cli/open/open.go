@@ -86,7 +86,7 @@ func New() *cobra.Command {
 		Use:     "open [ID]",
 		Aliases: []string{"o", "op"},
 		Args:    cobra.MaximumNArgs(1),
-		Short:   "Open pull requests",
+		Short:   "Open pull request's web page",
 		Long:    `Opens all pull requests on the web service hosting your origin repository`,
 		Run:     utils.RunCommandWrapper(runCmd),
 	}
