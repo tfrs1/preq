@@ -93,17 +93,26 @@ var rootCmd = &cobra.Command{
 		}
 
 		if isWdGitRepo {
-			persistance.GetRepo().AddVisited(
+			err := persistance.GetRepo().AddVisited(
 				fmt.Sprintf("%s/%s", repo.Owner, repo.Name),
 				string(repo.Provider),
 				wd,
 			)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return
+			}
 		} else {
 			global = true
 		}
 
 		// Filter repos before sending them to TUI
-		repos := persistance.GetRepo().GetVisited()
+		repos, err := persistance.GetRepo().GetVisited()
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return
+		}
+
 		if !global {
 			filtered := make([]*persistance.PersistanceRepoInfo, 0)
 			for _, v := range repos {
