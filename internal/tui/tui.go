@@ -250,8 +250,9 @@ func Run(
 		}
 
 		switch event.Rune() {
-		case 'o':
-			eventBus.Publish("detailsPage:open", nil)
+		// TODO: Add details feature
+		// case 'o':
+		// 	eventBus.Publish("detailsPage:open", nil)
 		case 'q':
 			app.Stop()
 			return nil
@@ -259,7 +260,7 @@ func Run(
 			app.SetFocus(searchInput)
 			return nil
 		case ' ':
-			table.selectCurrentRow()
+			table.SelectCurrentRow()
 			return nil
 		}
 
@@ -321,21 +322,18 @@ func declineConfirmationCallback(pages *tview.Pages) func(int, string) {
 	return func(buttonIndex int, buttonLabel string) {
 		if buttonIndex == 0 {
 			selectedPRs := make(map[string]*promptPullRequest)
-			for _, trd := range table.tableData {
-				for _, row := range trd.Values {
-					if row.selected && row.visible {
-						selectedPRs[row.pullRequest.URL] = &promptPullRequest{
-							ID:         row.pullRequest.ID,
-							GlobalID:   row.pullRequest.URL,
-							Title:      row.pullRequest.Title,
-							Repository: row.repository,
-							Client:     row.client,
-						}
 
-						row.pullRequest.State = client.PullRequestState_DECLINING
-						row.selected = false
-					}
+			for _, row := range table.GetSelectedRows() {
+				selectedPRs[row.pullRequest.URL] = &promptPullRequest{
+					ID:         row.pullRequest.ID,
+					GlobalID:   row.pullRequest.URL,
+					Title:      row.pullRequest.Title,
+					Repository: row.repository,
+					Client:     row.client,
 				}
+
+				row.pullRequest.State = client.PullRequestState_DECLINING
+				row.selected = false
 			}
 
 			table.redraw()
@@ -345,13 +343,8 @@ func declineConfirmationCallback(pages *tview.Pages) func(int, string) {
 				declinePR,
 				func(msg utils.ProcessPullRequestResponse) string {
 					if msg.Status == "Done" {
-						for _, trd := range table.tableData {
-							for _, v := range trd.Values {
-								if v.pullRequest.URL == msg.GlobalID {
-									v.pullRequest.State = client.PullRequestState_DECLINED
-								}
-							}
-						}
+						v := table.GetRowByGlobalID(msg.GlobalID)
+						v.pullRequest.State = client.PullRequestState_DECLINED
 					}
 
 					app.QueueUpdateDraw(func() {
@@ -373,21 +366,18 @@ func mergeConfirmationCallback(pages *tview.Pages) func(int, string) {
 		if buttonIndex == 0 {
 			selectedPRs := make(map[string]*promptPullRequest)
 
-			for _, trd := range table.tableData {
-				for _, row := range trd.Values {
-					if row.selected && row.visible {
-						selectedPRs[row.pullRequest.URL] = &promptPullRequest{
-							ID:         row.pullRequest.ID,
-							GlobalID:   row.pullRequest.URL,
-							Title:      row.pullRequest.Title,
-							Client:     row.client,
-							Repository: row.repository,
-						}
-
-						row.pullRequest.State = client.PullRequestState_MERGING
-						row.selected = false
-					}
+			for _, row := range table.GetSelectedRows() {
+				selectedPRs[row.pullRequest.URL] = &promptPullRequest{
+					ID:         row.pullRequest.ID,
+					GlobalID:   row.pullRequest.URL,
+					Title:      row.pullRequest.Title,
+					Client:     row.client,
+					Repository: row.repository,
 				}
+
+				// TODO: This should probably be a method in table instead
+				row.pullRequest.State = client.PullRequestState_MERGING
+				row.selected = false
 			}
 
 			table.redraw()
@@ -397,21 +387,10 @@ func mergeConfirmationCallback(pages *tview.Pages) func(int, string) {
 				mergePR,
 				func(msg utils.ProcessPullRequestResponse) string {
 					if msg.Status == "Done" {
-						// v, err := table.FindPullRequestFunc((v) {
-						// 	return v.pullRequest == m.ID
-						// })
-						// if err == nil {
-						// 	// TODO: Log error
-						// }
-						// v.pullRequest.State = client.PullRequestState_MERGED
-
-						for _, trd := range table.tableData {
-							for _, v := range trd.Values {
-								// TODO: Comparing URL to ID weird, but URL is the only true ID now because of multi repo table
-								if v.pullRequest.URL == msg.ID {
-									v.pullRequest.State = client.PullRequestState_MERGED
-								}
-							}
+						v := table.GetRowByGlobalID(msg.GlobalID)
+						// TODO: return an error instead?
+						if v != nil {
+							v.pullRequest.State = client.PullRequestState_DECLINED
 						}
 					}
 

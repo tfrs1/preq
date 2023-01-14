@@ -106,6 +106,31 @@ func (prt *pullRequestTable) GetSelectedCount() int {
 	return count
 }
 
+func (prt *pullRequestTable) GetSelectedRows() []*pullRequestTableRow {
+	rows := make([]*pullRequestTableRow, 0)
+	for _, trd := range table.tableData {
+		for _, row := range trd.Values {
+			if row.selected && row.visible {
+				rows = append(rows, row)
+			}
+		}
+	}
+
+	return rows
+}
+
+func (prt *pullRequestTable) GetRowByGlobalID(id string) *pullRequestTableRow {
+	for _, trd := range prt.tableData {
+		for _, v := range trd.Values {
+			if v.pullRequest.URL == id {
+				return v
+			}
+		}
+	}
+
+	return nil
+}
+
 func (prt *pullRequestTable) redraw() {
 	prt.View.Clear()
 
@@ -316,7 +341,7 @@ func (prt *pullRequestTable) colorRow(rowId int, color tcell.Color) {
 	}
 }
 
-func (prt *pullRequestTable) selectCurrentRow() {
+func (prt *pullRequestTable) SelectCurrentRow() {
 	row, _ := prt.View.GetSelection()
 
 	pr, err := prt.GetPullRequest(row)
