@@ -9,13 +9,13 @@ type promptPullRequest struct {
 	ID         string
 	GlobalID   string
 	Title      string
-	Client     *client.Client
+	Client     client.Client
 	Repository *client.Repository
 }
 
 func processPullRequestMap(
 	selectedPRs map[string]*promptPullRequest,
-	processFn func(cl *client.Client, r *client.Repository, id string, globalId string, c chan utils.ProcessPullRequestResponse),
+	processFn func(cl client.Client, r *client.Repository, id string, globalId string, c chan utils.ProcessPullRequestResponse),
 	fn func(utils.ProcessPullRequestResponse) string,
 ) {
 	c := make(chan utils.ProcessPullRequestResponse)
@@ -53,13 +53,13 @@ func execute(
 // So you need to find the path from visited state and load that Git repo instead of the one from wd
 
 func declinePR(
-	cl *client.Client,
+	cl client.Client,
 	r *client.Repository,
 	id string,
 	globalId string,
 	c chan utils.ProcessPullRequestResponse,
 ) {
-	_, err := (*cl).DeclinePullRequest(&client.DeclinePullRequestOptions{
+	_, err := cl.DeclinePullRequest(&client.DeclinePullRequestOptions{
 		Repository: r,
 		ID:         id,
 	})
@@ -78,13 +78,13 @@ func declinePR(
 }
 
 func mergePR(
-	cl *client.Client,
+	cl client.Client,
 	r *client.Repository,
 	id string,
 	globalId string,
 	c chan utils.ProcessPullRequestResponse,
 ) {
-	_, err := (*cl).Merge(&client.MergeOptions{
+	_, err := cl.Merge(&client.MergeOptions{
 		Repository: r,
 		ID:         id,
 	})

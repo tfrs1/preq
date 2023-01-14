@@ -27,6 +27,11 @@ var (
 	prRepo   *client.Repository
 )
 
+const (
+	PAGE_MERGE_CONFIRMATION_MODAL   = "page_merge_confirmation_modal"
+	PAGE_DECLINE_CONFIRMATION_MODAL = "confirmation_modal"
+)
+
 type EventBus struct {
 	subscribers map[string][]EventBusEventCallback
 }
@@ -92,78 +97,22 @@ func loadConfig(
 	return c, r, nil
 }
 
-func loadPRs(
-	app *tview.Application,
-	c client.Client,
-	repo *client.Repository,
-	table *pullRequestTable,
-	values *[]*pullRequestTableRow,
-) {
-	app.QueueUpdateDraw(func() {
-		table.View.SetCell(
-			0,
-			0,
-			tview.NewTableCell("Loading...").
-				SetAlign(tview.AlignCenter),
-		)
-	})
-
-	nextURL := ""
-	for {
-		prs, err := c.GetPullRequests(&client.GetPullRequestsOptions{
-			Repository: repo,
-			State:      client.PullRequestState_OPEN,
-			Next:       nextURL,
-		})
-		if err != nil {
-			app.QueueUpdateDraw(func() {
-				table.View.SetCell(0, 0,
-					tview.
-						NewTableCell(err.Error()).
-						SetAlign(tview.AlignCenter),
-				)
-			})
-			return
-		}
-
-		nextURL = prs.NextURL
-
-		for _, v := range prs.Values {
-			*values = append(*values, &pullRequestTableRow{
-				pullRequest: v,
-				selected:    false,
-				visible:     true,
-				client:      &c,
-				repository:  repo,
-			})
-		}
-
-		app.QueueUpdateDraw(func() {
-			table.Init()
-		})
-
-		if nextURL == "" {
-			break
-		}
-
-		// Write loading if we're expecting more data
-		app.QueueUpdateDraw(func() {
-			table.View.SetCell(
-				len(*values),
-				0,
-				tview.NewTableCell("Loading..."),
-			)
-		})
-	}
-}
-
-var tableData = make([]*tableRepoData, 0)
-
 func Run(
 	params *paramutils.RepositoryParams,
 	repos []*persistance.PersistanceRepoInfo,
 ) {
 	// app.SetScreen(tcell.NewSimulationScreen("sim"))
+
+	pages := tview.NewPages()
+
+	errorModal := tview.NewModal().
+		SetText("Unknown error").
+		AddButtons([]string{"Quit"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonIndex == 0 {
+				app.Stop()
+			}
+		})
 
 	eventBus.Subscribe("detailsPage:close", func(_ interface{}) {
 		flex.RemoveItem(details.View)
@@ -173,6 +122,11 @@ func Run(
 	eventBus.Subscribe("detailsPage:open", func(_ interface{}) {
 		flex.AddItem(details.View, 0, 1, false)
 		app.SetFocus(details.View)
+	})
+
+	eventBus.Subscribe("errorModal:open", func(err interface{}) {
+		errorModal.SetText(err.(error).Error())
+		pages.ShowPage("error_modal")
 	})
 
 	eventBus.Subscribe("BrowserUrlOpen", func(data interface{}) {
@@ -194,6 +148,16 @@ func Run(
 			log.Fatal().Msg("Unknown system for url open")
 		}
 	})
+
+	mergeConfirmationModal := tview.NewModal().
+		SetText("Are you sure you want to merge %d pull requests?").
+		AddButtons([]string{"Merge", "Cancel"}).
+		SetDoneFunc(mergeConfirmationCallback(pages))
+
+	declineConfirmationModal := tview.NewModal().
+		SetText("Are you sure you want to decline %d pull requests?").
+		AddButtons([]string{"Decline", "Cancel"}).
+		SetDoneFunc(declineConfirmationCallback(pages))
 
 	searchInput := tview.NewInputField().
 		SetLabel(" Filter ").
@@ -228,7 +192,6 @@ func Run(
 	grid.
 		SetBorders(false).
 		SetBorder(false)
-	pages := tview.NewPages()
 	flex.AddItem(grid, 0, 1, false)
 	helpPage := tview.NewBox().
 		SetTitle("Help")
@@ -252,10 +215,26 @@ func Run(
 	table.View.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlD:
-			pages.ShowPage("confirmation_modal")
+			count := table.GetSelectedCount()
+			declineConfirmationModal.
+				SetText(
+					fmt.Sprintf(
+						"Are you sure you want to decline %v pull requests?",
+						count,
+					),
+				)
+			pages.ShowPage(PAGE_DECLINE_CONFIRMATION_MODAL)
 			return event
 		case tcell.KeyCtrlM:
-			pages.ShowPage("merge_confirmation_modal")
+			count := table.GetSelectedCount()
+			mergeConfirmationModal.
+				SetText(
+					fmt.Sprintf(
+						"Are you sure you want to merge %v pull requests?",
+						count,
+					),
+				)
+			pages.ShowPage(PAGE_MERGE_CONFIRMATION_MODAL)
 			return event
 		case tcell.KeyCtrlH:
 			pages.ShowPage("HelpPage")
@@ -292,34 +271,24 @@ func Run(
 	})
 
 	pages.AddPage("main", flex, true, true)
-	pages.AddPage("confirmation_modal", tview.NewModal().
-		SetText("Are you sure you want to decline %d pull requests?").
-		AddButtons([]string{"Decline", "Cancel"}).
-		SetDoneFunc(declineConfirmationCallback(pages)),
+
+	pages.AddPage(
+		PAGE_DECLINE_CONFIRMATION_MODAL,
+		declineConfirmationModal,
 		false,
 		false,
 	)
-	pages.AddPage("merge_confirmation_modal", tview.NewModal().
-		SetText("Are you sure you want to merge %d pull requests?").
-		AddButtons([]string{"Merge", "Cancel"}).
-		SetDoneFunc(mergeConfirmationCallback(pages)),
+	pages.AddPage(
+		PAGE_MERGE_CONFIRMATION_MODAL,
+		mergeConfirmationModal,
 		false,
 		false,
 	)
 	pages.AddPage("HelpPage", helpPage, true, false)
+	pages.AddPage("error_modal", errorModal, false, false)
 
+	tableData := make([]*tableRepoData, 0)
 	for _, v := range repos {
-		tableData = append(tableData, &tableRepoData{
-			Provider: client.RepositoryProvider(v.Provider),
-			Name:     v.Name,
-			Path:     v.Path,
-		})
-	}
-
-	for _, v := range tableData {
-		// TODO get data for each repo
-		// update table after getting repo data
-		// Throw event to redraw?
 		c, repo, err := loadConfig(&persistance.PersistanceRepoInfo{
 			Name:     v.Name,
 			Provider: string(v.Provider),
@@ -331,10 +300,16 @@ func Run(
 			os.Exit(123)
 		}
 
-		go loadPRs(app, c, repo, table, &v.Values)
+		tableData = append(tableData, &tableRepoData{
+			Repository: repo,
+			Client:     c,
+			Path:       v.Path,
+		})
 	}
 
-	app.SetRoot(pages, true).EnableMouse(true)
+	table.Init(tableData)
+
+	app.SetRoot(pages, true) //.EnableMouse(true)
 	app.SetFocus(table.View)
 
 	if err := app.Run(); err != nil {
@@ -342,18 +317,11 @@ func Run(
 	}
 }
 
-type tableRepoData struct {
-	Provider client.RepositoryProvider
-	Name     string
-	Path     string
-	Values   []*pullRequestTableRow
-}
-
 func declineConfirmationCallback(pages *tview.Pages) func(int, string) {
 	return func(buttonIndex int, buttonLabel string) {
 		if buttonIndex == 0 {
 			selectedPRs := make(map[string]*promptPullRequest)
-			for _, trd := range tableData {
+			for _, trd := range table.tableData {
 				for _, row := range trd.Values {
 					if row.selected && row.visible {
 						selectedPRs[row.pullRequest.URL] = &promptPullRequest{
@@ -377,7 +345,7 @@ func declineConfirmationCallback(pages *tview.Pages) func(int, string) {
 				declinePR,
 				func(msg utils.ProcessPullRequestResponse) string {
 					if msg.Status == "Done" {
-						for _, trd := range tableData {
+						for _, trd := range table.tableData {
 							for _, v := range trd.Values {
 								if v.pullRequest.URL == msg.GlobalID {
 									v.pullRequest.State = client.PullRequestState_DECLINED
@@ -405,7 +373,7 @@ func mergeConfirmationCallback(pages *tview.Pages) func(int, string) {
 		if buttonIndex == 0 {
 			selectedPRs := make(map[string]*promptPullRequest)
 
-			for _, trd := range tableData {
+			for _, trd := range table.tableData {
 				for _, row := range trd.Values {
 					if row.selected && row.visible {
 						selectedPRs[row.pullRequest.URL] = &promptPullRequest{
@@ -437,7 +405,7 @@ func mergeConfirmationCallback(pages *tview.Pages) func(int, string) {
 						// }
 						// v.pullRequest.State = client.PullRequestState_MERGED
 
-						for _, trd := range tableData {
+						for _, trd := range table.tableData {
 							for _, v := range trd.Values {
 								// TODO: Comparing URL to ID weird, but URL is the only true ID now because of multi repo table
 								if v.pullRequest.URL == msg.ID {

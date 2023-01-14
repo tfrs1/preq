@@ -67,12 +67,15 @@ var rootCmd = &cobra.Command{
 			},
 		)
 
-		if err != nil {
+		if repo == nil && !global && err != nil {
 			log.Error().Msg(err.Error())
 			os.Exit(123)
 		}
 
 		// TODO: Check other configs (empty, no default, etc)
+		// TODO: Do we even want a default?
+		// TODO: preq create -d -s doesn't work without -r -p?!?
+		// TODO: remove update function?
 
 		// Store working directory repo in visited state if startup config
 		// is not global or repo is not explicit with -r and -p flags

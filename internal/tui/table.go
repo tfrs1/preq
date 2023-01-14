@@ -10,9 +10,16 @@ import (
 	"github.com/rivo/tview"
 )
 
+type tableRepoData struct {
+	Repository *client.Repository
+	Client     client.Client
+	Path       string
+	Values     []*pullRequestTableRow
+}
+
 type pullRequestTableRow struct {
 	pullRequest *client.PullRequest
-	client      *client.Client
+	client      client.Client
 	repository  *client.Repository
 	selected    bool
 	visible     bool
@@ -22,6 +29,7 @@ type pullRequestTableRow struct {
 type pullRequestTable struct {
 	View          *tview.Table
 	totalRowCount int
+	tableData     []*tableRepoData
 }
 
 func pad(input string) string {
@@ -42,6 +50,7 @@ func newPullRequestTable() *pullRequestTable {
 	prt := &pullRequestTable{
 		View:          table,
 		totalRowCount: 0,
+		tableData:     make([]*tableRepoData, 0),
 	}
 
 	// Set table options
@@ -66,8 +75,35 @@ func newPullRequestTable() *pullRequestTable {
 	return prt
 }
 
-func (prt *pullRequestTable) Init() {
-	prt.redraw()
+func (prt *pullRequestTable) Init(data []*tableRepoData) {
+	prt.tableData = data
+	table.loadPRs(app)
+}
+
+func (prt *pullRequestTable) GetPullRequest(
+	rowId int,
+) (*pullRequestTableRow, error) {
+	for _, trd := range prt.tableData {
+		for _, v := range trd.Values {
+			if v.tableRowId == rowId {
+				return v, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("pull request not found row id %v", rowId)
+}
+
+func (prt *pullRequestTable) GetSelectedCount() int {
+	count := 0
+	for _, trd := range table.tableData {
+		for _, row := range trd.Values {
+			if row.selected && row.visible {
+				count++
+			}
+		}
+	}
+	return count
 }
 
 func (prt *pullRequestTable) redraw() {
@@ -75,7 +111,7 @@ func (prt *pullRequestTable) redraw() {
 
 	offset := 0
 
-	for _, trd := range tableData {
+	for _, trd := range prt.tableData {
 		size := 0
 		for _, v := range trd.Values {
 			if v.visible {
@@ -101,6 +137,75 @@ func (prt *pullRequestTable) redraw() {
 		offset += 1
 	}
 }
+func (prt *pullRequestTable) loadPRs(app *tview.Application) {
+	for i := range prt.tableData {
+		go prt.loadPR(app, i)
+	}
+}
+
+func (prt *pullRequestTable) loadPR(
+	app *tview.Application,
+	rowId int,
+) {
+	app.QueueUpdateDraw(func() {
+		prt.View.SetCell(
+			0,
+			0,
+			tview.NewTableCell("Loading...").
+				SetAlign(tview.AlignCenter),
+		)
+	})
+
+	d := prt.tableData[rowId]
+
+	nextURL := ""
+	for {
+		prs, err := d.Client.GetPullRequests(&client.GetPullRequestsOptions{
+			Repository: d.Repository,
+			State:      client.PullRequestState_OPEN,
+			Next:       nextURL,
+		})
+		if err != nil {
+			app.QueueUpdateDraw(func() {
+				prt.View.SetCell(0, 0,
+					tview.
+						NewTableCell(err.Error()).
+						SetAlign(tview.AlignCenter),
+				)
+			})
+			return
+		}
+
+		nextURL = prs.NextURL
+
+		for _, v := range prs.Values {
+			d.Values = append(d.Values, &pullRequestTableRow{
+				pullRequest: v,
+				selected:    false,
+				visible:     true,
+				client:      d.Client,
+				repository:  d.Repository,
+			})
+		}
+
+		app.QueueUpdateDraw(func() {
+			prt.redraw()
+		})
+
+		if nextURL == "" {
+			break
+		}
+
+		// Write loading if we're expecting more data
+		app.QueueUpdateDraw(func() {
+			prt.View.SetCell(
+				len(d.Values),
+				0,
+				tview.NewTableCell("Loading..."),
+			)
+		})
+	}
+}
 
 func (prt *pullRequestTable) drawTable(offset int, trd *tableRepoData) int {
 	headerStyle := tcell.StyleDefault.Bold(true)
@@ -118,7 +223,7 @@ func (prt *pullRequestTable) drawTable(offset int, trd *tableRepoData) int {
 	}
 
 	prt.View.GetCell(offset, 0).SetText("REPO")
-	prt.View.GetCell(offset, 1).SetText(trd.Name)
+	prt.View.GetCell(offset, 1).SetText(trd.Repository.Name)
 
 	offset += 1
 
@@ -211,20 +316,6 @@ func (prt *pullRequestTable) colorRow(rowId int, color tcell.Color) {
 	}
 }
 
-func (prt *pullRequestTable) GetPullRequest(
-	rowId int,
-) (*pullRequestTableRow, error) {
-	for _, trd := range tableData {
-		for _, v := range trd.Values {
-			if v.tableRowId == rowId {
-				return v, nil
-			}
-		}
-	}
-
-	return nil, fmt.Errorf("pull request not found row id %v", rowId)
-}
-
 func (prt *pullRequestTable) selectCurrentRow() {
 	row, _ := prt.View.GetSelection()
 
@@ -239,7 +330,7 @@ func (prt *pullRequestTable) selectCurrentRow() {
 }
 
 func (prt *pullRequestTable) Filter(input string) {
-	for _, trd := range tableData {
+	for _, trd := range prt.tableData {
 		for _, v := range trd.Values {
 			v.visible = strings.Contains(
 				strings.ToLower(v.pullRequest.Title),
