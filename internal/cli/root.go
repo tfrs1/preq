@@ -14,8 +14,10 @@ import (
 	"preq/internal/persistance"
 	"preq/internal/pkg/client"
 	"preq/internal/tui"
+	"time"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -29,15 +31,18 @@ var (
 
 func init() {
 	logFile, err := homedir.Expand("~/.local/state/preq/full.log")
-	if err != nil {
-		fileLogger := &lumberjack.Logger{
-			Filename:   logFile,
-			MaxSize:    20, // megabytes
-			MaxBackups: 3,
-			MaxAge:     28, //days
-			// Compress:   true, // disabled by default
-		}
-		log.Logger = log.Output(fileLogger)
+	if err == nil {
+		log.Logger = log.Output(
+			zerolog.ConsoleWriter{
+				Out: &lumberjack.Logger{
+					Filename:   logFile,
+					MaxSize:    20, // megabytes
+					MaxBackups: 3,
+					MaxAge:     28, //days
+					Compress:   false,
+				},
+				TimeFormat: time.RFC3339,
+			})
 	}
 }
 

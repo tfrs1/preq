@@ -346,7 +346,6 @@ func (prt *pullRequestTable) SelectCurrentRow() {
 
 	pr, err := prt.GetPullRequest(row)
 	if err != nil {
-		// TODO: Change logging so it's not JSON?
 		// TODO: Log error?
 	}
 	pr.selected = !pr.selected

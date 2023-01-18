@@ -101,13 +101,6 @@ func Load() error {
 		return ErrHomeDirNotFound
 	}
 
-	// TODO: Create ~/.config/.preq dir
-
-	// // configPath := filepath.Join(hd, configName)
-	// if err := viper.SafeWriteConfigAs(configPath); err != nil {
-	// 	log.Fatal(err)
-	// }
-
 	configs := []string{hdCfgPath, ".preqcfg"}
 	for _, v := range configs {
 		err = loadConfig(v, viper.GetViper())
