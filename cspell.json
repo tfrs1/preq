@@ -3,8 +3,10 @@
         "clientutils",
         "configutils",
         "mitchellh",
+        "Msgf",
         "paramutils",
         "preq",
+        "resty",
         "tcell",
         "tview",
         "zerolog"

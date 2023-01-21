@@ -16,11 +16,9 @@ import (
 	"preq/internal/tui"
 	"time"
 
-	"github.com/mitchellh/go-homedir"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var (
@@ -30,20 +28,39 @@ var (
 )
 
 func init() {
-	logFile, err := homedir.Expand("~/.local/state/preq/full.log")
-	if err == nil {
-		log.Logger = log.Output(
-			zerolog.ConsoleWriter{
-				Out: &lumberjack.Logger{
-					Filename:   logFile,
-					MaxSize:    20, // megabytes
-					MaxBackups: 3,
-					MaxAge:     28, //days
-					Compress:   false,
-				},
-				TimeFormat: time.RFC3339,
-			})
+	log.Logger = log.Output(
+		zerolog.ConsoleWriter{
+			Out:        os.Stderr,
+			TimeFormat: time.RFC3339,
+		})
+
+	zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+
+	// TODO: Read the log level value from the config
+	levelInput := "debug"
+	level, err := zerolog.ParseLevel(levelInput)
+	if err != nil {
+		log.Error().
+			Msgf("unknown log level '%v', reverting to default error level", levelInput)
+	} else {
+		zerolog.SetGlobalLevel(level)
 	}
+
+	// TODO: Add full file logging behind a flag?
+	// logFile, err := homedir.Expand("~/.local/state/preq/full.log")
+	// if err == nil {
+	// 	log.Logger = log.Output(
+	// 		zerolog.ConsoleWriter{
+	// 			Out: &lumberjack.Logger{
+	// 				Filename:   logFile,
+	// 				MaxSize:    20, // megabytes
+	// 				MaxBackups: 3,
+	// 				MaxAge:     28, //days
+	// 				Compress:   false,
+	// 			},
+	// 			TimeFormat: time.RFC3339,
+	// 		})
+	// }
 }
 
 var rootCmd = &cobra.Command{
