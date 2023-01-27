@@ -16,16 +16,25 @@ type listCmdParams struct {
 	Repository paramutils.RepositoryParams
 }
 
+var getWorkingDirectoryRepo = gitutils.GetWorkingDirectoryRepo
+
 func fillDefaultListCmdParams(params *listCmdParams) {
-	defaultRepo, err := gitutils.GetRemoteInfo()
-	if err == nil {
-		params.Repository.Name = fmt.Sprintf(
-			"%s/%s",
-			defaultRepo.Owner,
-			defaultRepo.Name,
-		)
-		params.Repository.Provider = defaultRepo.Provider
+	git, err := getWorkingDirectoryRepo()
+	if err != nil {
+		return
 	}
+
+	defaultRepo, err := git.GetRemoteInfo()
+	if err != nil {
+		return
+	}
+
+	params.Repository.Name = fmt.Sprintf(
+		"%s/%s",
+		defaultRepo.Owner,
+		defaultRepo.Name,
+	)
+	params.Repository.Provider = defaultRepo.Provider
 }
 
 func fillFlagListCmdParams(cmd *cobra.Command, params *listCmdParams) error {

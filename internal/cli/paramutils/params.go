@@ -54,11 +54,18 @@ type paramsFiller interface {
 type localRepositoryParamsFiller struct{}
 
 func (pf *localRepositoryParamsFiller) Fill(params *RepositoryParams) {
-	defaultRepo, err := gitutils.GetRemoteInfo()
-	if err == nil {
-		params.Name = fmt.Sprintf("%s/%s", defaultRepo.Owner, defaultRepo.Name)
-		params.Provider = defaultRepo.Provider
+	git, err := gitutils.GetWorkingDirectoryRepo()
+	if err != nil {
+		return
 	}
+
+	defaultRepo, err := git.GetRemoteInfo()
+	if err != nil {
+		return
+	}
+
+	params.Name = fmt.Sprintf("%s/%s", defaultRepo.Owner, defaultRepo.Name)
+	params.Provider = defaultRepo.Provider
 }
 
 type viperConfigParamsFiller struct{}

@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-var getRemoteInfo = gitutils.GetRemoteInfo
+var getWorkingDirectoryRepo = gitutils.GetWorkingDirectoryRepo
 
 type cmdParams struct {
 	Provider   client.RepositoryProvider
@@ -30,15 +30,22 @@ func parseArgs(args []string) *cmdArgs {
 }
 
 func fillDefaultDeclineCmdParams(params *cmdParams) {
-	defaultRepo, err := getRemoteInfo()
-	if err == nil {
-		params.Repository = fmt.Sprintf(
-			"%s/%s",
-			defaultRepo.Owner,
-			defaultRepo.Name,
-		)
-		params.Provider = defaultRepo.Provider
+	git, err := getWorkingDirectoryRepo()
+	if err != nil {
+		return
 	}
+
+	defaultRepo, err := git.GetRemoteInfo()
+	if err != nil {
+		return
+	}
+
+	params.Repository = fmt.Sprintf(
+		"%s/%s",
+		defaultRepo.Owner,
+		defaultRepo.Name,
+	)
+	params.Provider = defaultRepo.Provider
 }
 
 func fillFlagDeclineCmdParams(flags paramutils.FlagSet, params *cmdParams) {

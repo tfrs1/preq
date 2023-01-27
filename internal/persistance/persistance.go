@@ -24,6 +24,7 @@ type state struct {
 type PersistanceRepo interface {
 	AddVisited(name string, provider string, path string) error
 	GetVisited() ([]*PersistanceRepoInfo, error)
+	GetInfo(name string, provider string) (*PersistanceRepoInfo, error)
 }
 
 type XDGPersistanceRepo struct {
@@ -90,6 +91,7 @@ func (repo *XDGPersistanceRepo) save() error {
 
 	return nil
 }
+
 func (repo *XDGPersistanceRepo) GetVisited() ([]*PersistanceRepoInfo, error) {
 	err := repo.load()
 	if err != nil {
@@ -97,6 +99,24 @@ func (repo *XDGPersistanceRepo) GetVisited() ([]*PersistanceRepoInfo, error) {
 	}
 
 	return repo.s.Visited, nil
+}
+
+func (repo *XDGPersistanceRepo) GetInfo(
+	name string,
+	provider string,
+) (*PersistanceRepoInfo, error) {
+	err := repo.load()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, pri := range repo.s.Visited {
+		if pri.Name == name && pri.Provider == provider {
+			return pri, nil
+		}
+	}
+
+	return nil, fmt.Errorf("repo not found")
 }
 
 func (repo *XDGPersistanceRepo) AddVisited(

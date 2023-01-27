@@ -5,6 +5,7 @@ import (
 	"preq/internal/cli/paramutils"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
+	"preq/internal/persistance"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -58,21 +59,38 @@ func fillFlagParams(flags paramutils.FlagSet, params *createCmdParams) {
 
 func fillDefaultParams(p *createCmdParams) {
 	paramutils.FillDefaultRepositoryParams(&p.Repository)
+}
 
-	defaultSourceBranch, err := gitutils.GetCurrentBranch()
+func fillInDynamicParams(params *createCmdParams) {
+	info, err := persistance.GetRepo().
+		GetInfo(params.Repository.Name, string(params.Repository.Provider))
+
+	var git gitutils.GitUtilsClient
 	if err == nil {
-		p.Source = defaultSourceBranch
+		git, err = gitutils.GetRepo(info.Path)
+	} else {
+		git, err = gitutils.GetWorkingDirectoryRepo()
+	}
+
+	if err != nil {
+		return
+	}
+
+	defaultSourceBranch, err := git.GetCurrentBranch()
+	if params.Source == "" && err == nil {
+		params.Source = defaultSourceBranch
 	}
 
 	// TODO: Make closest branch list configurable
-	destination, err := gitutils.GetClosestBranch([]string{"develop", "master"})
-	if err == nil {
-		p.Destination = destination
+	// TODO: From branch needs to be a parameter otherwise -r and -p server no purpose
+	destination, err := git.GetClosestBranch([]string{"develop", "master"})
+	if params.Destination == "" && err == nil {
+		params.Destination = destination
 	}
 
-	title, err := gitutils.GetCurrentCommitMessage()
-	if err == nil {
-		p.Title = title
+	title, err := git.GetBranchLastCommitMessage(params.Source)
+	if params.Title == "" && err == nil {
+		params.Title = title
 	}
 }
 

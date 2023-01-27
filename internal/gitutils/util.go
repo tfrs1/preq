@@ -42,29 +42,6 @@ var openLocalRepo = func() (gitRepository, error) {
 	return &repository{r: r}, nil
 }
 
-func GetCurrentBranch() (string, error) {
-	r, err := openLocalRepo()
-	if err != nil {
-		return "", err
-	}
-
-	return r.GetCheckedOutBranchShortName()
-}
-
-func GetCurrentCommitMessage() (string, error) {
-	r, err := openLocalRepo()
-	if err != nil {
-		return "", err
-	}
-
-	c, err := r.CurrentCommit()
-	if err != nil {
-		return "", err
-	}
-
-	return c.Message, nil
-}
-
 var getRemoteInfoList = func() ([]*client.Repository, error) {
 	var repos []*client.Repository
 	r, err := openLocalRepo()
@@ -121,15 +98,6 @@ var parseRepositoryString = func(repoString string) (*client.Repository, error) 
 	}, nil
 }
 
-func GetRemoteInfo() (*client.Repository, error) {
-	repos, err := getRemoteInfoList()
-	if err != nil {
-		return nil, err
-	}
-
-	return repos[0], nil
-}
-
 type branchCommitMap map[string]*object.Commit
 
 var getBranchCommits = func(r gitRepository, branches []string) (branchCommitMap, error) {
@@ -173,25 +141,83 @@ func walkHistory(
 	return "", ErrAncestorCommitNotFound
 }
 
-// GetClosestBranch documentation
-// TODO: Find a better name
-func GetClosestBranch(branches []string) (string, error) {
+type GitUtilsClient interface {
+	// GetClosestBranch documentation
+	// TODO: Find a better name
+	GetClosestBranch(branches []string) (string, error)
+	GetRemoteInfo() (*client.Repository, error)
+	GetCurrentCommitMessage() (string, error)
+	GetCurrentBranch() (string, error)
+	GetBranchLastCommitMessage(name string) (string, error)
+}
+
+type GoGit struct {
+	Git gitRepository
+}
+
+func new(path string) (GitUtilsClient, error) {
+	repo, err := openRepo(path)
+	return &GoGit{Git: &repository{
+		r: repo,
+	}}, err
+}
+
+// TODO: Return a Branch type? Or rename to GetClosesBranchName?
+func (git *GoGit) GetClosestBranch(branches []string) (string, error) {
 	// TODO: What if the history branches? Use BFS for looking up history. Perhaps git.GetLog()?
-	r, err := openLocalRepo()
+	c, err := git.Git.CurrentCommit()
 	if err != nil {
 		return "", err
 	}
 
-	c, err := r.CurrentCommit()
-	if err != nil {
-		return "", err
-	}
-
-	cSlice, err := getBranchCommits(r, branches)
+	cSlice, err := getBranchCommits(git.Git, branches)
 	if err != nil {
 		return "", err
 	}
 
 	// TODO: Implement --log-depth flag
 	return walkHistory(c, cSlice, 10)
+}
+func (git *GoGit) GetRemoteInfo() (*client.Repository, error) {
+	repos, err := getRemoteInfoList()
+	if err != nil {
+		return nil, err
+	}
+
+	return repos[0], nil
+}
+
+func (git *GoGit) GetBranchLastCommitMessage(name string) (string, error) {
+	c, err := git.Git.BranchCommit(name)
+	if err != nil {
+		return "", err
+	}
+
+	return c.Message, nil
+}
+
+func (git *GoGit) GetCurrentCommitMessage() (string, error) {
+	c, err := git.Git.CurrentCommit()
+	if err != nil {
+		return "", err
+	}
+
+	return c.Message, nil
+}
+
+func (git *GoGit) GetCurrentBranch() (string, error) {
+	return git.Git.GetCheckedOutBranchShortName()
+}
+
+func GetWorkingDirectoryRepo() (GitUtilsClient, error) {
+	wd, err := getWorkingDir(fs.OS{})
+	if err != nil {
+		return nil, err
+	}
+
+	return new(wd)
+}
+
+func GetRepo(path string) (GitUtilsClient, error) {
+	return new(path)
 }

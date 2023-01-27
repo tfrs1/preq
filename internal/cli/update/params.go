@@ -20,15 +20,22 @@ type updateCmdParams struct {
 }
 
 func fillDefaultUpdateCmdParams(params *updateCmdParams) {
-	defaultRepo, err := gitutils.GetRemoteInfo()
-	if err == nil {
-		params.Repository = fmt.Sprintf(
-			"%s/%s",
-			defaultRepo.Owner,
-			defaultRepo.Name,
-		)
-		params.Provider = string(defaultRepo.Provider)
+	git, err := gitutils.GetWorkingDirectoryRepo()
+	if err != nil {
+		return
 	}
+
+	defaultRepo, err := git.GetRemoteInfo()
+	if err != nil {
+		return
+	}
+
+	params.Repository = fmt.Sprintf(
+		"%s/%s",
+		defaultRepo.Owner,
+		defaultRepo.Name,
+	)
+	params.Provider = string(defaultRepo.Provider)
 }
 
 func fillFlagUpdateCmdParams(

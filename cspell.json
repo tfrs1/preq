@@ -2,6 +2,7 @@
     "words": [
         "clientutils",
         "configutils",
+        "gitutils",
         "mitchellh",
         "Msgf",
         "paramutils",

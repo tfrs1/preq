@@ -31,6 +31,16 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	params := &createCmdParams{}
 	fillDefaultParams(params)
 	fillFlagParams(&flags, params)
+	fillInDynamicParams(params)
+	// TODO: Rework the order in which the params are loaded
+	// Perhaps the following, with already filled in values not being overwritten
+	// Flag
+	// Config default only repo?
+	// Repo
+	// Config
+	// Default in code, like default title?
+
+	// TODO: Rework other commands to respect -r -p flags
 
 	interactive := flags.GetBoolOrDefault("interactive", false)
 	if interactive {
