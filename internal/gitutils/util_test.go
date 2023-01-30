@@ -2,51 +2,14 @@ package gitutils
 
 import (
 	"preq/internal/pkg/client"
-	"preq/internal/pkg/fs"
 	"testing"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
-func Test_openLocalRepo(t *testing.T) {
-	oldGetWorkingDir := getWorkingDir
-	oldOpenRepo := openRepo
-
-	t.Run("fails if cannot get working dir", func(t *testing.T) {
-		vErr := errors.New("wd err")
-		getWorkingDir = func(fs.Filesystem) (string, error) { return "", vErr }
-
-		_, err := openLocalRepo()
-		assert.Error(t, err)
-	})
-
-	t.Run("fails if cannot open repo", func(t *testing.T) {
-		vErr := errors.New("repo err")
-		getWorkingDir = func(fs.Filesystem) (string, error) { return "", nil }
-		openRepo = func(string) (*git.Repository, error) { return nil, vErr }
-
-		_, err := openLocalRepo()
-		assert.Error(t, err)
-	})
-
-	t.Run("succeeds if no error", func(t *testing.T) {
-		getWorkingDir = func(fs.Filesystem) (string, error) { return "", nil }
-		openRepo = func(string) (*git.Repository, error) { return &git.Repository{}, nil }
-
-		_, err := openLocalRepo()
-		assert.NoError(t, err)
-	})
-
-	getWorkingDir = oldGetWorkingDir
-	openRepo = oldOpenRepo
-}
-
 func TestGetCurrentBranch(t *testing.T) {
-	oldOpenLocalRepo := openLocalRepo
-
 	t.Run("fails when cannot get branch", func(t *testing.T) {
 		vErr := errors.New("branch err")
 		r := &GoGit{
@@ -67,63 +30,48 @@ func TestGetCurrentBranch(t *testing.T) {
 		assert.Equal(t, v, r)
 		assert.NoError(t, err)
 	})
-
-	openLocalRepo = oldOpenLocalRepo
 }
 
 func Test_getRemoteInfoList(t *testing.T) {
-	oldopenLocalRepo := openLocalRepo
 	oldParseRepositoryString := parseRepositoryString
 
 	t.Run("fails when cannot get repo", func(t *testing.T) {
 		vErr := errors.New("repo err")
-		openLocalRepo = func() (gitRepository, error) { return nil, vErr }
-
-		_, err := getRemoteInfoList()
+		_, err := getRemoteInfoList(nil)
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	t.Run("fails when cannot get remote", func(t *testing.T) {
 		vErr := errors.New("remote err")
-		openLocalRepo = func() (gitRepository, error) {
-			return &MockGitRepository{
-				ErrorValue: vErr,
-			}, nil
-		}
 
-		_, err := getRemoteInfoList()
+		_, err := getRemoteInfoList(&MockGitRepository{
+			ErrorValue: vErr,
+		})
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	t.Run("fails when cannot parse", func(t *testing.T) {
 		vErr := errors.New("parse err")
-		openLocalRepo = func() (gitRepository, error) {
-			return &MockGitRepository{
-				RemoteURLsValue: []string{"url"},
-			}, nil
-		}
 		parseRepositoryString = func(repoString string) (*client.Repository, error) { return nil, vErr }
 
-		_, err := getRemoteInfoList()
+		_, err := getRemoteInfoList(&MockGitRepository{
+			RemoteURLsValue: []string{"url"},
+		})
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	t.Run("succeeds otherwise", func(t *testing.T) {
-		openLocalRepo = func() (gitRepository, error) {
-			return &MockGitRepository{
-				RemoteURLsValue: []string{"url"},
-			}, nil
-		}
 		parseRepositoryString = func(repoString string) (*client.Repository, error) {
 			return &client.Repository{}, nil
 		}
 
-		repos, err := getRemoteInfoList()
+		repos, err := getRemoteInfoList(&MockGitRepository{
+			RemoteURLsValue: []string{"url"},
+		})
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(repos))
 	})
 
-	openLocalRepo = oldopenLocalRepo
 	parseRepositoryString = oldParseRepositoryString
 }
 

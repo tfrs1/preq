@@ -28,28 +28,10 @@ var getWorkingDir = func(fs fs.Filesystem) (string, error) {
 	return fs.Getwd()
 }
 
-var openLocalRepo = func() (gitRepository, error) {
-	wd, err := getWorkingDir(fs.OS{})
-	if err != nil {
-		return nil, errors.Wrap(err, ErrCannotGetLocalRepository.Error())
-	}
-
-	r, err := openRepo(wd)
-	if err != nil {
-		return nil, errors.Wrap(err, ErrCannotGetLocalRepository.Error())
-	}
-
-	return &repository{r: r}, nil
-}
-
-var getRemoteInfoList = func() ([]*client.Repository, error) {
+var getRemoteInfoList = func(git *GoGit) ([]*client.Repository, error) {
 	var repos []*client.Repository
-	r, err := openLocalRepo()
-	if err != nil {
-		return nil, err
-	}
 
-	repoURLs, err := r.GetRemoteURLs()
+	repoURLs, err := git.Git.GetRemoteURLs()
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +161,7 @@ func (git *GoGit) GetClosestBranch(branches []string) (string, error) {
 	return walkHistory(c, cSlice, 10)
 }
 func (git *GoGit) GetRemoteInfo() (*client.Repository, error) {
-	repos, err := getRemoteInfoList()
+	repos, err := getRemoteInfoList(git)
 	if err != nil {
 		return nil, err
 	}

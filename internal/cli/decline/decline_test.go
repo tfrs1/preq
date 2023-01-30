@@ -6,7 +6,6 @@ import (
 	"preq/internal/pkg/client"
 	"testing"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -116,22 +115,5 @@ func Test_execute(t *testing.T) {
 
 		promptPullRequestMultiSelect = oldPromptPullRequestMultiSelect
 		processPullRequestMap = oldProcessPullRequestMap
-	})
-}
-
-func Test_runCmd(t *testing.T) {
-	t.Run("returns error if params don't validate", func(t *testing.T) {
-		retErr := errors.New("decline error")
-		oldValidateFlagDeclineCmdParams := validateFlagDeclineCmdParams
-		validateFlagDeclineCmdParams = func(params *cmdParams) error {
-			return retErr
-		}
-		err := runCmd(
-			&cobra.Command{},
-			[]string{},
-		)
-
-		assert.Equal(t, retErr, err)
-		validateFlagDeclineCmdParams = oldValidateFlagDeclineCmdParams
 	})
 }

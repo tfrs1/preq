@@ -89,6 +89,7 @@ func DefaultConfig() (*viper.Viper, error) {
 	}
 
 	v := viper.New()
+	// TODO: Add support for other file types
 	v.SetConfigType("toml")
 	err = loadConfig(hdCfgPath, v)
 

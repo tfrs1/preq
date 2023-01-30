@@ -15,20 +15,22 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 
 	params := &approveCmdParams{}
-	paramutils.FillDefaultRepositoryParams(&params.Repository)
-	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
-	err := paramutils.ValidateFlagRepositoryParams(&params.Repository)
+	_, err := paramutils.GetRepoAndFillRepoParams(flags, &params.Repository)
 	if err != nil {
 		return err
 	}
 
-	cl, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
+	cl, err := clientutils.ClientFactory{}.DefaultClient(
+		params.Repository.Provider,
+	)
 	if err != nil {
 		return err
 	}
 
 	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider:           client.RepositoryProvider(params.Repository.Provider),
+		Provider: client.RepositoryProvider(
+			params.Repository.Provider,
+		),
 		FullRepositoryName: params.Repository.Name,
 	})
 	if err != nil {
@@ -43,7 +45,12 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func execute(c client.Client, args *cmdArgs, params *approveCmdParams, repo *client.Repository) error {
+func execute(
+	c client.Client,
+	args *cmdArgs,
+	params *approveCmdParams,
+	repo *client.Repository,
+) error {
 	if args.ID != "" {
 		_, err := c.ApprovePullRequest(&client.ApprovePullRequestOptions{
 			Repository: repo,
@@ -90,7 +97,12 @@ type approveResponse struct {
 	Error  error
 }
 
-func approvePR(cl client.Client, r *client.Repository, id string, c chan interface{}) {
+func approvePR(
+	cl client.Client,
+	r *client.Repository,
+	id string,
+	c chan interface{},
+) {
 	_, err := cl.ApprovePullRequest(&client.ApprovePullRequestOptions{
 		Repository: r,
 		ID:         id,

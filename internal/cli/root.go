@@ -70,8 +70,8 @@ var rootCmd = &cobra.Command{
 	Version: fmt.Sprintf("%v, commit %v, built at %v", version, commit, date),
 	Run: func(cmd *cobra.Command, args []string) {
 		params := &paramutils.RepositoryParams{}
-		paramutils.FillDefaultRepositoryParams(params)
 		flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
+		paramutils.FillDefaultRepositoryParams(params)
 		paramutils.FillFlagRepositoryParams(flags, params)
 
 		global, err := cmd.Flags().GetBool("global")

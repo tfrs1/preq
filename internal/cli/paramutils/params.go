@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
+	"preq/internal/persistance"
 	"preq/internal/pkg/client"
 	"strings"
 
@@ -94,6 +95,47 @@ func (pf *viperConfigParamsFiller) Fill(params *RepositoryParams) {
 // 	params.Name = repo
 // 	params.Provider = client.RepositoryProvider(provider)
 // }
+
+func GetRepoAndFillRepoParams(
+	flags FlagSet,
+	repoParams *RepositoryParams,
+) (gitutils.GitUtilsClient, error) {
+	repoName := flags.GetStringOrDefault("repository", "")
+	providerName := flags.GetStringOrDefault("provider", "")
+
+	if repoName != "" && providerName != "" {
+		info, err := persistance.GetRepo().GetInfo(repoName, providerName)
+		if err != nil {
+			return nil, err
+		}
+
+		repoParams.Provider = client.RepositoryProvider(providerName)
+		repoParams.Name = repoName
+
+		return gitutils.GetRepo(info.Path)
+	}
+
+	git, err := gitutils.GetWorkingDirectoryRepo()
+	if err != nil {
+		info, err := git.GetRemoteInfo()
+		if err == nil {
+			repoParams.Provider = info.Provider
+			repoParams.Name = fmt.Sprintf("%v/%v", info.Owner, info.Name)
+
+			return git, nil
+		}
+	}
+
+	// TODO: Read the default repo from global config?
+	// config, err := configutils.DefaultConfig()
+	// if err != nil {
+	// 	log.Panic().Msg(err.Error())
+	// }
+	// r := config.GetString("default.repository")
+	// p := config.GetString("default.provider")
+
+	return nil, err
+}
 
 func FillDefaultRepositoryParams(params *RepositoryParams) {
 	paramsFillers := []paramsFiller{

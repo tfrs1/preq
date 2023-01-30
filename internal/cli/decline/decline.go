@@ -15,26 +15,24 @@ var processPullRequestMap = utils.ProcessPullRequestMap
 
 func runCmd(cmd *cobra.Command, args []string) error {
 	cmdArgs := parseArgs(args)
+	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 
 	params := &cmdParams{}
-	fillDefaultDeclineCmdParams(params)
-	fillFlagDeclineCmdParams(
-		&paramutils.PFlagSetWrapper{Flags: cmd.Flags()},
-		params,
-	)
-	err := validateFlagDeclineCmdParams(params)
+	_, err := paramutils.GetRepoAndFillRepoParams(flags, &params.Repository)
 	if err != nil {
 		return err
 	}
 
-	cl, err := clientutils.ClientFactory{}.DefaultClient(params.Provider)
+	cl, err := clientutils.ClientFactory{}.DefaultClient(
+		params.Repository.Provider,
+	)
 	if err != nil {
 		return err
 	}
 
 	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider:           params.Provider,
-		FullRepositoryName: params.Repository,
+		Provider:           params.Repository.Provider,
+		FullRepositoryName: params.Repository.Name,
 	})
 	if err != nil {
 		return err

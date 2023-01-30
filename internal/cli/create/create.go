@@ -28,19 +28,17 @@ func setUpFlags(cmd *cobra.Command) {
 
 func runCmd(cmd *cobra.Command, args []string) error {
 	flags := paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
-	params := &createCmdParams{}
-	fillDefaultParams(params)
-	fillFlagParams(&flags, params)
-	fillInDynamicParams(params)
-	// TODO: Rework the order in which the params are loaded
-	// Perhaps the following, with already filled in values not being overwritten
-	// Flag
-	// Config default only repo?
-	// Repo
-	// Config
-	// Default in code, like default title?
 
-	// TODO: Rework other commands to respect -r -p flags
+	params := &createCmdParams{}
+	c, err := paramutils.GetRepoAndFillRepoParams(&flags, &params.Repository)
+	if err != nil {
+		return err
+	}
+
+	fillInParamsFromFlags(&flags, params)
+	fillInParamsFromRepo(c, params)
+	// TODO: Also add fillInParamsFromConfig()?
+	fillInDefaultParams(params)
 
 	interactive := flags.GetBoolOrDefault("interactive", false)
 	if interactive {
@@ -50,21 +48,26 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err := params.Validate()
+	err = params.Validate()
 	if err != nil {
 		return err
 	}
 
-	c, err := clientutils.ClientFactory{}.DefaultClientCustom(
-		params.Repository.Provider,
-		params.Repository.Name,
+	r, err := c.GetRemoteInfo()
+	if err != nil {
+		return err
+	}
+
+	cl, err := clientutils.ClientFactory{}.DefaultClientCustom(
+		r.Provider,
+		fmt.Sprintf("%v/%v", r.Owner, r.Name),
 	)
 
 	if err != nil {
 		return err
 	}
 
-	err = execute(c, params)
+	err = execute(cl, params)
 	if err != nil {
 		return err
 	}

@@ -5,7 +5,6 @@ import (
 	"preq/internal/cli/paramutils"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
-	"preq/internal/persistance"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -44,38 +43,30 @@ func (params *createCmdParams) Validate() error {
 	return nil
 }
 
-func fillFlagParams(flags paramutils.FlagSet, params *createCmdParams) {
-	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
+func fillInParamsFromFlags(flags paramutils.FlagSet, params *createCmdParams) {
+	if params.Source == "" {
+		params.Source = flags.GetStringOrDefault("source", params.Source)
+	}
 
-	params.Source = flags.GetStringOrDefault("source", params.Source)
-	params.Title = flags.GetStringOrDefault("title", params.Title)
+	if params.Destination == "" {
+		params.Destination = flags.GetStringOrDefault(
+			"destination",
+			params.Destination,
+		)
+	}
+
+	if params.Title == "" {
+		params.Title = flags.GetStringOrDefault("title", params.Title)
+	}
+
 	params.CloseBranch = flags.GetBoolOrDefault("close", params.CloseBranch)
 	params.Draft = flags.GetBoolOrDefault("draft", params.Draft)
-	params.Destination = flags.GetStringOrDefault(
-		"destination",
-		params.Destination,
-	)
 }
 
-func fillDefaultParams(p *createCmdParams) {
-	paramutils.FillDefaultRepositoryParams(&p.Repository)
-}
-
-func fillInDynamicParams(params *createCmdParams) {
-	info, err := persistance.GetRepo().
-		GetInfo(params.Repository.Name, string(params.Repository.Provider))
-
-	var git gitutils.GitUtilsClient
-	if err == nil {
-		git, err = gitutils.GetRepo(info.Path)
-	} else {
-		git, err = gitutils.GetWorkingDirectoryRepo()
-	}
-
-	if err != nil {
-		return
-	}
-
+func fillInParamsFromRepo(
+	git gitutils.GitUtilsClient,
+	params *createCmdParams,
+) {
 	defaultSourceBranch, err := git.GetCurrentBranch()
 	if params.Source == "" && err == nil {
 		params.Source = defaultSourceBranch
@@ -91,6 +82,24 @@ func fillInDynamicParams(params *createCmdParams) {
 	title, err := git.GetBranchLastCommitMessage(params.Source)
 	if params.Title == "" && err == nil {
 		params.Title = title
+	}
+}
+
+func fillInDefaultParams(params *createCmdParams) {
+	if params.Source == "" {
+		params.Source = "develop"
+	}
+
+	if params.Destination == "" {
+		params.Destination = "master"
+	}
+
+	if params.Title == "" {
+		params.Title = fmt.Sprintf(
+			"%v -> %v",
+			params.Source,
+			params.Destination,
+		)
 	}
 }
 

@@ -20,9 +20,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 
 	params := &listCmdParams{}
-	paramutils.FillDefaultRepositoryParams(&params.Repository)
-	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
-	err := paramutils.ValidateFlagRepositoryParams(&params.Repository)
+	_, err := paramutils.GetRepoAndFillRepoParams(flags, &params.Repository)
 	if err != nil {
 		return err
 	}

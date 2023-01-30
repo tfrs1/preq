@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
 	"preq/internal/clientutils"
 	"preq/internal/pkg/client"
@@ -16,16 +17,13 @@ import (
 
 func runCmd(cmd *cobra.Command, args []string) error {
 	cmdArgs := parseArgs(args)
+	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 
 	params := &openCmdParams{}
 	fillDefaultOpenCmdParams(params)
-	fillFlagOpenCmdParams(cmd, params)
-	err := validateFlagOpenCmdParams(params)
-	if err != nil {
-		return err
-	}
+	fillFlagOpenCmdParams(flags, params)
 
-	err = execute(cmdArgs, params)
+	err := execute(cmdArgs, params)
 	if err != nil {
 		return err
 	}
