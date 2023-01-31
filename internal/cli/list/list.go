@@ -40,6 +40,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	utils.WriteVisitToState(cmd.Flags(), &params.Repository)
 	err = execute(c, params, r)
 	if err != nil {
 		return err

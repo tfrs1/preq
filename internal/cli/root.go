@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	approvecmd "preq/internal/cli/approve"
 	createcmd "preq/internal/cli/create"
 	declinecmd "preq/internal/cli/decline"
@@ -11,6 +10,8 @@ import (
 	opencmd "preq/internal/cli/open"
 	"preq/internal/cli/paramutils"
 	updatecmd "preq/internal/cli/update"
+	"preq/internal/cli/utils"
+	"preq/internal/gitutils"
 	"preq/internal/persistance"
 	"preq/internal/pkg/client"
 	"preq/internal/tui"
@@ -97,7 +98,7 @@ var rootCmd = &cobra.Command{
 		// TODO: Check other configs (empty, no default, etc)
 		// TODO: Do we even want a default?
 		// TODO: preq create -d -s doesn't work without -r -p?!?
-		// TODO: remove update function?
+		// TODO: Remove update command?
 
 		// Store working directory repo in visited state if startup config
 		// is not global or repo is not explicit with -r and -p flags
@@ -109,30 +110,15 @@ var rootCmd = &cobra.Command{
 			wd, _ = os.Getwd()
 		}
 
-		isWdGitRepo := false
-		if wd != "" {
-			info, err := os.Stat(filepath.Join(wd, ".git"))
-			if err == nil && info.IsDir() {
-				isWdGitRepo = true
-			}
-		}
-
+		isWdGitRepo := gitutils.IsDirGitRepo(wd)
 		if isWdGitRepo {
-			err := persistance.GetRepo().AddVisited(
-				fmt.Sprintf("%s/%s", repo.Owner, repo.Name),
-				string(repo.Provider),
-				wd,
-			)
-			if err != nil {
-				log.Error().Msg(err.Error())
-				return
-			}
+			utils.WriteVisitToState(cmd.Flags(), params)
 		} else {
 			global = true
 		}
 
 		// Filter repos before sending them to TUI
-		repos, err := persistance.GetRepo().GetVisited()
+		repos, err := persistance.GetDefault().GetVisited()
 		if err != nil {
 			log.Error().Msg(err.Error())
 			return
@@ -161,6 +147,7 @@ func Execute() {
 	rootCmd.AddCommand(listcmd.New())
 	rootCmd.AddCommand(opencmd.New())
 	rootCmd.AddCommand(updatecmd.New())
+	// TODO: Create config command?
 
 	rootCmd.Flags().
 		BoolP("global", "g", false, "Show information about all known (previously visited) repositories.")

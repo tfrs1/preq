@@ -4,11 +4,16 @@ import (
 	"fmt"
 	"os"
 
+	"preq/internal/cli/paramutils"
+	"preq/internal/gitutils"
+	"preq/internal/persistance"
 	"preq/internal/pkg/client"
 	"preq/internal/systemcodes"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 type PromptPullRequest struct {
@@ -157,5 +162,39 @@ func RunCommandWrapper(fn runCommandError) runCommandNoError {
 				os.Exit(systemcodes.ErrorCodeGeneric)
 			}
 		}
+	}
+}
+
+func WriteVisitToState(
+	flags *pflag.FlagSet,
+	params *paramutils.RepositoryParams,
+) {
+	repoFlag, _ := flags.GetString("repository")
+	providerFlag, _ := flags.GetString("provider")
+	isExplicitRepo := repoFlag != "" && providerFlag != ""
+
+	if isExplicitRepo {
+		return
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return
+	}
+
+	isWdGitRepo := gitutils.IsDirGitRepo(wd)
+	if !isWdGitRepo {
+		return
+	}
+
+	err = persistance.GetDefault().AddVisited(
+		params.Name,
+		string(params.Provider),
+		wd,
+	)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return
 	}
 }

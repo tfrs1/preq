@@ -24,6 +24,15 @@ var (
 	)
 )
 
+func IsDirGitRepo(path string) bool {
+	if path == "" {
+		return false
+	}
+
+	_, err := openRepo(path)
+	return err == nil
+}
+
 var getWorkingDir = func(fs fs.Filesystem) (string, error) {
 	return fs.Getwd()
 }
@@ -160,6 +169,7 @@ func (git *GoGit) GetClosestBranch(branches []string) (string, error) {
 	// TODO: Implement --log-depth flag
 	return walkHistory(c, cSlice, 10)
 }
+
 func (git *GoGit) GetRemoteInfo() (*client.Repository, error) {
 	repos, err := getRemoteInfoList(git)
 	if err != nil {

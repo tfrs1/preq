@@ -6,6 +6,7 @@
         "mitchellh",
         "Msgf",
         "paramutils",
+        "pflag",
         "preq",
         "resty",
         "tcell",

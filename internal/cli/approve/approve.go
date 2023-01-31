@@ -37,6 +37,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	utils.WriteVisitToState(cmd.Flags(), &params.Repository)
 	err = execute(cl, cmdArgs, params, r)
 	if err != nil {
 		return err

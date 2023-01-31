@@ -104,7 +104,7 @@ func GetRepoAndFillRepoParams(
 	providerName := flags.GetStringOrDefault("provider", "")
 
 	if repoName != "" && providerName != "" {
-		info, err := persistance.GetRepo().GetInfo(repoName, providerName)
+		info, err := persistance.GetDefault().GetInfo(repoName, providerName)
 		if err != nil {
 			return nil, err
 		}

@@ -165,6 +165,6 @@ var persistanceRepo PersistanceRepo = &XDGPersistanceRepo{
 	s: &state{},
 }
 
-func GetRepo() PersistanceRepo {
+func GetDefault() PersistanceRepo {
 	return persistanceRepo
 }
