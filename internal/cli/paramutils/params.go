@@ -116,7 +116,7 @@ func GetRepoAndFillRepoParams(
 	}
 
 	git, err := gitutils.GetWorkingDirectoryRepo()
-	if err != nil {
+	if err == nil {
 		info, err := git.GetRemoteInfo()
 		if err == nil {
 			repoParams.Provider = info.Provider
