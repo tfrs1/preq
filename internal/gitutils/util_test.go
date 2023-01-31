@@ -37,15 +37,21 @@ func Test_getRemoteInfoList(t *testing.T) {
 
 	t.Run("fails when cannot get repo", func(t *testing.T) {
 		vErr := errors.New("repo err")
-		_, err := getRemoteInfoList(nil)
+		_, err := getRemoteInfoList(&GoGit{
+			Git: &MockGitRepository{
+				ErrorValue: vErr,
+			},
+		})
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	t.Run("fails when cannot get remote", func(t *testing.T) {
 		vErr := errors.New("remote err")
 
-		_, err := getRemoteInfoList(&MockGitRepository{
-			ErrorValue: vErr,
+		_, err := getRemoteInfoList(&GoGit{
+			Git: &MockGitRepository{
+				ErrorValue: vErr,
+			},
 		})
 		assert.EqualError(t, err, vErr.Error())
 	})
@@ -54,8 +60,10 @@ func Test_getRemoteInfoList(t *testing.T) {
 		vErr := errors.New("parse err")
 		parseRepositoryString = func(repoString string) (*client.Repository, error) { return nil, vErr }
 
-		_, err := getRemoteInfoList(&MockGitRepository{
-			RemoteURLsValue: []string{"url"},
+		_, err := getRemoteInfoList(&GoGit{
+			Git: &MockGitRepository{
+				RemoteURLsValue: []string{"url"},
+			},
 		})
 		assert.EqualError(t, err, vErr.Error())
 	})
@@ -65,8 +73,10 @@ func Test_getRemoteInfoList(t *testing.T) {
 			return &client.Repository{}, nil
 		}
 
-		repos, err := getRemoteInfoList(&MockGitRepository{
-			RemoteURLsValue: []string{"url"},
+		repos, err := getRemoteInfoList(&GoGit{
+			Git: &MockGitRepository{
+				RemoteURLsValue: []string{"url"},
+			},
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(repos))
@@ -146,14 +156,16 @@ func TestGetRemoteInfo(t *testing.T) {
 
 	t.Run("fails when getRemoteInfoList fails", func(t *testing.T) {
 		vErr := errors.New("repos err")
-		getRemoteInfoList = func() ([]*client.Repository, error) { return nil, vErr }
+		getRemoteInfoList = func(git *GoGit) ([]*client.Repository, error) {
+			return nil, vErr
+		}
 		r := &GoGit{}
 		_, err := r.GetRemoteInfo()
 		assert.EqualError(t, err, vErr.Error())
 	})
 
 	t.Run("", func(t *testing.T) {
-		getRemoteInfoList = func() ([]*client.Repository, error) {
+		getRemoteInfoList = func(git *GoGit) ([]*client.Repository, error) {
 			return []*client.Repository{&client.Repository{}}, nil
 		}
 		r := &GoGit{}

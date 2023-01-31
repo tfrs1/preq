@@ -20,11 +20,16 @@ func (r MockGoGitRepository) Remotes() ([]*git.Remote, error) {
 	return r.RemotesValue, r.Err
 }
 
-func (r MockGoGitRepository) Reference(plumbing.ReferenceName, bool) (*plumbing.Reference, error) {
+func (r MockGoGitRepository) Reference(
+	plumbing.ReferenceName,
+	bool,
+) (*plumbing.Reference, error) {
 	return &plumbing.Reference{}, r.Err
 }
 
-func (r MockGoGitRepository) CommitObject(plumbing.Hash) (*object.Commit, error) {
+func (r MockGoGitRepository) CommitObject(
+	plumbing.Hash,
+) (*object.Commit, error) {
 	return nil, nil
 }
 
