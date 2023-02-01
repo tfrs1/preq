@@ -81,8 +81,8 @@ func loadConfig(
 	prClient = c
 
 	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider:           client.RepositoryProvider(repoInfo.Provider),
-		FullRepositoryName: repoInfo.Name,
+		Provider: client.RepositoryProvider(repoInfo.Provider),
+		Name:     repoInfo.Name,
 	})
 	if err != nil {
 		return nil, nil, err

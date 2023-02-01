@@ -82,14 +82,14 @@ type Repository struct {
 }
 
 type RepositoryOptions struct {
-	Provider           RepositoryProvider
-	FullRepositoryName string
+	Provider RepositoryProvider
+	Name     string
 }
 
 func NewRepositoryFromOptions(options *RepositoryOptions) (*Repository, error) {
 	return &Repository{
 		Provider: RepositoryProvider(options.Provider),
-		Name:     options.FullRepositoryName,
+		Name:     options.Name,
 	}, nil
 }
 

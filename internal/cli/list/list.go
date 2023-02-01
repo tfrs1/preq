@@ -33,8 +33,8 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider:           params.Repository.Provider,
-		FullRepositoryName: params.Repository.Name,
+		Provider: params.Repository.Provider,
+		Name:     params.Repository.Name,
 	})
 	if err != nil {
 		return err

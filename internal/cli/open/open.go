@@ -48,8 +48,8 @@ func execute(args *cmdArgs, params *openCmdParams) error {
 			return err
 		}
 		r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-			Provider:           client.RepositoryProvider(params.Repository.Provider),
-			FullRepositoryName: params.Repository.Name,
+			Provider: client.RepositoryProvider(params.Repository.Provider),
+			Name:     params.Repository.Name,
 		})
 		if err != nil {
 			return err

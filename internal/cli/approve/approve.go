@@ -31,7 +31,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		Provider: client.RepositoryProvider(
 			params.Repository.Provider,
 		),
-		FullRepositoryName: params.Repository.Name,
+		Name: params.Repository.Name,
 	})
 	if err != nil {
 		return err

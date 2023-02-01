@@ -85,7 +85,7 @@ var rootCmd = &cobra.Command{
 				Provider: client.RepositoryProvider(
 					params.Provider,
 				),
-				FullRepositoryName: params.Name,
+				Name: params.Name,
 			},
 		)
 
