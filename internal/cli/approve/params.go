@@ -7,7 +7,6 @@ package approve
 // package decline
 
 import (
-	"fmt"
 	"preq/internal/cli/paramutils"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
@@ -50,11 +49,7 @@ func fillDefaultDeclineCmdParams(params *cmdParams) {
 		return
 	}
 
-	params.Repository = fmt.Sprintf(
-		"%s/%s",
-		defaultRepo.Owner,
-		defaultRepo.Name,
-	)
+	params.Repository = defaultRepo.Name
 	params.Provider = defaultRepo.Provider
 }
 

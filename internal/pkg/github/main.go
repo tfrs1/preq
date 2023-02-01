@@ -113,8 +113,7 @@ func (c *GithubCloudClient) GetPullRequests(
 	o *preqClient.GetPullRequestsOptions,
 ) (*preqClient.PullRequestList, error) {
 	url := fmt.Sprintf(
-		"https://api.github.com/repos/%s/%s/pulls",
-		o.Repository.Owner,
+		"https://api.github.com/repos/%s/pulls",
 		o.Repository.Name,
 	)
 
@@ -215,8 +214,7 @@ func (c *GithubCloudClient) DeclinePullRequest(
 		}).
 		SetError(bbError{}).
 		Patch(fmt.Sprintf(
-			"https://api.github.com/repos/%s/%s/pulls/%s",
-			o.Repository.Owner,
+			"https://api.github.com/repos/%s/pulls/%s",
 			o.Repository.Name,
 			o.ID,
 		))
@@ -272,8 +270,7 @@ func (c *GithubCloudClient) getReviewRequests(
 		SetAuthToken(c.token).
 		SetError(githubError{}).
 		Get(fmt.Sprintf(
-			"https://api.github.com/repos/%s/%s/pulls/%s/requested_reviewers",
-			o.Repository.Owner,
+			"https://api.github.com/repos/%s/pulls/%s/requested_reviewers",
 			o.Repository.Name,
 			o.ID,
 		))
@@ -304,8 +301,7 @@ func (c *GithubCloudClient) getReviews(
 		SetAuthToken(c.token).
 		SetError(githubError{}).
 		Get(fmt.Sprintf(
-			"https://api.github.com/repos/%s/%s/pulls/%s/reviews",
-			o.Repository.Owner,
+			"https://api.github.com/repos/%s/pulls/%s/reviews",
 			o.Repository.Name,
 			o.ID,
 		))
@@ -334,8 +330,7 @@ func (c *GithubCloudClient) ApprovePullRequest(
 		SetError(githubError{}).
 		SetBody(`{"event": "APPROVE"}`).
 		Post(fmt.Sprintf(
-			"https://api.github.com/repos/%s/%s/pulls/%s/reviews",
-			o.Repository.Owner,
+			"https://api.github.com/repos/%s/pulls/%s/reviews",
 			o.Repository.Name,
 			o.ID,
 		))
@@ -418,8 +413,7 @@ func (c *GithubCloudClient) CreatePullRequest(
 		}).
 		SetError(bbError{}).
 		Post(fmt.Sprintf(
-			"https://api.github.com/repos/%s/%s/pulls",
-			o.Repository.Owner,
+			"https://api.github.com/repos/%s/pulls",
 			o.Repository.Name,
 		))
 

@@ -9,7 +9,6 @@ import (
 	listcmd "preq/internal/cli/list"
 	opencmd "preq/internal/cli/open"
 	"preq/internal/cli/paramutils"
-	updatecmd "preq/internal/cli/update"
 	"preq/internal/cli/utils"
 	"preq/internal/gitutils"
 	"preq/internal/persistance"
@@ -128,7 +127,7 @@ var rootCmd = &cobra.Command{
 			filtered := make([]*persistance.PersistanceRepoInfo, 0)
 			for _, v := range repos {
 				if v.Provider == string(repo.Provider) &&
-					v.Name == fmt.Sprintf("%s/%s", repo.Owner, repo.Name) {
+					v.Name == repo.Name {
 					filtered = append(filtered, v)
 				}
 			}
@@ -146,7 +145,10 @@ func Execute() {
 	rootCmd.AddCommand(declinecmd.New())
 	rootCmd.AddCommand(listcmd.New())
 	rootCmd.AddCommand(opencmd.New())
-	rootCmd.AddCommand(updatecmd.New())
+
+	//! Update command is not currently implemented
+	// rootCmd.AddCommand(updatecmd.New())
+
 	// TODO: Create config command?
 
 	rootCmd.Flags().

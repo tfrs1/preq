@@ -1,7 +1,6 @@
 package list
 
 import (
-	"fmt"
 	"preq/internal/cli/paramutils"
 	"preq/internal/configutils"
 	"preq/internal/errcodes"
@@ -29,11 +28,7 @@ func fillDefaultListCmdParams(params *listCmdParams) {
 		return
 	}
 
-	params.Repository.Name = fmt.Sprintf(
-		"%s/%s",
-		defaultRepo.Owner,
-		defaultRepo.Name,
-	)
+	params.Repository.Name = defaultRepo.Name
 	params.Repository.Provider = defaultRepo.Provider
 }
 

@@ -1,7 +1,6 @@
 package update
 
 import (
-	"fmt"
 	"preq/internal/configutils"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
@@ -30,11 +29,7 @@ func fillDefaultUpdateCmdParams(params *updateCmdParams) {
 		return
 	}
 
-	params.Repository = fmt.Sprintf(
-		"%s/%s",
-		defaultRepo.Owner,
-		defaultRepo.Name,
-	)
+	params.Repository = defaultRepo.Name
 	params.Provider = string(defaultRepo.Provider)
 }
 

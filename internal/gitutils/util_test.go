@@ -143,8 +143,7 @@ func Test_parseRepositoryString(t *testing.T) {
 		v, err := parseRepositoryString("")
 		assert.NoError(t, err)
 		assert.Equal(t, client.RepositoryProviderEnum.BITBUCKET, v.Provider)
-		assert.Equal(t, "owner", v.Owner)
-		assert.Equal(t, "repo", v.Name)
+		assert.Equal(t, "owner/repo", v.Name)
 	})
 
 	extractRepositoryTokens = oldExtractRepositoryTokens

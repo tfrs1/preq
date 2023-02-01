@@ -184,8 +184,7 @@ func (c *BitbucketCloudClient) GetPullRequests(
 	o *client.GetPullRequestsOptions,
 ) (*client.PullRequestList, error) {
 	url := fmt.Sprintf(
-		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests",
-		o.Repository.Owner,
+		"https://api.bitbucket.org/2.0/repositories/%s/pullrequests",
 		o.Repository.Name,
 	)
 
@@ -290,8 +289,7 @@ func (c *BitbucketCloudClient) Merge(
 	o *client.MergeOptions,
 ) (*client.PullRequest, error) {
 	url := fmt.Sprintf(
-		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/merge",
-		o.Repository.Owner,
+		"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/merge",
 		o.Repository.Name,
 		o.ID,
 	)
@@ -308,8 +306,7 @@ func (c *BitbucketCloudClient) DeclinePullRequest(
 	o *client.DeclinePullRequestOptions,
 ) (*client.PullRequest, error) {
 	url := fmt.Sprintf(
-		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/decline",
-		o.Repository.Owner,
+		"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/decline",
 		o.Repository.Name,
 		o.ID,
 	)
@@ -326,8 +323,7 @@ func (c *BitbucketCloudClient) ApprovePullRequest(
 	o *client.ApprovePullRequestOptions,
 ) (*client.PullRequest, error) {
 	url := fmt.Sprintf(
-		"https://api.bitbucket.org/2.0/repositories/%s/%s/pullrequests/%s/approve",
-		o.Repository.Owner,
+		"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/approve",
 		o.Repository.Name,
 		o.ID,
 	)

@@ -1,7 +1,6 @@
 package paramutils
 
 import (
-	"fmt"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
 	"preq/internal/persistance"
@@ -65,7 +64,7 @@ func (pf *localRepositoryParamsFiller) Fill(params *RepositoryParams) {
 		return
 	}
 
-	params.Name = fmt.Sprintf("%s/%s", defaultRepo.Owner, defaultRepo.Name)
+	params.Name = defaultRepo.Name
 	params.Provider = defaultRepo.Provider
 }
 
@@ -120,7 +119,7 @@ func GetRepoAndFillRepoParams(
 		info, err := git.GetRemoteInfo()
 		if err == nil {
 			repoParams.Provider = info.Provider
-			repoParams.Name = fmt.Sprintf("%v/%v", info.Owner, info.Name)
+			repoParams.Name = info.Name
 
 			return git, nil
 		}

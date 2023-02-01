@@ -78,7 +78,6 @@ func ParseRepositoryProvider(s string) (RepositoryProvider, error) {
 
 type Repository struct {
 	Provider RepositoryProvider
-	Owner    string
 	Name     string
 }
 
@@ -88,15 +87,9 @@ type RepositoryOptions struct {
 }
 
 func NewRepositoryFromOptions(options *RepositoryOptions) (*Repository, error) {
-	r := strings.Split(options.FullRepositoryName, "/")
-	if len(r) != 2 {
-		return nil, errors.New("invalid repo name")
-	}
-
 	return &Repository{
 		Provider: RepositoryProvider(options.Provider),
-		Owner:    r[0],
-		Name:     r[1],
+		Name:     options.FullRepositoryName,
 	}, nil
 }
 

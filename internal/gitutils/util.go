@@ -58,9 +58,9 @@ var getRemoteInfoList = func(git *GoGit) ([]*client.Repository, error) {
 }
 
 var extractRepositoryTokens = func(uri string) ([]string, error) {
-	r := regexp.MustCompile(`@(.*):(.*)/(.*)\.git$`)
+	r := regexp.MustCompile(`@(.*):(.*)\.git$`)
 	m := r.FindStringSubmatch(uri)
-	if len(m) != 4 {
+	if len(m) != 3 {
 		return nil, ErrUnableToParseRemoteRepositoryURI
 	}
 
@@ -84,8 +84,7 @@ var parseRepositoryString = func(repoString string) (*client.Repository, error) 
 
 	return &client.Repository{
 		Provider: p,
-		Owner:    m[1],
-		Name:     m[2],
+		Name:     m[1],
 	}, nil
 }
 

@@ -49,9 +49,6 @@ func execute(
 	return nil
 }
 
-// TODO: Creating pull request with -r -p it will read the history for working directory
-// So you need to find the path from visited state and load that Git repo instead of the one from wd
-
 func declinePR(
 	cl client.Client,
 	r *client.Repository,

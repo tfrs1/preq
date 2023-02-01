@@ -31,8 +31,7 @@ type MockGoGit struct {
 func (git *MockGoGit) GetRemoteInfo() (*client.Repository, error) {
 	return &client.Repository{
 		Provider: client.RepositoryProviderEnum.BITBUCKET,
-		Name:     "repo-name",
-		Owner:    "owner",
+		Name:     "owner/repo-name",
 	}, nil
 }
 

@@ -60,7 +60,7 @@ func runCmd(cmd *cobra.Command, args []string) error {
 
 	cl, err := clientutils.ClientFactory{}.DefaultClientCustom(
 		r.Provider,
-		fmt.Sprintf("%v/%v", r.Owner, r.Name),
+		r.Name,
 	)
 
 	if err != nil {
