@@ -1,6 +1,10 @@
 # `preq` - command-line utility for all your pull request needs
 
-`preq` tries to be useful and smart about creating your pull requests. It attempts to determine all parameters from Git repository in the working directory where the command is executed. All parameters can be, of course, overridden using flags.
+<font size="7">ALPHA</font>
+
+`preq` is a command line utility for working with pull requests. It tries to be useful and quick by leveraging information from local Git repositories. Parameters can be also be explicitly set using flags.
+
+The application is in alpha state and only recommended for evaluation.
 
 ## Installation
 
@@ -21,30 +25,27 @@ Linux builds can be found in [releases](https://github.com/tfrs1/preq/releases).
 
 For example, `preq` can find out the Git origin provider, the repository name, and the source branch for the `create` command.
 
-Most of the commands support support the following optional so they will be omitted from command specific documentation.
-
+The following global flags can be used with any `preq` command.
 - `--provider`, `-p` - Provider, e.g. `bitbucket`
 - `--repository`, `-r` - Repository name, e.g. `owner/repo-name`
+
+### Terminal UI
+
+`preq` is a TUI application as well as a CLI application. To start the TUI you can either run `preq` or `preq -g`, with the latter asking `preq` to display informtion about all known Git repositories. `preq` keeps a history of all local repositories previously seen by `preq`.
 
 > __Note__  
 > Currently the only supported provider is Bitbucket cloud.
 > - `bitbucket`
 
-### Bitbucket password
+![TUI home](./docs/tui-home-screenshot.png)
 
-Create app password in Bitbucket with pull request read/write permissions. User ID permissions unless the ID is added to the configuration.
+### Commands
 
-### Create
-
-The create command supports the following flags, but none of them are required. The create command is in some cases able to determine all parameters based on the local Git repository.
-
-- `--destination`, `-d` - Destination branch name
-- `--source`, `-s` - Source branch name
-- `--draft` - Marks the pull request as work in progress
+`preq` currently supports create, decline, approve, open, and list. Run `preq -h` to read more about them.
 
 #### Default reviewers
 
-Default reviewers will be automatically added to the pull requests created with `preq`. Since the program is not able to determine the UUID of your user, the PR creation request will fail if your user one of the default reviewers. To fix this you need to add the UUID of your user to the config.
+Default reviewers will be automatically added to the pull requests created with `preq`. Since the program is not able to determine the UUID of your user, the PR creation request will fail if your user is one of the default reviewers. To fix this you need to add the UUID of your user to the configuration.
 
 ```toml
 [bitbucket]
@@ -55,53 +56,29 @@ Default reviewers will be automatically added to the pull requests created with 
 
 Default reviewers will be automatically added to the pull requests created with `preq`.
 
-#### Git repository example
-```bash
-preq create -d master
-```
-In the future the `destination` flag will also be optional, and it will default to either `master` or `develop` depending on which is the closest parent. This will also be configurable per Git repository.
-
-#### Full command example
-```bash
-preq create -p bitbucket -r owner/repo -s develop -d master
-```
-
-### Open
-
-Opens the pull request page.
-
-Flags:
-- `--print` - Prints out the web page URL instead of opening it
-
-Example
-```bash
-preq open
-```
-
 ## Configuration
 
-toml in `.preqcfg` for per dir config or `~/.config/preq/config.toml` for global.
+`preq` reads the configuration from 2 places. From global `~/.config/preq/config.toml`, and from `.preqcfg` if it is found in the working directory.
 
 ### Example config
 ```toml
 [bitbucket]
   username = "bitbucket-username"
   password = "secret-password"
-
-[templates]
-  draft = "%s - Draft"
+  aliases = [
+    "bitbucket.org-work",
+    "bitbucket.org-personal"
+  ]
 ```
+### Bitbucket cloud
+To use Bitbucket cloud you must create an app password from the personal settings page with pull request read/write permissions.
 
-Reviewers?
-Close branch?
-Merge strategy?
+* `aliases` - A list of hostname aliases for Bitbucket service. For example when using multiple accounts with different SSH keys.
 
 ## Future additions
 
-- Add other commands (decline, accept, merge, info, etc.)
 - Add other providers (GitHub, GitLab, etc.)
-- Add interactive mode (--interactive)
-- Docker image
+- etc.
 
 ## Contributing
 
