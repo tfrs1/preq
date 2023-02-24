@@ -226,7 +226,7 @@ func (c *GithubCloudClient) DeclinePullRequest(
 }
 
 func (c *GithubCloudClient) GetPullRequestInfo(
-	o *preqClient.ApprovePullRequestOptions,
+	o *preqClient.ApproveOptions,
 ) (*preqClient.PullRequest, error) {
 	return nil, nil
 }
@@ -321,8 +321,8 @@ func (c *GithubCloudClient) getReviews(
 	return reviews, nil
 }
 
-func (c *GithubCloudClient) ApprovePullRequest(
-	o *preqClient.ApprovePullRequestOptions,
+func (c *GithubCloudClient) Approve(
+	o *preqClient.ApproveOptions,
 ) (*preqClient.PullRequest, error) {
 	_, err := resty.New().R().
 		SetAuthToken(c.token).

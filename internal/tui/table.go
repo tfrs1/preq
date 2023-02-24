@@ -271,23 +271,19 @@ func (prt *pullRequestTable) drawTable(offset int, trd *tableRepoData) int {
 
 			prt.addRow(v.pullRequest, i, offset)
 			if v.pullRequest.State == client.PullRequestState_DECLINED {
-				prt.View.GetCell(i+offset, 4).SetText(pad("Declined"))
-				prt.setRowSelectable(i+offset, false)
-				prt.colorRow(i+offset, DeclinedColor)
-			} else if v.pullRequest.State == client.PullRequestState_MERGED {
-				prt.View.GetCell(i+offset, 4).SetText(pad("Merged"))
-				prt.setRowSelectable(i+offset, false)
-				prt.colorRow(i+offset, MergedColor)
+				prt.updateRowStatus(i+offset, "Declined", DeclinedColor, false)
 			} else if v.pullRequest.State == client.PullRequestState_DECLINING {
-				prt.View.GetCell(i+offset, 4).SetText(pad("Declining..."))
-				prt.setRowSelectable(i+offset, false)
-				prt.colorRow(i+offset, tcell.ColorDarkRed)
+				prt.updateRowStatus(i+offset, "Declining...", tcell.ColorDarkRed, false)
+			} else if v.pullRequest.State == client.PullRequestState_MERGED {
+				prt.updateRowStatus(i+offset, "Merged", tcell.ColorLightYellow, false)
 			} else if v.pullRequest.State == client.PullRequestState_MERGING {
-				prt.View.GetCell(i+offset, 4).SetText(pad("Merging..."))
-				prt.setRowSelectable(i+offset, false)
-				prt.colorRow(i+offset, tcell.ColorDarkOliveGreen)
+				prt.updateRowStatus(i+offset, "Merging...", tcell.ColorYellow, false)
+			} else if v.pullRequest.State == client.PullRequestState_APPROVING {
+				prt.updateRowStatus(i+offset, "Approving...", tcell.ColorDarkOliveGreen, false)
+			} else if v.pullRequest.State == client.PullRequestState_APPROVED {
+				prt.updateRowStatus(i+offset, "Approved", tcell.ColorGreen, true)
 			} else if v.selected {
-				prt.colorRow(i+offset, SelectedColor)
+				prt.colorRow(i+offset, tcell.ColorPowderBlue)
 			} else {
 				prt.colorRow(i+offset, NormalColor)
 			}
@@ -296,6 +292,17 @@ func (prt *pullRequestTable) drawTable(offset int, trd *tableRepoData) int {
 	}
 
 	return offset + i
+}
+
+func (prt *pullRequestTable) updateRowStatus(
+	rowId int,
+	text string,
+	color tcell.Color,
+	selectable bool,
+) {
+	prt.View.GetCell(rowId, 4).SetText(pad(text))
+	prt.setRowSelectable(rowId, selectable)
+	prt.colorRow(rowId, color)
 }
 
 func (prt *pullRequestTable) addRow(

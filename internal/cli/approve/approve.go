@@ -53,7 +53,7 @@ func execute(
 	repo *client.Repository,
 ) error {
 	if args.ID != "" {
-		_, err := c.ApprovePullRequest(&client.ApprovePullRequestOptions{
+		_, err := c.Approve(&client.ApproveOptions{
 			Repository: repo,
 			ID:         args.ID,
 		})
@@ -104,7 +104,7 @@ func approvePR(
 	id string,
 	c chan interface{},
 ) {
-	_, err := cl.ApprovePullRequest(&client.ApprovePullRequestOptions{
+	_, err := cl.Approve(&client.ApproveOptions{
 		Repository: r,
 		ID:         id,
 	})

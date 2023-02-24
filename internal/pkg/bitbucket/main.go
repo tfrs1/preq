@@ -319,8 +319,8 @@ func (c *BitbucketCloudClient) DeclinePullRequest(
 	return unmarshalPR(r.Body())
 }
 
-func (c *BitbucketCloudClient) ApprovePullRequest(
-	o *client.ApprovePullRequestOptions,
+func (c *BitbucketCloudClient) Approve(
+	o *client.ApproveOptions,
 ) (*client.PullRequest, error) {
 	url := fmt.Sprintf(
 		"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/approve",
@@ -337,7 +337,7 @@ func (c *BitbucketCloudClient) ApprovePullRequest(
 }
 
 func (c *BitbucketCloudClient) GetPullRequestInfo(
-	o *client.ApprovePullRequestOptions,
+	o *client.ApproveOptions,
 ) (*client.PullRequest, error) {
 	return nil, errors.New("not implemented")
 }

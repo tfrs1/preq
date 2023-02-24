@@ -30,7 +30,7 @@ func newDetailsPage() *detailsPage {
 	eventBus.Subscribe("detailsPage:open", func(_ interface{}) {
 		// TODO: clear page and start loading the PR info
 		id := "1"
-		prClient.GetPullRequestInfo(&client.ApprovePullRequestOptions{
+		prClient.GetPullRequestInfo(&client.ApproveOptions{
 			Repository: prRepo,
 			ID:         id,
 		})

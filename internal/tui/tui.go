@@ -28,6 +28,7 @@ var (
 )
 
 const (
+	PAGE_APPROVE_CONFIRMATION_MODAL = "page_approve_confirmation_modal"
 	PAGE_MERGE_CONFIRMATION_MODAL   = "page_merge_confirmation_modal"
 	PAGE_DECLINE_CONFIRMATION_MODAL = "confirmation_modal"
 )
@@ -149,6 +150,11 @@ func Run(
 		}
 	})
 
+	approveConfirmationModal := tview.NewModal().
+		SetText("Are you sure you want to approve %d pull requests?").
+		AddButtons([]string{"Approve", "Cancel"}).
+		SetDoneFunc(approveConfirmationCallback(pages))
+
 	mergeConfirmationModal := tview.NewModal().
 		SetText("Are you sure you want to merge %d pull requests?").
 		AddButtons([]string{"Merge", "Cancel"}).
@@ -225,6 +231,17 @@ func Run(
 				)
 			pages.ShowPage(PAGE_DECLINE_CONFIRMATION_MODAL)
 			return event
+		case tcell.KeyCtrlA:
+			count := table.GetSelectedCount()
+			approveConfirmationModal.
+				SetText(
+					fmt.Sprintf(
+						"Are you sure you want to approve %v pull requests?",
+						count,
+					),
+				)
+			pages.ShowPage(PAGE_APPROVE_CONFIRMATION_MODAL)
+			return event
 		case tcell.KeyCtrlM:
 			count := table.GetSelectedCount()
 			mergeConfirmationModal.
@@ -276,6 +293,12 @@ func Run(
 	pages.AddPage(
 		PAGE_DECLINE_CONFIRMATION_MODAL,
 		declineConfirmationModal,
+		false,
+		false,
+	)
+	pages.AddPage(
+		PAGE_APPROVE_CONFIRMATION_MODAL,
+		approveConfirmationModal,
 		false,
 		false,
 	)
@@ -361,6 +384,53 @@ func declineConfirmationCallback(pages *tview.Pages) func(int, string) {
 	}
 }
 
+func approveConfirmationCallback(pages *tview.Pages) func(int, string) {
+	return func(buttonIndex int, buttonLabel string) {
+		if buttonIndex == 0 {
+			selectedPRs := make(map[string]*promptPullRequest)
+
+			for _, row := range table.GetSelectedRows() {
+				selectedPRs[row.pullRequest.URL] = &promptPullRequest{
+					ID:         row.pullRequest.ID,
+					GlobalID:   row.pullRequest.URL,
+					Title:      row.pullRequest.Title,
+					Client:     row.client,
+					Repository: row.repository,
+				}
+
+				// TODO: This should probably be a method in table instead
+				row.pullRequest.State = client.PullRequestState_APPROVING
+				row.selected = false
+			}
+
+			table.redraw()
+
+			go processPullRequestMap(
+				selectedPRs,
+				approvePR,
+				func(msg utils.ProcessPullRequestResponse) string {
+					if msg.Status == "Done" {
+						v := table.GetRowByGlobalID(msg.GlobalID)
+						// TODO: return an error instead?
+						if v != nil {
+							v.pullRequest.State = client.PullRequestState_APPROVED
+						}
+					}
+
+					app.QueueUpdateDraw(func() {
+						table.redraw()
+					})
+
+					return ""
+				},
+			)
+		}
+
+		pages.SwitchToPage("main")
+		app.SetFocus(table.View)
+	}
+}
+
 func mergeConfirmationCallback(pages *tview.Pages) func(int, string) {
 	return func(buttonIndex int, buttonLabel string) {
 		if buttonIndex == 0 {
@@ -390,7 +460,7 @@ func mergeConfirmationCallback(pages *tview.Pages) func(int, string) {
 						v := table.GetRowByGlobalID(msg.GlobalID)
 						// TODO: return an error instead?
 						if v != nil {
-							v.pullRequest.State = client.PullRequestState_DECLINED
+							v.pullRequest.State = client.PullRequestState_MERGED
 						}
 					}
 

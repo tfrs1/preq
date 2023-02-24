@@ -6,7 +6,7 @@ var (
 	SelectedColor = tcell.ColorYellow
 	NormalColor   = tcell.ColorWhite
 	DeclinedColor = tcell.ColorRed
-	MergedColor   = tcell.ColorGreen
+	MergedColor   = tcell.ColorYellow
 )
 
 var (

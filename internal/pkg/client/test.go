@@ -17,7 +17,7 @@ func (c *MockClient) CreatePullRequest(
 }
 
 func (c *MockClient) ApprovePullRequest(
-	o *ApprovePullRequestOptions,
+	o *ApproveOptions,
 ) (*PullRequest, error) {
 	return nil, c.ErrorValue
 }
@@ -29,7 +29,7 @@ func (c *MockClient) DeclinePullRequest(
 }
 
 func (c *MockClient) GetPullRequestInfo(
-	o *ApprovePullRequestOptions,
+	o *ApproveOptions,
 ) (*PullRequest, error) {
 	return nil, c.ErrorValue
 }

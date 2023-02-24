@@ -24,8 +24,8 @@ type Client interface {
 	Merge(o *MergeOptions) (*PullRequest, error)
 	GetPullRequests(o *GetPullRequestsOptions) (*PullRequestList, error)
 	CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error)
-	ApprovePullRequest(o *ApprovePullRequestOptions) (*PullRequest, error)
-	GetPullRequestInfo(o *ApprovePullRequestOptions) (*PullRequest, error)
+	Approve(o *ApproveOptions) (*PullRequest, error)
+	GetPullRequestInfo(o *ApproveOptions) (*PullRequest, error)
 }
 
 type RepositoryProvider string
@@ -102,11 +102,13 @@ const (
 type PullRequestState string
 
 const (
-	PullRequestState_DECLINED   = "DECLINED"
+	PullRequestState_APPROVING  = "APPROVING"
+	PullRequestState_APPROVED   = "APPROVED"
 	PullRequestState_DECLINING  = "DECLINING"
-	PullRequestState_OPEN       = "OPEN"
-	PullRequestState_MERGED     = "MERGED"
+	PullRequestState_DECLINED   = "DECLINED"
 	PullRequestState_MERGING    = "MERGING"
+	PullRequestState_MERGED     = "MERGED"
+	PullRequestState_OPEN       = "OPEN"
 	PullRequestState_SUPERSEDED = "SUPERSEDED"
 )
 
@@ -126,7 +128,7 @@ type MergeOptions struct {
 	ID         string
 }
 
-type ApprovePullRequestOptions struct {
+type ApproveOptions struct {
 	Repository *Repository
 	ID         string
 }

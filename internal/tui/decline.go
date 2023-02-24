@@ -74,6 +74,31 @@ func declinePR(
 	c <- res
 }
 
+func approvePR(
+	cl client.Client,
+	r *client.Repository,
+	id string,
+	globalId string,
+	c chan utils.ProcessPullRequestResponse,
+) {
+	_, err := cl.Approve(&client.ApproveOptions{
+		Repository: r,
+		ID:         id,
+	})
+
+	res := utils.ProcessPullRequestResponse{
+		ID:       id,
+		GlobalID: globalId,
+		Status:   "Done",
+	}
+	if err != nil {
+		res.Status = "Error"
+		res.Error = err
+	}
+
+	c <- res
+}
+
 func mergePR(
 	cl client.Client,
 	r *client.Repository,
