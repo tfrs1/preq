@@ -18,13 +18,14 @@ import (
 )
 
 var (
-	app      = tview.NewApplication()
-	flex     = tview.NewFlex()
-	details  = newDetailsPage()
-	table    = newPullRequestTable()
-	eventBus = NewEventBus()
-	prClient client.Client
-	prRepo   *client.Repository
+	app       = tview.NewApplication()
+	flex      = tview.NewFlex()
+	details   = newDetailsPage()
+	table     = newPullRequestTable()
+	eventBus  = NewEventBus()
+	prClient  client.Client
+	prRepo    *client.Repository
+	tableData []*tableRepoData
 )
 
 const (
@@ -32,33 +33,6 @@ const (
 	PAGE_MERGE_CONFIRMATION_MODAL   = "page_merge_confirmation_modal"
 	PAGE_DECLINE_CONFIRMATION_MODAL = "confirmation_modal"
 )
-
-type EventBus struct {
-	subscribers map[string][]EventBusEventCallback
-}
-
-type EventBusEventCallback func(data interface{})
-
-func (bus *EventBus) Publish(name string, data interface{}) {
-	for _, v := range bus.subscribers[name] {
-		v(data)
-	}
-}
-
-func (bus *EventBus) Subscribe(name string, callback EventBusEventCallback) {
-	if eventBus.subscribers[name] == nil {
-		eventBus.subscribers[name] = make([]EventBusEventCallback, 0)
-	}
-
-	eventBus.subscribers[name] = append(eventBus.subscribers[name], callback)
-}
-
-func NewEventBus() *EventBus {
-	subscribers := make(map[string][]EventBusEventCallback)
-	return &EventBus{
-		subscribers: subscribers,
-	}
-}
 
 func loadConfig(
 	repoInfo *persistance.PersistanceRepoInfo,
@@ -311,7 +285,7 @@ func Run(
 	pages.AddPage("HelpPage", helpPage, true, false)
 	pages.AddPage("error_modal", errorModal, false, false)
 
-	tableData := make([]*tableRepoData, 0)
+	tableData = make([]*tableRepoData, 0)
 	for _, v := range repos {
 		c, repo, err := loadConfig(&persistance.PersistanceRepoInfo{
 			Name:     v.Name,
@@ -331,7 +305,12 @@ func Run(
 		})
 	}
 
-	table.Init(tableData)
+	go func() {
+		table.Init(tableData)
+		app.QueueUpdateDraw(func() {
+			redraw()
+		})
+	}()
 
 	app.SetRoot(pages, true) //.EnableMouse(true)
 	app.SetFocus(table.View)
@@ -339,6 +318,11 @@ func Run(
 	if err := app.Run(); err != nil {
 		panic(err)
 	}
+}
+
+func redraw() {
+	// table.redraw(tableData)
+	table.redraw()
 }
 
 func declineConfirmationCallback(pages *tview.Pages) func(int, string) {
@@ -359,7 +343,7 @@ func declineConfirmationCallback(pages *tview.Pages) func(int, string) {
 				row.selected = false
 			}
 
-			table.redraw()
+			redraw()
 
 			go processPullRequestMap(
 				selectedPRs,

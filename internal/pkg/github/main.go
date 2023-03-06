@@ -394,6 +394,13 @@ func (c *GithubCloudClient) GetCurrentUser() (*preqClient.User, error) {
 	}, nil
 }
 
+func (c *GithubCloudClient) FillMiscInfoAsync(
+	repo *preqClient.Repository,
+	pr *preqClient.PullRequest,
+) error {
+	return nil
+}
+
 func (c *GithubCloudClient) CreatePullRequest(
 	o *preqClient.CreatePullRequestOptions,
 ) (*preqClient.PullRequest, error) {

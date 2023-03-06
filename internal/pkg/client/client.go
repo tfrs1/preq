@@ -26,6 +26,7 @@ type Client interface {
 	CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error)
 	Approve(o *ApproveOptions) (*PullRequest, error)
 	GetPullRequestInfo(o *ApproveOptions) (*PullRequest, error)
+	FillMiscInfoAsync(repo *Repository, pr *PullRequest) error
 }
 
 type RepositoryProvider string
@@ -142,16 +143,33 @@ type CreatePullRequestOptions struct {
 	Draft       bool
 }
 
+type PullRequestApproval struct {
+	Created time.Time
+	User    string
+}
+type PullRequestChangesRequest struct {
+	Created time.Time
+	User    string
+}
+
+type PullRequestComment struct {
+	Created time.Time
+	User    string
+	Content string
+}
+
 type PullRequest struct {
-	ID           string
-	Title        string
-	URL          string
-	State        PullRequestState
-	CommentCount uint
-	Source       string
-	Destination  string
-	Created      time.Time
-	Updated      time.Time
+	ID              string
+	Title           string
+	URL             string
+	State           PullRequestState
+	Source          string
+	Destination     string
+	Created         time.Time
+	Updated         time.Time
+	Approvals       []*PullRequestApproval
+	Comments        []*PullRequestComment
+	ChangesRequests []*PullRequestChangesRequest
 }
 
 type User struct {

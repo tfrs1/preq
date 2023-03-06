@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 	"preq/internal/pkg/client"
-	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -36,8 +35,9 @@ func pad(input string) string {
 	return fmt.Sprintf(" %s", input)
 }
 
+// TODO: Use a string instead, then it can be configurable
 var headers = []string{
-	TableHeaderId, TableHeaderTitle, "SOURCE", "DESTINATION", "STATUS", "COMMENTS",
+	TableHeaderId, TableHeaderTitle, "SOURCE", "DESTINATION", "STATUS", "APPROVED", "CHANGES REQUESTED", "COMMENTS",
 }
 
 func newPullRequestTable() *pullRequestTable {
@@ -149,8 +149,10 @@ func (prt *pullRequestTable) redraw() {
 		}
 
 		offset = prt.drawTable(offset, trd)
-		// Fill the cell with empty string to make tview skip it
-		// when moving up and down through selection
+
+		// Add vertical spacing between repo tables
+		// Note: Adding an empty cell for every column because
+		// tview will only then allow for the row to be non selectable
 		for i := 0; i < len(headers); i++ {
 			prt.View.SetCell(
 				offset,
@@ -159,27 +161,42 @@ func (prt *pullRequestTable) redraw() {
 					SetSelectable(false),
 			)
 		}
+
 		offset += 1
 	}
 }
+
 func (prt *pullRequestTable) loadPRs(app *tview.Application) {
+	state.RepositoryData = make(map[string]*RepositoryData)
 	for i := range prt.tableData {
+		id := repoId(prt.tableData[i].Repository)
+
+		if _, ok := state.RepositoryData[id]; !ok {
+			state.RepositoryData[id] = &RepositoryData{
+				Name:         prt.tableData[i].Repository.Name,
+				IsLoading:    true,
+				PullRequests: make(map[string]*PullRequest),
+			}
+		}
+
 		go prt.loadPR(app, i)
 	}
+}
+
+func repoId(repo *client.Repository) string {
+	return fmt.Sprintf(
+		"%v___%v",
+		repo.Provider,
+		repo.Name,
+	)
 }
 
 func (prt *pullRequestTable) loadPR(
 	app *tview.Application,
 	rowId int,
 ) {
-	app.QueueUpdateDraw(func() {
-		prt.View.SetCell(
-			0,
-			0,
-			tview.NewTableCell("Loading...").
-				SetAlign(tview.AlignCenter),
-		)
-	})
+	// TODO: This load should be in table write code
+	// TODO here just the state should be updater
 
 	d := prt.tableData[rowId]
 
@@ -201,8 +218,7 @@ func (prt *pullRequestTable) loadPR(
 			return
 		}
 
-		nextURL = prs.NextURL
-
+		id := repoId(d.Repository)
 		for _, v := range prs.Values {
 			d.Values = append(d.Values, &pullRequestTableRow{
 				pullRequest: v,
@@ -211,44 +227,73 @@ func (prt *pullRequestTable) loadPR(
 				client:      d.Client,
 				repository:  d.Repository,
 			})
+
+			state.RepositoryData[id].PullRequests[v.ID] = &PullRequest{
+				PullRequest:              v,
+				IsApprovalsLoading:       true,
+				IsCommentsLoading:        true,
+				IsChangesRequestsLoading: true,
+			}
+
+			go func(v *client.PullRequest) {
+				err := d.Client.FillMiscInfoAsync(
+					d.Repository,
+					v,
+				)
+
+				if err != nil {
+					return
+				}
+
+				id := repoId(d.Repository)
+				pr := state.RepositoryData[id].PullRequests[v.ID]
+				pr.IsApprovalsLoading = false
+				pr.IsCommentsLoading = false
+				pr.IsChangesRequestsLoading = false
+
+				app.QueueUpdateDraw(func() {
+					prt.redraw()
+				})
+			}(v)
 		}
 
+		state.RepositoryData[id].IsLoading = false
 		app.QueueUpdateDraw(func() {
 			prt.redraw()
 		})
 
-		if nextURL == "" {
-			break
-		}
+		// TODO: Only the first page of pull requests is fetched
+		break
+	}
+}
 
-		// Write loading if we're expecting more data
-		app.QueueUpdateDraw(func() {
-			prt.View.SetCell(
-				len(d.Values),
-				0,
-				tview.NewTableCell("Loading..."),
-			)
-		})
+func addEmptyRow(table *tview.Table, offset int) {
+	for i := 0; i < len(headers); i++ {
+		table.SetCell(
+			offset,
+			i,
+			tview.NewTableCell(""),
+		)
+	}
+}
+func setRowStyle(table *tview.Table, offset int, style tcell.Style) {
+	for i := 0; i < len(headers); i++ {
+		table.GetCell(
+			offset,
+			i,
+		).SetStyle(style)
 	}
 }
 
 func (prt *pullRequestTable) drawTable(offset int, trd *tableRepoData) int {
 	headerStyle := tcell.StyleDefault.Bold(true)
 
-	// Fill the cell with empty string to make tview skip it
-	// when moving up and down through selection
-	for i := 0; i < len(headers); i++ {
-		prt.View.SetCell(
-			offset,
-			i,
-			tview.NewTableCell("").
-				SetSelectable(false).
-				SetStyle(headerStyle),
-		)
-	}
-
+	addEmptyRow(prt.View, offset)
+	setRowStyle(prt.View, offset, headerStyle)
+	prt.setRowSelectable(offset, false)
 	prt.View.GetCell(offset, 0).SetText("REPO")
-	prt.View.GetCell(offset, 1).SetText(trd.Repository.Name)
+	prt.View.GetCell(offset, 1).
+		SetText(trd.Repository.Name)
 
 	offset += 1
 
@@ -264,31 +309,73 @@ func (prt *pullRequestTable) drawTable(offset int, trd *tableRepoData) int {
 
 	offset += 1
 
+	id := repoId(trd.Repository)
+	if state.RepositoryData[id].IsLoading {
+		addEmptyRow(prt.View, offset)
+		prt.View.SetCell(offset, 0, tview.NewTableCell("Loading..."))
+		prt.setRowSelectable(offset, false)
+		return offset + 1
+	}
+
 	i := 0
 	for _, v := range trd.Values {
 		v.tableRowId = offset + i
-		if v.visible {
 
-			prt.addRow(v.pullRequest, i, offset)
-			if v.pullRequest.State == client.PullRequestState_DECLINED {
-				prt.updateRowStatus(i+offset, "Declined", DeclinedColor, false)
-			} else if v.pullRequest.State == client.PullRequestState_DECLINING {
-				prt.updateRowStatus(i+offset, "Declining...", tcell.ColorDarkRed, false)
-			} else if v.pullRequest.State == client.PullRequestState_MERGED {
-				prt.updateRowStatus(i+offset, "Merged", tcell.ColorLightYellow, false)
-			} else if v.pullRequest.State == client.PullRequestState_MERGING {
-				prt.updateRowStatus(i+offset, "Merging...", tcell.ColorYellow, false)
-			} else if v.pullRequest.State == client.PullRequestState_APPROVING {
-				prt.updateRowStatus(i+offset, "Approving...", tcell.ColorDarkOliveGreen, false)
-			} else if v.pullRequest.State == client.PullRequestState_APPROVED {
-				prt.updateRowStatus(i+offset, "Approved", tcell.ColorGreen, true)
-			} else if v.selected {
-				prt.colorRow(i+offset, tcell.ColorPowderBlue)
-			} else {
-				prt.colorRow(i+offset, NormalColor)
-			}
-			i++
+		if !v.visible {
+			continue
 		}
+
+		prt.addRow(v.pullRequest, i, offset)
+		if v.pullRequest.State == client.PullRequestState_DECLINED {
+			prt.updateRowStatus(i+offset, "Declined", DeclinedColor, false)
+		} else if v.pullRequest.State == client.PullRequestState_DECLINING {
+			prt.updateRowStatus(i+offset, "Declining...", tcell.ColorDarkRed, false)
+		} else if v.pullRequest.State == client.PullRequestState_MERGED {
+			prt.updateRowStatus(i+offset, "Merged", tcell.ColorLightYellow, false)
+		} else if v.pullRequest.State == client.PullRequestState_MERGING {
+			prt.updateRowStatus(i+offset, "Merging...", tcell.ColorYellow, false)
+		} else if v.pullRequest.State == client.PullRequestState_APPROVING {
+			prt.updateRowStatus(i+offset, "Approving...", tcell.ColorDarkOliveGreen, false)
+		} else if v.pullRequest.State == client.PullRequestState_APPROVED {
+			prt.updateRowStatus(i+offset, "Approved", tcell.ColorGreen, true)
+		} else if v.selected {
+			prt.colorRow(i+offset, tcell.ColorPowderBlue)
+		} else {
+			prt.colorRow(i+offset, NormalColor)
+		}
+
+		id := repoId(v.repository)
+		if rd, ok := state.RepositoryData[id]; ok {
+			if pr, ok := rd.PullRequests[v.pullRequest.ID]; ok {
+				if pr.IsApprovalsLoading {
+					prt.View.GetCell(v.tableRowId, 5).SetText("⏳")
+				} else {
+					if len(pr.PullRequest.Approvals) > 0 {
+						prt.View.GetCell(v.tableRowId, 5).SetText("✅")
+					} else {
+						prt.View.GetCell(v.tableRowId, 5).SetText("")
+					}
+				}
+
+				if pr.IsChangesRequestsLoading {
+					prt.View.GetCell(v.tableRowId, 6).SetText("⏳")
+				} else {
+					if len(pr.PullRequest.ChangesRequests) > 0 {
+						prt.View.GetCell(v.tableRowId, 6).SetText("⚠️")
+					} else {
+						prt.View.GetCell(v.tableRowId, 6).SetText("")
+					}
+				}
+
+				if pr.IsCommentsLoading {
+					prt.View.GetCell(v.tableRowId, 7).SetText("⏳")
+				} else {
+					prt.View.GetCell(v.tableRowId, 7).SetText(fmt.Sprint(len(pr.PullRequest.Comments)))
+				}
+			}
+		}
+
+		i++
 	}
 
 	return offset + i
@@ -310,11 +397,6 @@ func (prt *pullRequestTable) addRow(
 	rowId int,
 	offset int,
 ) {
-	commentCount := ""
-	if v.CommentCount > 0 {
-		commentCount = strconv.FormatUint(uint64(v.CommentCount), 10)
-	}
-
 	// Escape the title string
 	v.Title = strings.ReplaceAll(v.Title, "]", "[]")
 
@@ -324,7 +406,9 @@ func (prt *pullRequestTable) addRow(
 		v.Source,
 		v.Destination,
 		"Open",
-		commentCount,
+		"⏳",
+		"⏳",
+		"⏳",
 	}
 
 	for i := 0; i < len(values); i++ {

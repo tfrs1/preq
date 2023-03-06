@@ -34,7 +34,7 @@ type ClientOptions struct {
 	Password string
 }
 
-func New(o *ClientOptions) client.Client {
+func New(o *ClientOptions) *BitbucketCloudClient {
 	return &BitbucketCloudClient{
 		username: o.Username,
 		password: o.Password,
@@ -96,89 +96,199 @@ func DefaultClient() (client.Client, error) {
 	}, nil
 }
 
-type bbPRSourceBranchOptions struct {
-	Name string `json:"name,omitempty"`
+type GetPullRequestActivityOptions struct {
+	ID         string
+	Repository *client.Repository
 }
 
-type bbPRSourceOptions struct {
-	Branch bbPRSourceBranchOptions `json:"branch,omitempty"`
+type PullRequestActivityIterator struct {
+	client        *BitbucketCloudClient
+	pullRequestID string
+	repo          *client.Repository
+	hasNext       bool
+	nextURL       string
 }
 
-type bbPROptionsReviewer struct {
-	UUID     string `json:"uuid"`
-	Username string `json:"username"`
+func (i *PullRequestActivityIterator) HasNext() bool {
+	return i.hasNext
 }
 
-type bbPROptions struct {
-	Title             string                `json:"title,omitempty"`
-	Source            bbPRSourceOptions     `json:"source,omitempty"`
-	Destination       bbPRSourceOptions     `json:"destination,omitempty"`
-	CloseSourceBranch bool                  `json:"close_source_branch,omitempty"`
-	Reviewers         []bbPROptionsReviewer `json:"reviewers"`
+type PullRequestActivityApprovalEvent struct {
+	Created time.Time
+	User    string
+}
+type PullRequestActivityChangesRequestEvent struct {
+	Created time.Time
+	User    string
+}
+type PullRequestActivityCommentEvent struct {
+	User    string
+	Deleted bool
+	Content string
+	Created time.Time
+	Updated time.Time
 }
 
-type bbError struct {
-	Error   interface{}
-	Message string
+type PullRequestActivityLists struct {
+	Approvals       *[]*PullRequestActivityApprovalEvent
+	Comments        *[]*PullRequestActivityCommentEvent
+	ChangesRequests *[]*PullRequestActivityChangesRequestEvent
 }
 
-type bbErrorReal struct {
-	Error struct {
-		Message string
-	}
+func (i *PullRequestActivityIterator) doNextCall() (*PullRequestActivityLists, error) {
+	r := resty.New().R().
+		SetBasicAuth(i.client.username, i.client.password).
+		SetError(bbError{})
+	r.URL = i.nextURL
+
+	return i.sendRequest(r)
 }
 
-type bitbucketPullRequest struct {
-	ID          int
-	Title       string
-	Description string
-	CreatedOn   time.Time `json:"created_on"`
-	UpdatedOn   time.Time `json:"update_on"`
-	State       client.PullRequestState
-	Author      struct {
-		DisplayName string `json:"display_name"`
-		UUID        string
-		Nickname    string
-	}
-	Links struct {
-		HTML struct {
-			Href string
+func (i *PullRequestActivityIterator) parse(
+	parsed gjson.Result,
+) (*PullRequestActivityLists, error) {
+	approvalEventList := []*PullRequestActivityApprovalEvent{}
+	commentEventList := []*PullRequestActivityCommentEvent{}
+	changesRequestEventList := []*PullRequestActivityChangesRequestEvent{}
+
+	result := parsed.Get("values")
+	result.ForEach(func(key, value gjson.Result) bool {
+		if value.Get("update").IsObject() {
+			// TODO: Skip this event? There is already the status?
+		} else if value.Get("approval").IsObject() {
+			approvalEventList = append(approvalEventList, &PullRequestActivityApprovalEvent{
+				Created: value.Get("approval.date").Time(),
+				User:    value.Get("approval.user.display_name").String(),
+			})
+		} else if value.Get("comment").IsObject() {
+			commentEventList = append(commentEventList, &PullRequestActivityCommentEvent{
+				Deleted: value.Get("comment.deleted").Bool(),
+				Content: value.Get("comment.content.raw").String(),
+				Created: value.Get("comment.created_on").Time(),
+				Updated: value.Get("comment.updated_on").Time(),
+				User:    value.Get("comment.user.display_name").String(),
+			})
+		} else if value.Get("changes_requested").IsObject() {
+			changesRequestEventList = append(changesRequestEventList, &PullRequestActivityChangesRequestEvent{
+				Created: value.Get("changes_requested.created_on").Time(),
+				User:    value.Get("changes_requested.user.display_name").String(),
+			})
+		} else {
+			// TODO: Log unknown activity
 		}
+
+		return true
+	})
+
+	return &PullRequestActivityLists{
+		Approvals:       &approvalEventList,
+		Comments:        &commentEventList,
+		ChangesRequests: &changesRequestEventList,
+	}, nil
+}
+
+func (i *PullRequestActivityIterator) sendRequest(
+	request *resty.Request,
+) (*PullRequestActivityLists, error) {
+	r, err := request.Send()
+
+	if err != nil {
+		return nil, err
 	}
-	Destination struct {
-		Branch struct {
-			Name string
+	if r.IsError() {
+		return nil, errors.New(string(r.Body()))
+	}
+	parsed := gjson.ParseBytes(r.Body())
+
+	i.nextURL = parsed.Get("next").String()
+	if i.nextURL == "" {
+		i.hasNext = false
+	}
+
+	return i.parse(parsed)
+}
+
+func (i *PullRequestActivityIterator) doInitialCall() (*PullRequestActivityLists, error) {
+	const pageLength = 20
+	url := fmt.Sprintf(
+		"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/activity",
+		i.repo.Name,
+		i.pullRequestID,
+	)
+
+	r := resty.New().R().
+		SetBasicAuth(i.client.username, i.client.password).
+		SetQueryParam("pagelen", fmt.Sprint(pageLength)).
+		SetError(bbError{})
+	r.Method = "GET"
+	r.URL = url
+
+	return i.sendRequest(r)
+}
+
+func (i *PullRequestActivityIterator) Next() (*PullRequestActivityLists, error) {
+	if !i.hasNext {
+		return nil, nil
+	}
+
+	if i.nextURL == "" {
+		return i.doInitialCall()
+	} else {
+		return i.doNextCall()
+	}
+}
+
+func (c *BitbucketCloudClient) createPullRequestActivityIterator(
+	o *GetPullRequestActivityOptions,
+) *PullRequestActivityIterator {
+	return &PullRequestActivityIterator{
+		client:        c,
+		pullRequestID: o.ID,
+		repo:          o.Repository,
+		hasNext:       true,
+		nextURL:       "",
+	}
+}
+
+func (c *BitbucketCloudClient) FillMiscInfoAsync(
+	repo *client.Repository,
+	pr *client.PullRequest,
+) error {
+	iter := c.createPullRequestActivityIterator(
+		&GetPullRequestActivityOptions{
+			ID:         pr.ID,
+			Repository: repo,
+		},
+	)
+	approvalList := []*PullRequestActivityApprovalEvent{}
+	commentsList := []*PullRequestActivityCommentEvent{}
+	changeRequestList := []*PullRequestActivityChangesRequestEvent{}
+
+	for iter.HasNext() {
+		lists, err := iter.Next()
+		if err != nil {
+			return err
 		}
-	}
-	Source struct {
-		Branch struct {
-			Name string
-		}
-	}
-	CloseSourceBranch bool `json:"close_source_branch"`
-}
 
-type Reviewer struct {
-	DisplayName string `json:"display_name"`
-	UUID        string
-	Nickname    string
-	Type        string
-	AccountID   string `json:"account_id"`
-}
-
-type defaultReviewersResponse struct {
-	Values []struct {
-		Reviewer *Reviewer `json:"user"`
+		approvalList = append(approvalList, *lists.Approvals...)
+		commentsList = append(commentsList, *lists.Comments...)
+		changeRequestList = append(changeRequestList, *lists.ChangesRequests...)
 	}
-}
 
-// type PullRequestList struct {
-// 	PageLength uint                  `json:"pagelen"`
-// 	Page       uint                  `json:"page"`
-// 	Size       uint                  `json:"size"`
-// 	NextURL    string                `json:"next"`
-// 	Values     []*client.PullRequest `json:"values"`
-// }
+	for _, v := range approvalList {
+		pr.Approvals = append(pr.Approvals, (*client.PullRequestApproval)(v))
+	}
+
+	for _, v := range commentsList {
+		pr.Comments = append(pr.Comments, &client.PullRequestComment{
+			Created: v.Created,
+			User:    v.User,
+			Content: v.Content,
+		})
+	}
+
+	return nil
+}
 
 func (c *BitbucketCloudClient) GetPullRequests(
 	o *client.GetPullRequestsOptions,
@@ -215,15 +325,14 @@ func (c *BitbucketCloudClient) GetPullRequests(
 	result := parsed.Get("values")
 	result.ForEach(func(key, value gjson.Result) bool {
 		pr.Values = append(pr.Values, &client.PullRequest{
-			ID:           value.Get("id").String(),
-			Title:        value.Get("title").String(),
-			URL:          value.Get("links.html.href").String(),
-			State:        client.PullRequestState(value.Get("state").String()),
-			Source:       value.Get("source.branch.name").String(),
-			Destination:  value.Get("destination.branch.name").String(),
-			Created:      value.Get("created_on").Time(),
-			Updated:      value.Get("updated_on").Time(),
-			CommentCount: uint(value.Get("comment_count").Uint()),
+			ID:          value.Get("id").String(),
+			Title:       value.Get("title").String(),
+			URL:         value.Get("links.html.href").String(),
+			State:       client.PullRequestState(value.Get("state").String()),
+			Source:      value.Get("source.branch.name").String(),
+			Destination: value.Get("destination.branch.name").String(),
+			Created:     value.Get("created_on").Time(),
+			Updated:     value.Get("updated_on").Time(),
 		})
 
 		return true
@@ -352,10 +461,6 @@ func verifyCreatePullRequestOptions(o *client.CreatePullRequestOptions) error {
 	}
 
 	return nil
-}
-
-type user struct {
-	UUID string `json:"uuid"`
 }
 
 func (c *BitbucketCloudClient) GetDefaultReviewer(
