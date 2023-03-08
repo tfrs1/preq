@@ -4,6 +4,10 @@ import "preq/internal/pkg/client"
 
 type PullRequest struct {
 	PullRequest              *client.PullRequest
+	Selected                 bool
+	Visible                  bool
+	Client                   client.Client
+	Repository               *client.Repository
 	IsApprovalsLoading       bool
 	IsCommentsLoading        bool
 	IsChangesRequestsLoading bool

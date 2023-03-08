@@ -31,7 +31,7 @@ The following global flags can be used with any `preq` command.
 
 ### Terminal UI
 
-`preq` is a TUI application as well as a CLI application. To start the TUI you can either run `preq` or `preq -g`, with the latter asking `preq` to display informtion about all known Git repositories. `preq` keeps a history of all local repositories previously seen by `preq`.
+`preq` is a TUI application as well as a CLI application. To start the TUI you can either run `preq` or `preq -g`, with the latter asking `preq` to display information about all known Git repositories. `preq` keeps a history of all local repositories previously seen by `preq`.
 
 > __Note__  
 > Currently the only supported provider is Bitbucket cloud.
