@@ -83,11 +83,11 @@ func (prt *pullRequestTable) Init(data []*tableRepoData) {
 
 func (prt *pullRequestTable) GetPullRequest(
 	rowId int,
-) (*pullRequestTableRow, error) {
-	for _, trd := range prt.tableData {
-		for _, v := range trd.Values {
-			if v.tableRowId == rowId {
-				return v, nil
+) (*PullRequest, error) {
+	for _, data := range state.RepositoryData {
+		for _, pr := range data.PullRequests {
+			if pr.TableRowId == rowId {
+				return pr, nil
 			}
 		}
 	}
@@ -279,12 +279,23 @@ func (prt *pullRequestTable) drawTable() {
 			continue
 		}
 
+		visible := false
+		for _, pr := range data.PullRequests {
+			if pr.Visible {
+				visible = true
+				break
+			}
+		}
+
+		if !data.IsLoading && (len(data.PullRequests) == 0 || !visible) {
+			continue
+		}
+
 		addEmptyRow(prt.View, offset)
 		setRowStyle(prt.View, offset, headerStyle)
 		prt.setRowSelectable(offset, false)
 		prt.View.GetCell(offset, 0).SetText("REPO")
-		prt.View.GetCell(offset, 1).
-			SetText(data.Name)
+		prt.View.GetCell(offset, 1).SetText(data.Name)
 
 		offset += 1
 
@@ -306,12 +317,6 @@ func (prt *pullRequestTable) drawTable() {
 			prt.setRowSelectable(offset, false)
 			offset += 1
 			continue
-		} else if len(data.PullRequests) == 0 {
-			addEmptyRow(prt.View, offset)
-			prt.View.SetCell(offset, 0, tview.NewTableCell("No pull requests"))
-			prt.setRowSelectable(offset, false)
-			offset += 2
-			continue
 		}
 
 		if len(data.PullRequests) > 0 {
@@ -326,7 +331,8 @@ func (prt *pullRequestTable) drawTable() {
 					continue
 				}
 
-				prt.addRow(pr.PullRequest, 0, offset)
+				pr.TableRowId = offset
+				prt.addRow(pr.PullRequest, offset)
 				if pr.PullRequest.State == client.PullRequestState_DECLINED {
 					prt.updateRowStatus(offset, "Declined", DeclinedColor, false)
 				} else if pr.PullRequest.State == client.PullRequestState_DECLINING {
@@ -395,7 +401,6 @@ func (prt *pullRequestTable) updateRowStatus(
 func (prt *pullRequestTable) addRow(
 	v *client.PullRequest,
 	rowId int,
-	offset int,
 ) {
 	// Escape the title string
 	v.Title = strings.ReplaceAll(v.Title, "]", "[]")
@@ -412,11 +417,7 @@ func (prt *pullRequestTable) addRow(
 	}
 
 	for i := 0; i < len(values); i++ {
-		prt.View.SetCell(
-			rowId+offset,
-			i,
-			tview.NewTableCell(pad(values[i])),
-		)
+		prt.View.SetCell(rowId, i, tview.NewTableCell(pad(values[i])))
 	}
 }
 
@@ -439,16 +440,16 @@ func (prt *pullRequestTable) SelectCurrentRow() {
 	if err != nil {
 		// TODO: Log error?
 	}
-	pr.selected = !pr.selected
+	pr.Selected = !pr.Selected
 
 	prt.redraw()
 }
 
 func (prt *pullRequestTable) Filter(input string) {
-	for _, trd := range prt.tableData {
-		for _, v := range trd.Values {
-			v.visible = strings.Contains(
-				strings.ToLower(v.pullRequest.Title),
+	for _, data := range state.RepositoryData {
+		for _, v := range data.PullRequests {
+			v.Visible = strings.Contains(
+				strings.ToLower(v.PullRequest.Title),
 				strings.ToLower(input),
 			)
 		}

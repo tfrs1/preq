@@ -11,6 +11,7 @@ type PullRequest struct {
 	IsApprovalsLoading       bool
 	IsCommentsLoading        bool
 	IsChangesRequestsLoading bool
+	TableRowId               int
 }
 
 type RepositoryData struct {

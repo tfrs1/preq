@@ -236,7 +236,7 @@ func Run(
 			if err != nil {
 				// TODO: Log error?
 			} else {
-				eventBus.Publish("BrowserUrlOpen", r.pullRequest.URL)
+				eventBus.Publish("BrowserUrlOpen", r.PullRequest.URL)
 			}
 		}
 
