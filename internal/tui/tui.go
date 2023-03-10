@@ -201,7 +201,7 @@ func Run(
 	table.View.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlD:
-			count := table.GetSelectedCount()
+			count := len(table.GetSelectedRows())
 			declineConfirmationModal.
 				SetText(
 					fmt.Sprintf(
@@ -212,7 +212,7 @@ func Run(
 			pages.ShowPage(PAGE_DECLINE_CONFIRMATION_MODAL)
 			return event
 		case tcell.KeyCtrlA:
-			count := table.GetSelectedCount()
+			count := len(table.GetSelectedRows())
 
 			approveConfirmationModal.
 				SetText(
@@ -236,7 +236,7 @@ func Run(
 			pages.ShowPage(PAGE_UNAPPROVE_CONFIRMATION_MODAL)
 			return event
 		case tcell.KeyCtrlM:
-			count := table.GetSelectedCount()
+			count := len(table.GetSelectedRows())
 			mergeConfirmationModal.
 				SetText(
 					fmt.Sprintf(
@@ -346,7 +346,6 @@ func Run(
 }
 
 func redraw() {
-	// table.redraw(tableData)
 	table.redraw()
 }
 
@@ -379,9 +378,7 @@ func declineConfirmationCallback(pages *tview.Pages) func(int, string) {
 						v.PullRequest.State = client.PullRequestState_DECLINED
 					}
 
-					app.QueueUpdateDraw(func() {
-						table.redraw()
-					})
+					app.QueueUpdateDraw(table.redraw)
 
 					return ""
 				},
@@ -399,6 +396,18 @@ func approveConfirmationCallback(pages *tview.Pages) func(int, string) {
 			selectedPRs := make(map[string]*promptPullRequest)
 
 			for _, row := range table.GetSelectedRows() {
+				// approved := false
+				// for i, pra := range row.PullRequest.Approvals {
+				//   if pra.User == row.Client.User {
+				//     approved = true
+				//     break
+				//   }
+				// }
+
+				// if (approved) {
+				//   continue
+				// }
+
 				selectedPRs[row.PullRequest.URL] = &promptPullRequest{
 					ID:         row.PullRequest.ID,
 					GlobalID:   row.PullRequest.URL,
@@ -408,7 +417,6 @@ func approveConfirmationCallback(pages *tview.Pages) func(int, string) {
 				}
 
 				// TODO: This should probably be a method in table instead
-				row.PullRequest.State = client.PullRequestState_APPROVING
 				row.Selected = false
 				row.IsApprovalsLoading = true
 			}
@@ -419,8 +427,12 @@ func approveConfirmationCallback(pages *tview.Pages) func(int, string) {
 				selectedPRs,
 				approvePR,
 				func(msg utils.ProcessPullRequestResponse) string {
+					v := table.GetRowByGlobalID(msg.GlobalID)
+					if msg.Error != nil {
+						v.IsApprovalsLoading = false
+					}
+
 					if msg.Status == "Done" {
-						v := table.GetRowByGlobalID(msg.GlobalID)
 						// TODO: return an error instead?
 						if v != nil {
 							go func(v *PullRequest) {
@@ -430,12 +442,11 @@ func approveConfirmationCallback(pages *tview.Pages) func(int, string) {
 								)
 
 								if err != nil {
+									// TODO: Handle error
 									return
 								}
 
 								v.IsApprovalsLoading = false
-								v.IsCommentsLoading = false
-								v.IsChangesRequestsLoading = false
 
 								app.QueueUpdateDraw(table.redraw)
 							}(v)
@@ -469,7 +480,6 @@ func unapproveConfirmationCallback(pages *tview.Pages) func(int, string) {
 				}
 
 				// TODO: This should probably be a method in table instead
-				// row.PullRequest.State = client.PullRequestState_MERGING
 				row.Selected = false
 				row.IsApprovalsLoading = true
 			}
@@ -480,9 +490,10 @@ func unapproveConfirmationCallback(pages *tview.Pages) func(int, string) {
 				selectedPRs,
 				unapprovePR,
 				func(msg utils.ProcessPullRequestResponse) string {
+					v := table.GetRowByGlobalID(msg.GlobalID)
+					v.IsApprovalsLoading = false
 
 					if msg.Status == "Done" {
-						v := table.GetRowByGlobalID(msg.GlobalID)
 						// TODO: return an error instead?
 						if v != nil {
 							go func(v *PullRequest) {
@@ -496,19 +507,13 @@ func unapproveConfirmationCallback(pages *tview.Pages) func(int, string) {
 								}
 
 								v.IsApprovalsLoading = false
-								v.IsCommentsLoading = false
-								v.IsChangesRequestsLoading = false
 
 								app.QueueUpdateDraw(table.redraw)
 							}(v)
 						}
 					}
 
-					// app.QueueUpdateDraw(table.redraw)
-
-					// app.QueueUpdateDraw(func() {
-					// 	table.redraw()
-					// })
+					app.QueueUpdateDraw(table.redraw)
 
 					return ""
 				},
@@ -549,33 +554,11 @@ func mergeConfirmationCallback(pages *tview.Pages) func(int, string) {
 						v := table.GetRowByGlobalID(msg.GlobalID)
 						// TODO: return an error instead?
 						if v != nil {
-							// v.PullRequest.State = client.PullRequestState_MERGED
-							go func(v *PullRequest) {
-								err := v.Client.FillMiscInfoAsync(
-									v.Repository,
-									v.PullRequest,
-								)
-
-								if err != nil {
-									return
-								}
-
-								// id := repoId(d.Repository)
-								// pr := state.RepositoryData[id].PullRequests[v.ID]
-								v.IsApprovalsLoading = false
-								v.IsCommentsLoading = false
-								v.IsChangesRequestsLoading = false
-
-								app.QueueUpdateDraw(func() {
-									table.redraw()
-								})
-							}(v)
+							v.PullRequest.State = client.PullRequestState_MERGED
 						}
 					}
 
-					app.QueueUpdateDraw(func() {
-						table.redraw()
-					})
+					app.QueueUpdateDraw(table.redraw)
 
 					return ""
 				},
