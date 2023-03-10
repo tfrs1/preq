@@ -321,6 +321,31 @@ func (c *GithubCloudClient) getReviews(
 	return reviews, nil
 }
 
+func (c *GithubCloudClient) Unapprove(
+	o *preqClient.UnapproveOptions,
+) (*preqClient.PullRequest, error) {
+	// _, err := resty.New().R().
+	// 	SetAuthToken(c.token).
+	// 	SetHeader("content-type", "application/json").
+	// 	SetError(githubError{}).
+	// 	SetBody(`{"event": "APPROVE"}`).
+	// 	Post(fmt.Sprintf(
+	// 		"https://api.github.com/repos/%s/pulls/%s/reviews",
+	// 		o.Repository.Name,
+	// 		o.ID,
+	// 	))
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// // TODO: Parse the response
+
+	return &preqClient.PullRequest{
+		ID: o.ID,
+		// State: preqClient.PullRequestReviewState_APPROVED,
+	}, nil
+}
+
 func (c *GithubCloudClient) Approve(
 	o *preqClient.ApproveOptions,
 ) (*preqClient.PullRequest, error) {
@@ -390,7 +415,7 @@ func (c *GithubCloudClient) GetCurrentUser() (*preqClient.User, error) {
 	}
 
 	return &preqClient.User{
-		ID: string(u.ID),
+		ID: fmt.Sprint(u.ID),
 	}, nil
 }
 

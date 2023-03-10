@@ -275,10 +275,12 @@ func (c *BitbucketCloudClient) FillMiscInfoAsync(
 		changeRequestList = append(changeRequestList, *lists.ChangesRequests...)
 	}
 
+	pr.Approvals = []*client.PullRequestApproval{}
 	for _, v := range approvalList {
 		pr.Approvals = append(pr.Approvals, (*client.PullRequestApproval)(v))
 	}
 
+	pr.Comments = []*client.PullRequestComment{}
 	for _, v := range commentsList {
 		pr.Comments = append(pr.Comments, &client.PullRequestComment{
 			Created: v.Created,
@@ -376,6 +378,24 @@ func (c *BitbucketCloudClient) get(url string) (*resty.Response, error) {
 	return r, nil
 }
 
+func (c *BitbucketCloudClient) delete(url string) (*resty.Response, error) {
+	rc := resty.New()
+	r, err := rc.R().
+		SetBasicAuth(c.username, c.password).
+		SetError(bbError{}).
+		Delete(url)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if r.IsError() {
+		return nil, errors.New(string(r.Body()))
+	}
+
+	return r, nil
+}
+
 func (c *BitbucketCloudClient) post(url string) (*resty.Response, error) {
 	rc := resty.New()
 	r, err := rc.R().
@@ -426,6 +446,23 @@ func (c *BitbucketCloudClient) DeclinePullRequest(
 	}
 
 	return unmarshalPR(r.Body())
+}
+
+func (c *BitbucketCloudClient) Unapprove(
+	o *client.UnapproveOptions,
+) (*client.PullRequest, error) {
+	url := fmt.Sprintf(
+		"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/approve",
+		o.Repository.Name,
+		o.ID,
+	)
+
+	_, err := c.delete(url)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
 }
 
 func (c *BitbucketCloudClient) Approve(

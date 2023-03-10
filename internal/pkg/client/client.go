@@ -25,6 +25,7 @@ type Client interface {
 	GetPullRequests(o *GetPullRequestsOptions) (*PullRequestList, error)
 	CreatePullRequest(o *CreatePullRequestOptions) (*PullRequest, error)
 	Approve(o *ApproveOptions) (*PullRequest, error)
+	Unapprove(o *UnapproveOptions) (*PullRequest, error)
 	GetPullRequestInfo(o *ApproveOptions) (*PullRequest, error)
 	FillMiscInfoAsync(repo *Repository, pr *PullRequest) error
 }
@@ -130,6 +131,11 @@ type MergeOptions struct {
 }
 
 type ApproveOptions struct {
+	Repository *Repository
+	ID         string
+}
+
+type UnapproveOptions struct {
 	Repository *Repository
 	ID         string
 }

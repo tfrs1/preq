@@ -97,9 +97,9 @@ func (prt *pullRequestTable) GetPullRequest(
 
 func (prt *pullRequestTable) GetSelectedCount() int {
 	count := 0
-	for _, trd := range table.tableData {
-		for _, row := range trd.Values {
-			if row.selected && row.visible {
+	for _, rd := range state.RepositoryData {
+		for _, pr := range rd.PullRequests {
+			if pr.Selected && pr.Visible {
 				count++
 			}
 		}
@@ -107,24 +107,33 @@ func (prt *pullRequestTable) GetSelectedCount() int {
 	return count
 }
 
-func (prt *pullRequestTable) GetSelectedRows() []*pullRequestTableRow {
-	rows := make([]*pullRequestTableRow, 0)
-	for _, trd := range table.tableData {
-		for _, row := range trd.Values {
-			if row.selected && row.visible {
-				rows = append(rows, row)
+func (prt *pullRequestTable) GetSelectedRows() []*PullRequest {
+	rows := []*PullRequest{}
+
+	for _, rd := range state.RepositoryData {
+		for _, pr := range rd.PullRequests {
+			if pr.Selected && pr.Visible {
+				rows = append(rows, pr)
 			}
+		}
+	}
+
+	if len(rows) == 0 {
+		row, _ := table.View.GetSelection()
+		r, err := table.GetPullRequest(row)
+		if err == nil {
+			rows = append(rows, r)
 		}
 	}
 
 	return rows
 }
 
-func (prt *pullRequestTable) GetRowByGlobalID(id string) *pullRequestTableRow {
-	for _, trd := range prt.tableData {
-		for _, v := range trd.Values {
-			if v.pullRequest.URL == id {
-				return v
+func (prt *pullRequestTable) GetRowByGlobalID(id string) *PullRequest {
+	for _, rd := range state.RepositoryData {
+		for _, pr := range rd.PullRequests {
+			if pr.PullRequest.URL == id {
+				return pr
 			}
 		}
 	}
@@ -341,41 +350,37 @@ func (prt *pullRequestTable) drawTable() {
 					prt.updateRowStatus(offset, "Merged", tcell.ColorLightYellow, false)
 				} else if pr.PullRequest.State == client.PullRequestState_MERGING {
 					prt.updateRowStatus(offset, "Merging...", tcell.ColorYellow, false)
-				} else if pr.PullRequest.State == client.PullRequestState_APPROVING {
-					prt.updateRowStatus(offset, "Approving...", tcell.ColorDarkOliveGreen, false)
-				} else if pr.PullRequest.State == client.PullRequestState_APPROVED {
-					prt.updateRowStatus(offset, "Approved", tcell.ColorGreen, true)
+					// } else if pr.PullRequest.State == client.PullRequestState_APPROVING {
+					// 	prt.updateRowStatus(offset, "⏳", tcell.ColorDarkOliveGreen, false)
+					// } else if pr.PullRequest.State == client.PullRequestState_APPROVED {
+					// 	prt.updateRowStatus(offset, "Approved", tcell.ColorGreen, true)
 				} else if pr.Selected {
 					prt.colorRow(offset, tcell.ColorPowderBlue)
 				} else {
 					prt.colorRow(offset, NormalColor)
 				}
 
+				approvalsText := ""
 				if pr.IsApprovalsLoading {
-					prt.View.GetCell(offset, 5).SetText("⏳")
-				} else {
-					if len(pr.PullRequest.Approvals) > 0 {
-						prt.View.GetCell(offset, 5).SetText("✅")
-					} else {
-						prt.View.GetCell(offset, 5).SetText("")
-					}
+					approvalsText = "⏳"
+				} else if len(pr.PullRequest.Approvals) > 0 {
+					approvalsText = "✅"
 				}
+				prt.View.GetCell(offset, 5).SetText(approvalsText)
 
+				changesRequestText := ""
 				if pr.IsChangesRequestsLoading {
-					prt.View.GetCell(offset, 6).SetText("⏳")
-				} else {
-					if len(pr.PullRequest.ChangesRequests) > 0 {
-						prt.View.GetCell(offset, 6).SetText("⚠️")
-					} else {
-						prt.View.GetCell(offset, 6).SetText("")
-					}
+					changesRequestText = "⏳"
+				} else if len(pr.PullRequest.ChangesRequests) > 0 {
+					prt.View.GetCell(offset, 6).SetText("⚠️")
 				}
+				prt.View.GetCell(offset, 6).SetText(changesRequestText)
 
-				if pr.IsCommentsLoading {
-					prt.View.GetCell(offset, 7).SetText("⏳")
-				} else {
-					prt.View.GetCell(offset, 7).SetText(fmt.Sprint(len(pr.PullRequest.Comments)))
+				commentsText := "⏳"
+				if !pr.IsCommentsLoading {
+					commentsText = fmt.Sprint(len(pr.PullRequest.Comments))
 				}
+				prt.View.GetCell(offset, 7).SetText(commentsText)
 
 				offset++
 			}
