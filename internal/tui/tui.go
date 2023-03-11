@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"preq/internal/cli/paramutils"
-	"preq/internal/cli/utils"
 	"preq/internal/configutils"
 	"preq/internal/persistance"
 	"preq/internal/pkg/bitbucket"
@@ -105,6 +104,26 @@ func Run(
 		pages.ShowPage("error_modal")
 	})
 
+	eventBus.Subscribe("mergeModal:closed", func(_ interface{}) {
+		pages.SwitchToPage("main")
+		app.SetFocus(table.View)
+	})
+
+	eventBus.Subscribe("approveModal:closed", func(_ interface{}) {
+		pages.SwitchToPage("main")
+		app.SetFocus(table.View)
+	})
+
+	eventBus.Subscribe("unapproveModal:closed", func(_ interface{}) {
+		pages.SwitchToPage("main")
+		app.SetFocus(table.View)
+	})
+
+	eventBus.Subscribe("declineModal:closed", func(_ interface{}) {
+		pages.SwitchToPage("main")
+		app.SetFocus(table.View)
+	})
+
 	eventBus.Subscribe("BrowserUrlOpen", func(data interface{}) {
 		url := data.(string)
 		var err error
@@ -124,26 +143,6 @@ func Run(
 			log.Fatal().Msg("Unknown system for url open")
 		}
 	})
-
-	approveConfirmationModal := tview.NewModal().
-		SetText("Are you sure you want to approve %d pull requests?").
-		AddButtons([]string{"Approve", "Cancel"}).
-		SetDoneFunc(approveConfirmationCallback(pages))
-
-	unapproveConfirmationModal := tview.NewModal().
-		SetText("Are you sure you want to unapprove %d pull requests?").
-		AddButtons([]string{"Unapprove", "Cancel"}).
-		SetDoneFunc(unapproveConfirmationCallback(pages))
-
-	mergeConfirmationModal := tview.NewModal().
-		SetText("Are you sure you want to merge %d pull requests?").
-		AddButtons([]string{"Merge", "Cancel"}).
-		SetDoneFunc(mergeConfirmationCallback(pages))
-
-	declineConfirmationModal := tview.NewModal().
-		SetText("Are you sure you want to decline %d pull requests?").
-		AddButtons([]string{"Decline", "Cancel"}).
-		SetDoneFunc(declineConfirmationCallback(pages))
 
 	searchInput := tview.NewInputField().
 		SetLabel(" Filter ").
@@ -347,225 +346,4 @@ func Run(
 
 func redraw() {
 	table.redraw()
-}
-
-func declineConfirmationCallback(pages *tview.Pages) func(int, string) {
-	return func(buttonIndex int, buttonLabel string) {
-		if buttonIndex == 0 {
-			selectedPRs := make(map[string]*promptPullRequest)
-
-			for _, row := range table.GetSelectedRows() {
-				selectedPRs[row.PullRequest.URL] = &promptPullRequest{
-					ID:         row.PullRequest.ID,
-					GlobalID:   row.PullRequest.URL,
-					Title:      row.PullRequest.Title,
-					Repository: row.Repository,
-					Client:     row.Client,
-				}
-
-				row.PullRequest.State = client.PullRequestState_DECLINING
-				row.Selected = false
-			}
-
-			redraw()
-
-			go processPullRequestMap(
-				selectedPRs,
-				declinePR,
-				func(msg utils.ProcessPullRequestResponse) string {
-					if msg.Status == "Done" {
-						v := table.GetRowByGlobalID(msg.GlobalID)
-						v.PullRequest.State = client.PullRequestState_DECLINED
-					}
-
-					app.QueueUpdateDraw(table.redraw)
-
-					return ""
-				},
-			)
-		}
-
-		pages.SwitchToPage("main")
-		app.SetFocus(table.View)
-	}
-}
-
-func approveConfirmationCallback(pages *tview.Pages) func(int, string) {
-	return func(buttonIndex int, buttonLabel string) {
-		if buttonIndex == 0 {
-			selectedPRs := make(map[string]*promptPullRequest)
-
-			for _, row := range table.GetSelectedRows() {
-				// approved := false
-				// for i, pra := range row.PullRequest.Approvals {
-				//   if pra.User == row.Client.User {
-				//     approved = true
-				//     break
-				//   }
-				// }
-
-				// if (approved) {
-				//   continue
-				// }
-
-				selectedPRs[row.PullRequest.URL] = &promptPullRequest{
-					ID:         row.PullRequest.ID,
-					GlobalID:   row.PullRequest.URL,
-					Title:      row.PullRequest.Title,
-					Client:     row.Client,
-					Repository: row.Repository,
-				}
-
-				// TODO: This should probably be a method in table instead
-				row.Selected = false
-				row.IsApprovalsLoading = true
-			}
-
-			table.redraw()
-
-			go processPullRequestMap(
-				selectedPRs,
-				approvePR,
-				func(msg utils.ProcessPullRequestResponse) string {
-					v := table.GetRowByGlobalID(msg.GlobalID)
-					if msg.Error != nil {
-						v.IsApprovalsLoading = false
-					}
-
-					if msg.Status == "Done" {
-						// TODO: return an error instead?
-						if v != nil {
-							go func(v *PullRequest) {
-								err := v.Client.FillMiscInfoAsync(
-									v.Repository,
-									v.PullRequest,
-								)
-
-								if err != nil {
-									// TODO: Handle error
-									return
-								}
-
-								v.IsApprovalsLoading = false
-
-								app.QueueUpdateDraw(table.redraw)
-							}(v)
-						}
-					}
-
-					app.QueueUpdateDraw(table.redraw)
-
-					return ""
-				},
-			)
-		}
-
-		pages.SwitchToPage("main")
-		app.SetFocus(table.View)
-	}
-}
-
-func unapproveConfirmationCallback(pages *tview.Pages) func(int, string) {
-	return func(buttonIndex int, buttonLabel string) {
-		if buttonIndex == 0 {
-			selectedPRs := make(map[string]*promptPullRequest)
-
-			for _, row := range table.GetSelectedRows() {
-				selectedPRs[row.PullRequest.URL] = &promptPullRequest{
-					ID:         row.PullRequest.ID,
-					GlobalID:   row.PullRequest.URL,
-					Title:      row.PullRequest.Title,
-					Client:     row.Client,
-					Repository: row.Repository,
-				}
-
-				// TODO: This should probably be a method in table instead
-				row.Selected = false
-				row.IsApprovalsLoading = true
-			}
-
-			table.redraw()
-
-			go processPullRequestMap(
-				selectedPRs,
-				unapprovePR,
-				func(msg utils.ProcessPullRequestResponse) string {
-					v := table.GetRowByGlobalID(msg.GlobalID)
-					v.IsApprovalsLoading = false
-
-					if msg.Status == "Done" {
-						// TODO: return an error instead?
-						if v != nil {
-							go func(v *PullRequest) {
-								err := v.Client.FillMiscInfoAsync(
-									v.Repository,
-									v.PullRequest,
-								)
-
-								if err != nil {
-									return
-								}
-
-								v.IsApprovalsLoading = false
-
-								app.QueueUpdateDraw(table.redraw)
-							}(v)
-						}
-					}
-
-					app.QueueUpdateDraw(table.redraw)
-
-					return ""
-				},
-			)
-		}
-
-		pages.SwitchToPage("main")
-		app.SetFocus(table.View)
-	}
-}
-
-func mergeConfirmationCallback(pages *tview.Pages) func(int, string) {
-	return func(buttonIndex int, buttonLabel string) {
-		if buttonIndex == 0 {
-			selectedPRs := make(map[string]*promptPullRequest)
-
-			for _, row := range table.GetSelectedRows() {
-				selectedPRs[row.PullRequest.URL] = &promptPullRequest{
-					ID:         row.PullRequest.ID,
-					GlobalID:   row.PullRequest.URL,
-					Title:      row.PullRequest.Title,
-					Client:     row.Client,
-					Repository: row.Repository,
-				}
-
-				// TODO: This should probably be a method in table instead
-				row.PullRequest.State = client.PullRequestState_MERGING
-				row.Selected = false
-			}
-
-			table.redraw()
-
-			go processPullRequestMap(
-				selectedPRs,
-				mergePR,
-				func(msg utils.ProcessPullRequestResponse) string {
-					if msg.Status == "Done" {
-						v := table.GetRowByGlobalID(msg.GlobalID)
-						// TODO: return an error instead?
-						if v != nil {
-							v.PullRequest.State = client.PullRequestState_MERGED
-						}
-					}
-
-					app.QueueUpdateDraw(table.redraw)
-
-					return ""
-				},
-			)
-		}
-
-		pages.SwitchToPage("main")
-		app.SetFocus(table.View)
-	}
 }
