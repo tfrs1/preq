@@ -1,16 +1,17 @@
 {
-    "words": [
-        "clientutils",
-        "configutils",
-        "gitutils",
-        "mitchellh",
-        "Msgf",
-        "paramutils",
-        "pflag",
-        "preq",
-        "resty",
-        "tcell",
-        "tview",
-        "zerolog"
-    ]
+  "words": [
+    "clientutils",
+    "configutils",
+    "gitutils",
+    "mitchellh",
+    "Msgf",
+    "paramutils",
+    "pflag",
+    "preq",
+    "resty",
+    "tcell",
+    "tview",
+    "unapprove",
+    "zerolog"
+  ]
 }

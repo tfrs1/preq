@@ -55,19 +55,15 @@ func loadConfig(
 
 	prClient = c
 
-	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider: client.RepositoryProvider(repoInfo.Provider),
-		Name:     repoInfo.Name,
-	})
+	r, err := client.NewRepositoryFromOptions(
+		&client.RepositoryOptions{
+			Provider: client.RepositoryProvider(repoInfo.Provider),
+			Name:     repoInfo.Name,
+		},
+	)
 	if err != nil {
 		return nil, nil, err
 	}
-	// prRepo = r
-
-	// prClient.GetPullRequestInfo(&client.ApprovePullRequestOptions{
-	// 	Repository: prRepo,
-	// 	ID:         "77",
-	// })
 
 	return c, r, nil
 }
@@ -331,9 +327,7 @@ func Run(
 
 	go func() {
 		table.Init(tableData)
-		app.QueueUpdateDraw(func() {
-			redraw()
-		})
+		app.QueueUpdateDraw(redraw)
 	}()
 
 	app.SetRoot(pages, true) //.EnableMouse(true)

@@ -33,12 +33,12 @@ func mergeConfirmationCallback() func(int, string) {
 				row.Selected = false
 			}
 
-			table.redraw()
+			redraw()
 
 			go processPullRequestMap(
 				selectedPRs,
 				mergePR,
-				func(msg utils.ProcessPullRequestResponse) string {
+				func(msg *utils.ProcessPullRequestResponse) {
 					if msg.Status == "Done" {
 						v := table.GetRowByGlobalID(msg.GlobalID)
 						// TODO: return an error instead?
@@ -47,13 +47,36 @@ func mergeConfirmationCallback() func(int, string) {
 						}
 					}
 
-					app.QueueUpdateDraw(table.redraw)
-
-					return ""
+					app.QueueUpdateDraw(redraw)
 				},
 			)
 		}
 
 		eventBus.Publish("mergeModal:closed", nil)
 	}
+}
+
+func mergePR(
+	cl client.Client,
+	r *client.Repository,
+	id string,
+	globalId string,
+	ch chan *utils.ProcessPullRequestResponse,
+) {
+	_, err := cl.Merge(&client.MergeOptions{
+		Repository: r,
+		ID:         id,
+	})
+
+	res := &utils.ProcessPullRequestResponse{
+		ID:       id,
+		GlobalID: globalId,
+		Status:   "Done",
+	}
+	if err != nil {
+		res.Status = "Error"
+		res.Error = err
+	}
+
+	ch <- res
 }

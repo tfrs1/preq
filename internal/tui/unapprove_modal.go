@@ -2,6 +2,7 @@ package tui
 
 import (
 	"preq/internal/cli/utils"
+	"preq/internal/pkg/client"
 
 	"github.com/rivo/tview"
 )
@@ -31,41 +32,58 @@ func unapproveConfirmationCallback(buttonIndex int, buttonLabel string) {
 			row.IsApprovalsLoading = true
 		}
 
-		table.redraw()
+		redraw()
 
 		go processPullRequestMap(
 			selectedPRs,
 			unapprovePR,
-			func(msg utils.ProcessPullRequestResponse) string {
+			func(msg *utils.ProcessPullRequestResponse) {
 				v := table.GetRowByGlobalID(msg.GlobalID)
-				v.IsApprovalsLoading = false
 
-				if msg.Status == "Done" {
-					// TODO: return an error instead?
-					if v != nil {
-						go func(v *PullRequest) {
-							err := v.Client.FillMiscInfoAsync(
-								v.Repository,
-								v.PullRequest,
-							)
-
-							if err != nil {
-								return
-							}
-
-							v.IsApprovalsLoading = false
-
-							app.QueueUpdateDraw(table.redraw)
-						}(v)
-					}
+				if msg.Error != nil {
+					// app.QueueUpdateDraw(table.redraw)
+					return
 				}
 
-				app.QueueUpdateDraw(table.redraw)
+				if msg.Status == "Done" && v != nil {
+					go func(v *PullRequest) {
+						err := v.Client.FillMiscInfoAsync(v.Repository, v.PullRequest)
+						if err != nil {
+							return
+						}
 
-				return ""
+						v.IsApprovalsLoading = false
+						app.QueueUpdateDraw(redraw)
+					}(v)
+				}
 			},
 		)
 	}
 
 	eventBus.Publish("unapproveModal:closed", nil)
+}
+
+func unapprovePR(
+	cl client.Client,
+	r *client.Repository,
+	id string,
+	globalId string,
+	ch chan *utils.ProcessPullRequestResponse,
+) {
+	_, err := cl.Unapprove(&client.UnapproveOptions{
+		Repository: r,
+		ID:         id,
+	})
+
+	res := &utils.ProcessPullRequestResponse{
+		ID:       id,
+		GlobalID: globalId,
+		Status:   "Done",
+	}
+	if err != nil {
+		res.Status = "Error"
+		res.Error = err
+	}
+
+	ch <- res
 }
