@@ -120,6 +120,16 @@ func Run(
 		app.SetFocus(table.View)
 	})
 
+	eventBus.Subscribe("HelpPage:Open", func(_ interface{}) {
+		pages.ShowPage("HelpPage")
+	})
+
+	eventBus.Subscribe("HelpPage:Closed", func(_ interface{}) {
+		pages.HidePage("HelpPage")
+		pages.SwitchToPage("main")
+		app.SetFocus(table.View)
+	})
+
 	eventBus.Subscribe("BrowserUrlOpen", func(data interface{}) {
 		url := data.(string)
 		var err error
@@ -174,19 +184,21 @@ func Run(
 		SetBorders(false).
 		SetBorder(false)
 	flex.AddItem(grid, 0, 1, false)
+
 	helpPage := tview.NewBox().
 		SetTitle("Help")
 
 	helpPage.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEsc:
-			pages.HidePage("HelpPage")
+			eventBus.Publish("HelpPage:Closed", nil)
 			return nil
 		}
 
 		switch event.Rune() {
 		case 'h':
-			pages.HidePage("HelpPage")
+		case 'q':
+			eventBus.Publish("HelpPage:Closed", nil)
 			return nil
 		}
 
@@ -241,9 +253,6 @@ func Run(
 				)
 			pages.ShowPage(PAGE_MERGE_CONFIRMATION_MODAL)
 			return event
-		case tcell.KeyCtrlH:
-			pages.ShowPage("HelpPage")
-			return nil
 		case tcell.KeyCtrlO:
 			rowId, _ := table.View.GetSelection()
 			r, err := table.GetPullRequest(rowId)
@@ -255,9 +264,16 @@ func Run(
 		}
 
 		switch event.Rune() {
-		// TODO: Add details feature
-		// case 'o':
-		// 	eventBus.Publish("detailsPage:open", nil)
+		case 'o':
+			row, _ := table.View.GetSelection()
+			pr, err := table.GetPullRequest(row)
+			if err == nil {
+				eventBus.Publish("detailsPage:open", pr)
+			}
+			return nil
+		case 'h':
+			eventBus.Publish("HelpPage:Open", nil)
+			return nil
 		case 'q':
 			app.Stop()
 			return nil

@@ -117,16 +117,20 @@ type PullRequestActivityApprovalEvent struct {
 	Created time.Time
 	User    string
 }
+
 type PullRequestActivityChangesRequestEvent struct {
 	Created time.Time
 	User    string
 }
+
 type PullRequestActivityCommentEvent struct {
-	User    string
-	Deleted bool
-	Content string
-	Created time.Time
-	Updated time.Time
+	ID       string
+	ParentID string
+	User     string
+	Deleted  bool
+	Content  string
+	Created  time.Time
+	Updated  time.Time
 }
 
 type PullRequestActivityLists struct {
@@ -162,7 +166,10 @@ func (i *PullRequestActivityIterator) parse(
 			})
 		} else if value.Get("comment").IsObject() {
 			commentEventList = append(commentEventList, &PullRequestActivityCommentEvent{
-				Deleted: value.Get("comment.deleted").Bool(),
+				ID:       value.Get("comment.id").String(),
+				ParentID: value.Get("comment.parent.id").String(),
+				Deleted:  value.Get("comment.deleted").Bool(),
+				// TODO: Outdated: value.Get("comment.inline.outdated").Bool(),
 				Content: value.Get("comment.content.raw").String(),
 				Created: value.Get("comment.created_on").Time(),
 				Updated: value.Get("comment.updated_on").Time(),
@@ -283,9 +290,11 @@ func (c *BitbucketCloudClient) FillMiscInfoAsync(
 	pr.Comments = []*client.PullRequestComment{}
 	for _, v := range commentsList {
 		pr.Comments = append(pr.Comments, &client.PullRequestComment{
-			Created: v.Created,
-			User:    v.User,
-			Content: v.Content,
+			ID:       v.ID,
+			Created:  v.Created,
+			User:     v.User,
+			Content:  v.Content,
+			ParentID: v.ParentID,
 		})
 	}
 

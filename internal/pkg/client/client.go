@@ -159,9 +159,11 @@ type PullRequestChangesRequest struct {
 }
 
 type PullRequestComment struct {
-	Created time.Time
-	User    string
-	Content string
+	ID       string
+	Created  time.Time
+	User     string
+	Content  string
+	ParentID string
 }
 
 type PullRequest struct {
