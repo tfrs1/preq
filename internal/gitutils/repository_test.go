@@ -3,10 +3,10 @@ package gitutils
 import (
 	"testing"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/config"
 )
 
 func Test_repository_GetCheckedOutBranchShortName(t *testing.T) {

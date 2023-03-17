@@ -4,9 +4,9 @@ import (
 	"preq/internal/pkg/client"
 	"testing"
 
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
 func TestGetCurrentBranch(t *testing.T) {
