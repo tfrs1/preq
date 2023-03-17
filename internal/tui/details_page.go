@@ -231,15 +231,18 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 		return nil
 	}
 
+	reachedEnd := true
 	for _, comment := range topLevelComments {
 		if index >= height {
+			reachedEnd = false
 			break
 		}
 
 		prevIndent = 0
 		err := handleComment(comment, 0)
 		if err != nil {
-			return
+			reachedEnd = false
+			break
 		}
 
 		index++
@@ -247,7 +250,9 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 
 	// If everything was printed it means there is nothing more to scroll
 	// therefore the scroll can be disabled until scrolled in the other direction
-	ct.disableScrollDown = true
+	if reachedEnd {
+		ct.disableScrollDown = true
+	}
 }
 
 type detailsPage struct {
