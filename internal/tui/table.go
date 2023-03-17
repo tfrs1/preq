@@ -408,11 +408,11 @@ func (prt *pullRequestTable) addRow(
 	rowId int,
 ) {
 	// Escape the title string
-	v.Title = strings.ReplaceAll(v.Title, "]", "[]")
+	escapedTitle := strings.ReplaceAll(v.Title, "]", "[]")
 
 	values := []string{
 		v.ID,
-		v.Title,
+		escapedTitle,
 		v.Source,
 		v.Destination,
 		"Open",
