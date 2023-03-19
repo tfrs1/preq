@@ -97,8 +97,9 @@ func (ca *creatorAdapter) Create(
 	}
 
 	return &pullrequest.Entity{
-		Destination: pr.Destination,
-		Source:      pr.Source,
+		// TODO: Does not make sense that this type has hash (when creating a pull request)
+		Destination: pr.Destination.Name,
+		Source:      pr.Source.Name,
 		Title:       pr.Title,
 		URL:         pr.URL,
 	}, nil

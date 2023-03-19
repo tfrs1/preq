@@ -21,7 +21,8 @@ type gitRepository interface {
 }
 
 type repository struct {
-	r goGitRepository
+	r     goGitRepository
+	goGit *git.Repository
 }
 
 var openRepo = func(path string) (*git.Repository, error) {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"github.com/sourcegraph/go-diff/diff"
 )
 
 var (
@@ -28,6 +29,8 @@ type CommentsTable struct {
 	pullRequest       *PullRequest
 	pageOffset        int
 	disableScrollDown bool
+	loadingError      error
+	diffs             []*diff.FileDiff
 }
 
 func NewCommentsTable() *CommentsTable {
@@ -45,19 +48,109 @@ func (ct *CommentsTable) ScrollUp() {
 
 func (ct *CommentsTable) ScrollDown() {
 	ct.pageOffset--
+
+	// Should never scroll above the top line
+	if ct.pageOffset < 0 {
+		ct.pageOffset = 0
+	}
+
 	ct.disableScrollDown = false
 }
 
 func (ct *CommentsTable) SetData(pr *PullRequest) {
 	ct.pullRequest = pr
+	ct.loadingError = nil
+
+	changes, err := ct.pullRequest.GitUtil.GetDiffPatch(
+		ct.pullRequest.PullRequest.Destination.Hash,
+		ct.pullRequest.PullRequest.Source.Hash,
+	)
+
+	if err != nil {
+		ct.loadingError = err
+		return
+	}
+
+	diffs, err := diff.ParseMultiFileDiff(changes)
+	if err != nil {
+		ct.loadingError = err
+		return
+	}
+
+	ct.diffs = diffs
 }
 
 func (ct *CommentsTable) Draw(screen tcell.Screen) {
 	ct.Box.DrawForSubclass(screen, ct)
 	x, y, width, height := ct.GetInnerRect()
-	if ct.pageOffset < 0 {
-		ct.pageOffset = 0
+
+	if ct.loadingError != nil {
+		tview.Print(screen, "Please pull", x, y, width, tview.AlignLeft, tcell.ColorWhite)
+		return
 	}
+
+	index1 := 0
+	for _, d := range ct.diffs {
+		filename := d.NewName
+		if filename == "/dev/null" {
+			filename = d.OrigName
+		}
+		tview.Print(screen, filename, x, y+index1, width, tview.AlignLeft, tcell.ColorWhite)
+		index1++
+
+		for _, h := range d.Hunks {
+			origIdx := h.OrigStartLine
+			newIdx := h.NewStartLine
+
+			lines := strings.Split(string(h.Body), "\n")
+			for _, line := range lines {
+				isAddedLine := strings.HasPrefix(line, "+")
+				isRemoveLine := strings.HasPrefix(line, "-")
+				isCommonLine := strings.HasPrefix(line, " ")
+
+				color := "white"
+				oldLineNumber := fmt.Sprint(origIdx)
+				if isAddedLine {
+					oldLineNumber = strings.Repeat(" ", len(oldLineNumber))
+					color = "green"
+				}
+
+				newLineNumber := fmt.Sprint(newIdx)
+				if isRemoveLine {
+					newLineNumber = strings.Repeat(" ", len(newLineNumber))
+					color = "red"
+				}
+
+				output := fmt.Sprintf("%s %s│ [%s]", oldLineNumber, newLineNumber, color) + line
+				tview.Print(
+					screen,
+					output,
+					x,
+					y+index1,
+					width,
+					tview.AlignLeft,
+					tcell.ColorWhite,
+				)
+
+				if isAddedLine || isCommonLine {
+					newIdx++
+				}
+
+				if isRemoveLine || isCommonLine {
+					origIdx++
+				}
+
+				index1++
+			}
+
+			index1++
+		}
+
+		index1++
+		tview.Print(screen, "", x, y+index1, width, tview.AlignLeft, tcell.ColorWhite)
+		index1++
+	}
+	return
 
 	topLevelComments := []*client.PullRequestComment{}
 	for _, prc := range ct.pullRequest.PullRequest.Comments {

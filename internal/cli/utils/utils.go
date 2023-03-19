@@ -85,7 +85,7 @@ func ProcessPullRequestMap(
 func maxPRDescriptionLength(prs []*client.PullRequest, limit int) int {
 	maxLen := 0
 	for _, pr := range prs {
-		l := len(pr.Source) + len(pr.Destination) + 4
+		l := len(pr.Source.Name) + len(pr.Destination.Name) + 4
 		if l > maxLen {
 			maxLen = l
 		}

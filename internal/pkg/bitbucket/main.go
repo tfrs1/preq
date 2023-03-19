@@ -336,14 +336,20 @@ func (c *BitbucketCloudClient) GetPullRequests(
 	result := parsed.Get("values")
 	result.ForEach(func(key, value gjson.Result) bool {
 		pr.Values = append(pr.Values, &client.PullRequest{
-			ID:          value.Get("id").String(),
-			Title:       value.Get("title").String(),
-			URL:         value.Get("links.html.href").String(),
-			State:       client.PullRequestState(value.Get("state").String()),
-			Source:      value.Get("source.branch.name").String(),
-			Destination: value.Get("destination.branch.name").String(),
-			Created:     value.Get("created_on").Time(),
-			Updated:     value.Get("updated_on").Time(),
+			ID:    value.Get("id").String(),
+			Title: value.Get("title").String(),
+			URL:   value.Get("links.html.href").String(),
+			State: client.PullRequestState(value.Get("state").String()),
+			Source: client.PullRequestBranch{
+				Name: value.Get("source.branch.name").String(),
+				Hash: value.Get("source.commit.hash").String(),
+			},
+			Destination: client.PullRequestBranch{
+				Name: value.Get("destination.branch.name").String(),
+				Hash: value.Get("destination.commit.hash").String(),
+			},
+			Created: value.Get("created_on").Time(),
+			Updated: value.Get("updated_on").Time(),
 		})
 
 		return true
@@ -360,12 +366,18 @@ func unmarshalPR(data []byte) (*client.PullRequest, error) {
 	}
 
 	return &client.PullRequest{
-		ID:          fmt.Sprint(pr.ID),
-		Title:       pr.Title,
-		URL:         pr.Links.HTML.Href,
-		State:       pr.State,
-		Source:      pr.Source.Branch.Name,
-		Destination: pr.Destination.Branch.Name,
+		ID:    fmt.Sprint(pr.ID),
+		Title: pr.Title,
+		URL:   pr.Links.HTML.Href,
+		State: pr.State,
+		Source: client.PullRequestBranch{
+			Name: pr.Source.Branch.Name,
+			Hash: pr.Source.Commit.Hash,
+		},
+		Destination: client.PullRequestBranch{
+			Name: pr.Destination.Branch.Name,
+			Hash: pr.Destination.Commit.Hash,
+		},
 	}, nil
 }
 
@@ -659,11 +671,17 @@ func (c *BitbucketCloudClient) CreatePullRequest(
 	}
 
 	return &client.PullRequest{
-		ID:          fmt.Sprint(pr.ID),
-		Title:       pr.Title,
-		URL:         pr.Links.HTML.Href,
-		State:       pr.State,
-		Source:      pr.Source.Branch.Name,
-		Destination: pr.Destination.Branch.Name,
+		ID:    fmt.Sprint(pr.ID),
+		Title: pr.Title,
+		URL:   pr.Links.HTML.Href,
+		State: pr.State,
+		Source: client.PullRequestBranch{
+			Name: pr.Source.Branch.Name,
+			Hash: pr.Source.Commit.Hash,
+		},
+		Destination: client.PullRequestBranch{
+			Name: pr.Destination.Branch.Name,
+			Hash: pr.Destination.Commit.Hash,
+		},
 	}, nil
 }

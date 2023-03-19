@@ -166,13 +166,18 @@ type PullRequestComment struct {
 	ParentID string
 }
 
+type PullRequestBranch struct {
+	Name string
+	Hash string
+}
+
 type PullRequest struct {
 	ID              string
 	Title           string
 	URL             string
 	State           PullRequestState
-	Source          string
-	Destination     string
+	Source          PullRequestBranch
+	Destination     PullRequestBranch
 	Created         time.Time
 	Updated         time.Time
 	Approvals       []*PullRequestApproval

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"preq/internal/gitutils"
 	"preq/internal/pkg/client"
 	"sort"
 	"strings"
@@ -149,18 +150,21 @@ func (prt *pullRequestTable) redraw() {
 
 func (prt *pullRequestTable) loadPRs(app *tview.Application) {
 	state.RepositoryData = make(map[string]*RepositoryData)
-	for i := range prt.tableData {
-		id := repoId(prt.tableData[i].Repository)
+	for _, data := range prt.tableData {
+		id := repoId(data.Repository)
+
+		utilClient, _ := gitutils.GetRepo(data.Path)
 
 		if _, ok := state.RepositoryData[id]; !ok {
 			state.RepositoryData[id] = &RepositoryData{
-				Name:         prt.tableData[i].Repository.Name,
+				Name:         data.Repository.Name,
 				IsLoading:    true,
 				PullRequests: make(map[string]*PullRequest),
+				GitUtil:      utilClient,
 			}
 		}
 
-		go prt.loadPR(app, i)
+		go prt.loadPR(app, data)
 	}
 }
 
@@ -172,19 +176,14 @@ func repoId(repo *client.Repository) string {
 	)
 }
 
-func (prt *pullRequestTable) loadPR(
-	app *tview.Application,
-	rowId int,
-) {
+func (prt *pullRequestTable) loadPR(app *tview.Application, data *tableRepoData) {
 	// TODO: This load should be in table write code
 	// TODO here just the state should be updater
 
-	d := prt.tableData[rowId]
-
 	nextURL := ""
 	for {
-		prs, err := d.Client.GetPullRequests(&client.GetPullRequestsOptions{
-			Repository: d.Repository,
+		prs, err := data.Client.GetPullRequests(&client.GetPullRequestsOptions{
+			Repository: data.Repository,
 			State:      client.PullRequestState_OPEN,
 			Next:       nextURL,
 		})
@@ -199,30 +198,31 @@ func (prt *pullRequestTable) loadPR(
 			return
 		}
 
-		id := repoId(d.Repository)
+		id := repoId(data.Repository)
 		for _, v := range prs.Values {
-			d.Values = append(d.Values, &pullRequestTableRow{
+			data.Values = append(data.Values, &pullRequestTableRow{
 				pullRequest: v,
 				selected:    false,
 				visible:     true,
-				client:      d.Client,
-				repository:  d.Repository,
+				client:      data.Client,
+				repository:  data.Repository,
 			})
 
 			state.RepositoryData[id].PullRequests[v.ID] = &PullRequest{
 				PullRequest:              v,
 				Selected:                 false,
 				Visible:                  true,
-				Client:                   d.Client,
-				Repository:               d.Repository,
+				Client:                   data.Client,
+				Repository:               data.Repository,
 				IsApprovalsLoading:       true,
 				IsCommentsLoading:        true,
 				IsChangesRequestsLoading: true,
+				GitUtil:                  state.RepositoryData[id].GitUtil,
 			}
 
 			go func(v *client.PullRequest) {
-				err := d.Client.FillMiscInfoAsync(
-					d.Repository,
+				err := data.Client.FillMiscInfoAsync(
+					data.Repository,
 					v,
 				)
 
@@ -230,7 +230,7 @@ func (prt *pullRequestTable) loadPR(
 					return
 				}
 
-				id := repoId(d.Repository)
+				id := repoId(data.Repository)
 				pr := state.RepositoryData[id].PullRequests[v.ID]
 				pr.IsApprovalsLoading = false
 				pr.IsCommentsLoading = false
@@ -413,8 +413,8 @@ func (prt *pullRequestTable) addRow(
 	values := []string{
 		v.ID,
 		escapedTitle,
-		v.Source,
-		v.Destination,
+		v.Source.Name,
+		v.Destination.Name,
 		"Open",
 		"⏳",
 		"⏳",

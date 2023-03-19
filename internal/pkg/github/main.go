@@ -145,10 +145,16 @@ func (c *GithubCloudClient) GetPullRequests(
 			State: preqClient.PullRequestState(
 				value.Get("state").String(),
 			),
-			Source:      value.Get("head.ref").String(),
-			Destination: value.Get("base.ref").String(),
-			Created:     value.Get("created_at").Time(),
-			Updated:     value.Get("updated_at").Time(),
+			Source: preqClient.PullRequestBranch{
+				Name: value.Get("head.ref").String(),
+				Hash: "123",
+			},
+			Destination: preqClient.PullRequestBranch{
+				Name: value.Get("base.ref").String(),
+				Hash: "123",
+			},
+			Created: value.Get("created_at").Time(),
+			Updated: value.Get("updated_at").Time(),
 		})
 
 		return true
@@ -171,12 +177,18 @@ func unmarshalPR(data []byte) (*preqClient.PullRequest, error) {
 	}
 
 	return &preqClient.PullRequest{
-		ID:          string(pr.Number),
-		Title:       pr.Title,
-		URL:         pr.Links.HTML.Href,
-		State:       preqClient.PullRequestState(pr.State),
-		Source:      pr.Head.Ref,
-		Destination: pr.Base.Ref,
+		ID:    string(pr.Number),
+		Title: pr.Title,
+		URL:   pr.Links.HTML.Href,
+		State: preqClient.PullRequestState(pr.State),
+		Source: preqClient.PullRequestBranch{
+			Name: pr.Head.Ref,
+			Hash: pr.Head.SHA,
+		},
+		Destination: preqClient.PullRequestBranch{
+			Name: pr.Base.Ref,
+			Hash: pr.Base.SHA,
+		},
 	}, nil
 }
 
@@ -462,11 +474,17 @@ func (c *GithubCloudClient) CreatePullRequest(
 	}
 
 	return &preqClient.PullRequest{
-		ID:          string(pr.Number),
-		Title:       pr.Title,
-		URL:         pr.Links.HTML.Href,
-		State:       preqClient.PullRequestState(pr.State),
-		Source:      pr.Head.Ref,
-		Destination: pr.Base.Ref,
+		ID:    fmt.Sprint(pr.Number),
+		Title: pr.Title,
+		URL:   pr.Links.HTML.Href,
+		State: preqClient.PullRequestState(pr.State),
+		Source: preqClient.PullRequestBranch{
+			Name: pr.Head.Ref,
+			Hash: pr.Head.SHA,
+		},
+		Destination: preqClient.PullRequestBranch{
+			Name: pr.Base.Ref,
+			Hash: pr.Base.SHA,
+		},
 	}, nil
 }

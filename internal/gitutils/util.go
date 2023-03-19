@@ -1,10 +1,13 @@
 package gitutils
 
 import (
+	"fmt"
+	"os/exec"
 	"preq/internal/pkg/client"
 	"preq/internal/pkg/fs"
 	"regexp"
 
+	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/pkg/errors"
 )
@@ -139,17 +142,41 @@ type GitUtilsClient interface {
 	GetCurrentCommitMessage() (string, error)
 	GetCurrentBranch() (string, error)
 	GetBranchLastCommitMessage(name string) (string, error)
+	GetDiffPatch(fromHash string, toHash string) ([]byte, error)
 }
 
 type GoGit struct {
-	Git gitRepository
+	Git   gitRepository
+	goGit *git.Repository
 }
 
 func new(path string) (GitUtilsClient, error) {
 	repo, err := openRepo(path)
-	return &GoGit{Git: &repository{
-		r: repo,
-	}}, err
+	return &GoGit{
+		goGit: repo,
+		Git: &repository{
+			r: repo,
+		},
+	}, err
+}
+
+func (git *GoGit) GetDiffPatch(fromHash string, toHash string) ([]byte, error) {
+	cmd := exec.Command("git", "diff", fmt.Sprintf("%s...%s", fromHash, toHash))
+	cfg, err := git.goGit.Worktree()
+	if err != nil {
+		return nil, err
+	}
+
+	root := cfg.Filesystem.Root()
+	cmd.Dir = root
+
+	// Capture the output of the command
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }
 
 // TODO: Return a Branch type? Or rename to GetClosesBranchName?

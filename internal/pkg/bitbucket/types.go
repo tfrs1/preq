@@ -58,10 +58,16 @@ type bitbucketPullRequest struct {
 		Branch struct {
 			Name string
 		}
+		Commit struct {
+			Hash string
+		}
 	}
 	Source struct {
 		Branch struct {
 			Name string
+		}
+		Commit struct {
+			Hash string
 		}
 	}
 	CloseSourceBranch bool `json:"close_source_branch"`
