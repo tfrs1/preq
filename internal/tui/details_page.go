@@ -91,6 +91,7 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 
 		ct.pullRequest.PullRequest.Comments = list
 		ct.pullRequest.IsCommentsLoading = false
+		app.QueueUpdateDraw(func() {})
 	})()
 
 	ct.diffs = diffs
@@ -124,14 +125,14 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 			}
 		}
 
-		if prc.BeforeLineNumber != 0 {
+		if prc.BeforeLineNumber != 0 && prc.ParentID == "" {
 			filesMap[prc.FilePath].RemovedLineComments[prc.BeforeLineNumber] = prc
-		} else if prc.AfterLineNumber != 0 {
+		} else if prc.AfterLineNumber != 0 && prc.ParentID == "" {
 			filesMap[prc.FilePath].AddedLineComments[prc.AfterLineNumber] = prc
 		}
 	}
 
-	index1 := 0
+	currentLineOffset := 0
 
 	// index := -ct.pageOffset
 
@@ -293,7 +294,6 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 				if err != nil {
 					return -1, err
 				}
-				continue
 			}
 		}
 
@@ -310,8 +310,8 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 
 		comments := filesMap["Dockerfile"]
 
-		tview.Print(screen, filename, x, y+index1, width, tview.AlignLeft, tcell.ColorWhite)
-		index1++
+		tview.Print(screen, filename, x, y+currentLineOffset, width, tview.AlignLeft, tcell.ColorWhite)
+		currentLineOffset++
 
 		for _, h := range d.Hunks {
 			origIdx := h.OrigStartLine
@@ -341,45 +341,37 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 					screen,
 					output,
 					x,
-					y+index1,
+					y+currentLineOffset,
 					width,
 					tview.AlignLeft,
 					tcell.ColorWhite,
 				)
 
-				index1++
+				currentLineOffset++
 
 				if comments != nil {
 					var comment *client.PullRequestComment = nil
 					if isAddedLine {
-						n, err := strconv.Atoi(newLineNumber)
-						if err == nil {
-							c, ok := comments.AddedLineComments[uint(n)]
-							if ok {
+						if n, err := strconv.Atoi(newLineNumber); err == nil {
+							if c, ok := comments.AddedLineComments[uint(n)]; ok {
 								comment = c
 							}
 						}
 					} else {
-						n, err := strconv.Atoi(oldLineNumber)
-						if err == nil {
-							c, ok := comments.RemovedLineComments[uint(n)]
-							if ok {
+						if n, err := strconv.Atoi(oldLineNumber); err == nil {
+							if c, ok := comments.RemovedLineComments[uint(n)]; ok {
 								comment = c
 							}
 						}
 					}
 
 					if comment != nil {
-						height, err := handleComment(comment, y+index1, 0)
-						if err == nil {
-							index1 = height - y
+						if height, err := handleComment(comment, y+currentLineOffset, 0); err == nil {
+							currentLineOffset = height - y
 						}
 
-						index1++
+						currentLineOffset++
 					}
-				}
-
-				if comments != nil && isAddedLine {
 				}
 
 				if isAddedLine || isCommonLine {
@@ -391,12 +383,12 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 				}
 			}
 
-			index1++
+			currentLineOffset++
 		}
 
-		index1++
-		tview.Print(screen, "", x, y+index1, width, tview.AlignLeft, tcell.ColorWhite)
-		index1++
+		currentLineOffset++
+		tview.Print(screen, "", x, y+currentLineOffset, width, tview.AlignLeft, tcell.ColorWhite)
+		currentLineOffset++
 	}
 	return
 
