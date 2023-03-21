@@ -124,18 +124,21 @@ type PullRequestActivityChangesRequestEvent struct {
 }
 
 type PullRequestActivityCommentEvent struct {
-	ID       string
-	ParentID string
-	User     string
-	Deleted  bool
-	Content  string
-	Created  time.Time
-	Updated  time.Time
+	ID               string
+	ParentID         string
+	User             string
+	Deleted          bool
+	Content          string
+	Created          time.Time
+	Updated          time.Time
+	BeforeLineNumber uint32
+	AfterLineNumber  uint32
+	// Check which name it when the file is renamed
+	FilePath string
 }
 
 type PullRequestActivityLists struct {
 	Approvals       *[]*PullRequestActivityApprovalEvent
-	Comments        *[]*PullRequestActivityCommentEvent
 	ChangesRequests *[]*PullRequestActivityChangesRequestEvent
 }
 
@@ -152,7 +155,6 @@ func (i *PullRequestActivityIterator) parse(
 	parsed gjson.Result,
 ) (*PullRequestActivityLists, error) {
 	approvalEventList := []*PullRequestActivityApprovalEvent{}
-	commentEventList := []*PullRequestActivityCommentEvent{}
 	changesRequestEventList := []*PullRequestActivityChangesRequestEvent{}
 
 	result := parsed.Get("values")
@@ -165,16 +167,7 @@ func (i *PullRequestActivityIterator) parse(
 				User:    value.Get("approval.user.display_name").String(),
 			})
 		} else if value.Get("comment").IsObject() {
-			commentEventList = append(commentEventList, &PullRequestActivityCommentEvent{
-				ID:       value.Get("comment.id").String(),
-				ParentID: value.Get("comment.parent.id").String(),
-				Deleted:  value.Get("comment.deleted").Bool(),
-				// TODO: Outdated: value.Get("comment.inline.outdated").Bool(),
-				Content: value.Get("comment.content.raw").String(),
-				Created: value.Get("comment.created_on").Time(),
-				Updated: value.Get("comment.updated_on").Time(),
-				User:    value.Get("comment.user.display_name").String(),
-			})
+			// TODO: Skip this event? Comments are requested explicitly
 		} else if value.Get("changes_requested").IsObject() {
 			changesRequestEventList = append(changesRequestEventList, &PullRequestActivityChangesRequestEvent{
 				Created: value.Get("changes_requested.created_on").Time(),
@@ -189,7 +182,6 @@ func (i *PullRequestActivityIterator) parse(
 
 	return &PullRequestActivityLists{
 		Approvals:       &approvalEventList,
-		Comments:        &commentEventList,
 		ChangesRequests: &changesRequestEventList,
 	}, nil
 }
@@ -268,7 +260,6 @@ func (c *BitbucketCloudClient) FillMiscInfoAsync(
 		},
 	)
 	approvalList := []*PullRequestActivityApprovalEvent{}
-	commentsList := []*PullRequestActivityCommentEvent{}
 	changeRequestList := []*PullRequestActivityChangesRequestEvent{}
 
 	for iter.HasNext() {
@@ -278,7 +269,6 @@ func (c *BitbucketCloudClient) FillMiscInfoAsync(
 		}
 
 		approvalList = append(approvalList, *lists.Approvals...)
-		commentsList = append(commentsList, *lists.Comments...)
 		changeRequestList = append(changeRequestList, *lists.ChangesRequests...)
 	}
 
@@ -287,18 +277,55 @@ func (c *BitbucketCloudClient) FillMiscInfoAsync(
 		pr.Approvals = append(pr.Approvals, (*client.PullRequestApproval)(v))
 	}
 
-	pr.Comments = []*client.PullRequestComment{}
-	for _, v := range commentsList {
-		pr.Comments = append(pr.Comments, &client.PullRequestComment{
-			ID:       v.ID,
-			Created:  v.Created,
-			User:     v.User,
-			Content:  v.Content,
-			ParentID: v.ParentID,
-		})
+	return nil
+}
+
+func (c *BitbucketCloudClient) GetComments(
+	options *client.GetCommentsOptions,
+) ([]*client.PullRequestComment, error) {
+	url := fmt.Sprintf(
+		"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/comments",
+		options.Repository.Name,
+		options.ID,
+	)
+
+	rc := resty.New()
+	r, err := rc.R().
+		SetBasicAuth(c.username, c.password).
+		SetError(bbError{}).
+		Get(url)
+
+	if err != nil {
+		return nil, err
+	}
+	if r.IsError() {
+		return nil, errors.New(string(r.Body()))
 	}
 
-	return nil
+	parsed := gjson.ParseBytes(r.Body())
+	result := parsed.Get("values")
+
+	var list []*client.PullRequestComment
+	result.ForEach(func(key, value gjson.Result) bool {
+		list = append(list, &client.PullRequestComment{
+			ID:       value.Get("id").String(),
+			ParentID: value.Get("parent.id").String(),
+			Deleted:  value.Get("deleted").Bool(),
+			// TODO: Outdated: value.Get("comment.inline.outdated").Bool(),
+			Content:          value.Get("content.raw").String(),
+			Created:          value.Get("created_on").Time(),
+			Updated:          value.Get("updated_on").Time(),
+			User:             value.Get("user.display_name").String(),
+			BeforeLineNumber: uint(value.Get("inline.from").Uint()),
+			AfterLineNumber:  uint(value.Get("inline.to").Uint()),
+			// Check which name it when the file is renamed
+			FilePath: value.Get("inline.path").String(),
+		})
+
+		return true
+	})
+
+	return list, nil
 }
 
 func (c *BitbucketCloudClient) GetPullRequests(

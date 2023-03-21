@@ -28,6 +28,7 @@ type Client interface {
 	Unapprove(o *UnapproveOptions) (*PullRequest, error)
 	GetPullRequestInfo(o *ApproveOptions) (*PullRequest, error)
 	FillMiscInfoAsync(repo *Repository, pr *PullRequest) error
+	GetComments(o *GetCommentsOptions) ([]*PullRequestComment, error)
 }
 
 type RepositoryProvider string
@@ -120,6 +121,11 @@ type GetPullRequestsOptions struct {
 	Next       string
 }
 
+type GetCommentsOptions struct {
+	Repository *Repository
+	ID         string
+}
+
 type DeclinePullRequestOptions struct {
 	Repository *Repository
 	ID         string
@@ -159,11 +165,16 @@ type PullRequestChangesRequest struct {
 }
 
 type PullRequestComment struct {
-	ID       string
-	Created  time.Time
-	User     string
-	Content  string
-	ParentID string
+	ID               string
+	Created          time.Time
+	Updated          time.Time
+	Deleted          bool
+	User             string
+	Content          string
+	ParentID         string
+	BeforeLineNumber uint
+	AfterLineNumber  uint
+	FilePath         string
 }
 
 type PullRequestBranch struct {
