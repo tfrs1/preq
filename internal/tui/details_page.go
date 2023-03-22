@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"errors"
 	"fmt"
 	"preq/internal/pkg/client"
 	"strconv"
@@ -102,6 +101,16 @@ type commentMap struct {
 	AddedLineComments   map[uint]*client.PullRequestComment
 }
 
+type contentLineThing struct {
+	Indent  int
+	Content string
+}
+
+type contentLine struct {
+	LeftAligned  *contentLineThing
+	RightAligned *contentLineThing
+}
+
 func (ct *CommentsTable) Draw(screen tcell.Screen) {
 	ct.Box.DrawForSubclass(screen, ct)
 	x, y, width, height := ct.GetInnerRect()
@@ -132,13 +141,11 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 		}
 	}
 
-	currentLineOffset := 0
-
 	// index := -ct.pageOffset
 
+	content := make([]*contentLine, 0)
 	prevIndent := 0
-	printComment := func(comment *client.PullRequestComment, yHeight int, indent int) (int, error) {
-		localIndex := 0
+	printComment := func(comment *client.PullRequestComment, indent int) (error) {
 		innerWidth := width - indent
 
 		tlb := ""
@@ -159,54 +166,50 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 			trb = topRightReplyBorder
 		}
 
-		if localIndex+yHeight >= 0 {
-			tview.Print(
-				screen,
-				fmt.Sprintf(
-					"%s%s%s%s",
+		topBorderContent := &contentLineThing{
+			Content: fmt.Sprintf(
+				"%s%s%s%s",
+				tlb,
+				blbPrev,
+				strings.Repeat(horizontalBorder, innerWidth-3),
+				trb,
+			),
+			Indent: indent,
+		}
+
+		if indent > 0 {
+			content[len(content)-1].LeftAligned = &contentLineThing{
+				Content: fmt.Sprintf(
+					"%s%s%s%s%s",
+					bottomLeftBorder,
 					tlb,
 					blbPrev,
 					strings.Repeat(horizontalBorder, innerWidth-3),
 					trb,
 				),
-				x+indent,
-				yHeight+localIndex,
-				innerWidth,
-				tview.AlignLeft,
-				tcell.ColorYellow,
-			)
+				Indent: indent - 1,
+			}
+		} else {
+			content = append(content, &contentLine{
+				LeftAligned: topBorderContent,
+			})
 		}
 
-		localIndex++
-		if yHeight+localIndex >= height {
-			return -1, errors.New("height reached")
-		}
-
-		if localIndex+yHeight >= 0 {
-			tview.Print(
-				screen,
-				fmt.Sprintf("%s%s", verticalBorder, comment.User),
-				x+indent,
-				yHeight+localIndex,
-				innerWidth,
-				tview.AlignLeft,
-				tcell.ColorYellow,
-			)
-			tview.Print(
-				screen,
-				fmt.Sprintf(
+		content = append(content, &contentLine{
+			LeftAligned: &contentLineThing{
+				Content: fmt.Sprintf("[white]%s%s", verticalBorder, comment.User),
+				Indent:  indent,
+			},
+			RightAligned: &contentLineThing{
+				Content: fmt.Sprintf(
 					"%s[%v]%s",
 					comment.Created.Local().Format("2006-01-02 15:04:05"),
 					"yellow",
 					verticalBorder,
 				),
-				x+indent,
-				yHeight+localIndex,
-				innerWidth,
-				tview.AlignRight,
-				tcell.ColorWhite,
-			)
-		}
+				Indent: 0,
+			},
+		})
 
 		words := strings.Split(comment.Content, " ")
 		commentLines := []string{}
@@ -226,78 +229,51 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 		}
 		commentLines = append(commentLines, strings.Join(line, " "))
 		for _, line := range commentLines {
-			localIndex++
-			if yHeight+localIndex >= height {
-				return -1, errors.New("height reached")
-			}
-
-			if localIndex+yHeight >= 0 {
-				tview.Print(
-					screen,
-					fmt.Sprintf("%s%s", verticalBorder, line),
-					x+indent,
-					yHeight+localIndex,
-					innerWidth,
-					tview.AlignLeft,
-					tcell.ColorYellow,
-				)
-
-				tview.Print(
-					screen,
-					verticalBorder,
-					x+indent,
-					yHeight+localIndex,
-					innerWidth,
-					tview.AlignRight,
-					tcell.ColorYellow,
-				)
-			}
+			content = append(content, &contentLine{
+				LeftAligned: &contentLineThing{
+					Content: fmt.Sprintf("%s%s", verticalBorder, line),
+					Indent:  indent,
+				},
+				RightAligned: &contentLineThing{
+					Content: verticalBorder,
+				},
+			})
 		}
 
-		localIndex++
-		if yHeight+localIndex >= height {
-			return -1, errors.New("height reached")
-		}
-
-		if localIndex >= 0 {
-			tview.Print(
-				screen,
-				fmt.Sprintf(
+		content = append(content, &contentLine{
+			LeftAligned: &contentLineThing{
+				Content: fmt.Sprintf(
 					"%s%s%s",
 					bottomLeftBorder,
 					strings.Repeat(horizontalBorder, innerWidth-2),
 					bottomRightBorder,
 				),
-				x+indent,
-				yHeight+localIndex,
-				innerWidth,
-				tview.AlignLeft,
-				tcell.ColorYellow,
-			)
-		}
+				Indent: indent,
+			},
+		})
 
 		prevIndent = indent
 
-		return yHeight + localIndex, nil
+		return nil
 	}
 
-	var handleComment func(comment *client.PullRequestComment, y int, depth int) (int, error)
-	handleComment = func(comment *client.PullRequestComment, y int, depth int) (int, error) {
-		height, err := printComment(comment, y, depth)
+	var handleComment func(comment *client.PullRequestComment, depth int) (int, error)
+	handleComment = func(comment *client.PullRequestComment, depth int) (int, error) {
+		err := printComment(comment, depth)
 		if err != nil {
 			return -1, err
 		}
 
 		for _, prc := range ct.pullRequest.PullRequest.Comments {
 			if prc.ParentID == comment.ID {
-				height, err = handleComment(prc, height, depth+1)
+				_, err = handleComment(prc, depth+1)
 				if err != nil {
 					return -1, err
 				}
 			}
 		}
 
-		return height, nil
+		return 0, nil
 	}
 
 	reachedEnd := true
@@ -310,8 +286,11 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 
 		comments := filesMap["Dockerfile"]
 
-		tview.Print(screen, filename, x, y+currentLineOffset, width, tview.AlignLeft, tcell.ColorWhite)
-		currentLineOffset++
+		content = append(content, &contentLine{
+			LeftAligned: &contentLineThing{
+				Content: filename,
+			},
+		})
 
 		for _, h := range d.Hunks {
 			origIdx := h.OrigStartLine
@@ -337,17 +316,11 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 				}
 
 				output := fmt.Sprintf("%s %s│ [%s]", oldLineNumber, newLineNumber, color) + line
-				tview.Print(
-					screen,
-					output,
-					x,
-					y+currentLineOffset,
-					width,
-					tview.AlignLeft,
-					tcell.ColorWhite,
-				)
-
-				currentLineOffset++
+				content = append(content, &contentLine{
+					LeftAligned: &contentLineThing{
+						Content: output,
+					},
+				})
 
 				if comments != nil {
 					var comment *client.PullRequestComment = nil
@@ -366,11 +339,7 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 					}
 
 					if comment != nil {
-						if height, err := handleComment(comment, y+currentLineOffset, 0); err == nil {
-							currentLineOffset = height - y
-						}
-
-						currentLineOffset++
+						handleComment(comment, 0)
 					}
 				}
 
@@ -382,13 +351,48 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 					origIdx++
 				}
 			}
-
-			currentLineOffset++
 		}
 
-		currentLineOffset++
-		tview.Print(screen, "", x, y+currentLineOffset, width, tview.AlignLeft, tcell.ColorWhite)
-		currentLineOffset++
+    i := 0
+		for i, cl := range content {
+			if i >= height {
+				break
+			}
+
+			if cl.LeftAligned != nil {
+				output := cl.LeftAligned.Content
+				xOffset := cl.LeftAligned.Indent
+				alignment := tview.AlignLeft
+
+				tview.Print(
+					screen,
+					output,
+					x+xOffset,
+					y+i,
+					width,
+					alignment,
+					tcell.ColorWhite,
+				)
+			}
+
+			if cl.RightAligned != nil {
+				output := cl.RightAligned.Content
+				xOffset := cl.RightAligned.Indent
+				alignment := tview.AlignRight
+
+				tview.Print(
+					screen,
+					output,
+					x+xOffset,
+					y+i,
+					width,
+					alignment,
+					tcell.ColorWhite,
+				)
+			}
+		}
+
+		tview.Print(screen, "", x, y+i, width, tview.AlignLeft, tcell.ColorWhite)
 	}
 	return
 
