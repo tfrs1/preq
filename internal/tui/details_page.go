@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"math"
 	"preq/internal/pkg/client"
 	"strconv"
 	"strings"
@@ -136,8 +137,6 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 			filesMap[prc.FilePath].AddedLineComments[prc.AfterLineNumber] = prc
 		}
 	}
-
-	// index := -ct.pageOffset
 
 	content := make([][]*contentLineStatement, 0)
 	prevIndent := 0
@@ -342,23 +341,25 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 			}
 		}
 
-		i := 0
-		for i, cl := range content {
-			if i >= height {
-				break
-			}
+		i := ct.pageOffset
+		end := int(math.Min(float64(len(content)), float64(i+height)))
+		offset := 0
+		for ; i < end; i++ {
+			cl := content[i]
 
 			for _, s := range cl {
 				tview.Print(
 					screen,
 					s.Content,
 					x+s.Indent,
-					y+i,
+					y+offset,
 					width,
 					s.Alignment,
 					tcell.ColorWhite,
 				)
 			}
+
+			offset++
 		}
 
 		tview.Print(screen, "", x, y+i, width, tview.AlignLeft, tcell.ColorWhite)
