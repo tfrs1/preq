@@ -9,6 +9,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"github.com/rs/zerolog/log"
 	"github.com/sourcegraph/go-diff/diff"
 )
 
@@ -36,6 +37,19 @@ type CommentsTable struct {
 	IsLoading         bool
 	width             int
 	height            int
+	files             []*diffFile
+}
+
+const (
+	DiffFileTypeAdded = iota
+	DiffFileTypeRemoved
+	DiffFileTypeRenamed
+	DiffFileTypeUpdated
+)
+
+type diffFile struct {
+	Type  int
+	Title string
 }
 
 func NewCommentsTable() *CommentsTable {
@@ -89,6 +103,7 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 	ct.IsLoading = true
 	ct.content = make([][]*contentLineStatement, 0)
 	ct.pageOffset = 0
+	ct.files = []*diffFile{}
 
 	changes, err := ct.pullRequest.GitUtil.GetDiffPatch(
 		ct.pullRequest.PullRequest.Destination.Hash,
@@ -105,6 +120,34 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 		ct.loadingError = err
 		return
 	}
+	ct.diffs = diffs
+
+	for _, d := range diffs {
+		newName := d.NewName[2:]
+		oldName := d.OrigName[2:]
+
+		if d.OrigName == "/dev/null" {
+			ct.files = append(ct.files, &diffFile{
+				Title: newName,
+				Type:  DiffFileTypeAdded,
+			})
+		} else if d.NewName == "/dev/null" {
+			ct.files = append(ct.files, &diffFile{
+				Title: oldName,
+				Type:  DiffFileTypeRemoved,
+			})
+		} else if oldName != newName {
+			ct.files = append(ct.files, &diffFile{
+				Title: fmt.Sprintf("%s -> %s", oldName, newName),
+				Type:  DiffFileTypeRenamed,
+			})
+		} else {
+			ct.files = append(ct.files, &diffFile{
+				Title: newName,
+				Type:  DiffFileTypeUpdated,
+			})
+		}
+	}
 
 	ct.pullRequest.IsCommentsLoading = true
 	go (func() {
@@ -119,7 +162,6 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 
 		ct.pullRequest.PullRequest.Comments = list
 		ct.pullRequest.IsCommentsLoading = false
-		ct.diffs = diffs
 		ct.IsLoading = false
 		app.QueueUpdateDraw(func() {})
 	})()
@@ -426,8 +468,8 @@ func newDetailsPage() *detailsPage {
 	grid := tview.NewGrid().SetRows(5, 0).SetColumns(0)
 	info := tview.NewFlex()
 
-	title := tview.NewTextView()
-	info.AddItem(title, 0, 1, false)
+	filesTable := tview.NewTable()
+	info.AddItem(filesTable, 0, 1, false)
 	info.SetTitle("Info").SetBorder(true)
 
 	table := NewCommentsTable()
@@ -478,10 +520,27 @@ func newDetailsPage() *detailsPage {
 
 	eventBus.Subscribe("detailsPage:open", func(input interface{}) {
 		if pr, ok := input.(*PullRequest); ok {
-			title.SetText(pr.PullRequest.ID)
 			table.SetData(pr)
+			filesTable.Clear()
+
+			typeText := ""
+			for i, v := range table.files {
+				switch v.Type {
+				case DiffFileTypeAdded:
+					typeText = "A"
+				case DiffFileTypeRenamed:
+					typeText = "R"
+				case DiffFileTypeRemoved:
+					typeText = "D"
+				case DiffFileTypeUpdated:
+					typeText = "U"
+				}
+
+				filesTable.SetCell(i, 0, tview.NewTableCell(typeText))
+				filesTable.SetCell(i, 1, tview.NewTableCell(v.Title))
+			}
 		} else {
-			title.SetText("cast failed")
+			log.Error().Msg("cast failed when opening the details page")
 		}
 
 	})
