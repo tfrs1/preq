@@ -62,7 +62,11 @@ func NewCommentsTable() *CommentsTable {
 
 func (ct *CommentsTable) scrollDown(size int) {
 	ct.pageOffset += size
+
 	end := len(ct.content) - ct.height
+	if end < 0 {
+		end = 0
+	}
 
 	// Should not scroll past the end of the content
 	if ct.pageOffset > end {
