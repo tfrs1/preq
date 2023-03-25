@@ -46,8 +46,8 @@ func NewCommentsTable() *CommentsTable {
 	}
 }
 
-func (ct *CommentsTable) ScrollUp() {
-	ct.pageOffset++
+func (ct *CommentsTable) scrollDown(size int) {
+	ct.pageOffset += size
 	end := len(ct.content) - ct.height
 
 	// Should not scroll past the end of the content
@@ -56,13 +56,29 @@ func (ct *CommentsTable) ScrollUp() {
 	}
 }
 
-func (ct *CommentsTable) ScrollDown() {
-	ct.pageOffset--
+func (ct *CommentsTable) scrollUp(size int) {
+	ct.pageOffset -= size
 
 	// Should not scroll above the top line
 	if ct.pageOffset < 0 {
 		ct.pageOffset = 0
 	}
+}
+
+func (ct *CommentsTable) ScrollDown() {
+	ct.scrollDown(1)
+}
+
+func (ct *CommentsTable) ScrollHalfPageDown() {
+	ct.scrollDown(ct.height / 2)
+}
+
+func (ct *CommentsTable) ScrollUp() {
+	ct.scrollUp(1)
+}
+
+func (ct *CommentsTable) ScrollHalfPageUp() {
+	ct.scrollUp(ct.height / 2)
 }
 
 func (ct *CommentsTable) SetData(pr *PullRequest) {
@@ -72,6 +88,7 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 	ct.loadingError = nil
 	ct.IsLoading = true
 	ct.content = make([][]*contentLineStatement, 0)
+	ct.pageOffset = 0
 
 	changes, err := ct.pullRequest.GitUtil.GetDiffPatch(
 		ct.pullRequest.PullRequest.Destination.Hash,
@@ -346,7 +363,15 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 	x, y, width, height := ct.GetInnerRect()
 
 	if ct.loadingError != nil {
-		tview.Print(screen, "Could not find the commit hash locally. Please pull.", x, y, width, tview.AlignLeft, tcell.ColorWhite)
+		tview.Print(
+			screen,
+			"Could not find the commit hash locally. Please pull.",
+			x,
+			y,
+			width,
+			tview.AlignLeft,
+			tcell.ColorWhite,
+		)
 		return
 	}
 
@@ -413,10 +438,19 @@ func newDetailsPage() *detailsPage {
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Rune() {
 			case 'j':
-				table.ScrollUp()
+				table.ScrollDown()
 				return nil
 			case 'k':
-				table.ScrollDown()
+				table.ScrollUp()
+				return nil
+			}
+
+			switch event.Key() {
+			case tcell.KeyCtrlD:
+				table.ScrollHalfPageDown()
+				return nil
+			case tcell.KeyCtrlU:
+				table.ScrollHalfPageUp()
 				return nil
 			}
 
