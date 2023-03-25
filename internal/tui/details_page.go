@@ -32,35 +32,46 @@ type CommentsTable struct {
 	disableScrollDown bool
 	loadingError      error
 	diffs             []*diff.FileDiff
+	content           [][]*contentLineStatement
+	IsLoading         bool
+	width             int
+	height            int
 }
 
 func NewCommentsTable() *CommentsTable {
 	return &CommentsTable{
 		Box:        tview.NewBox(),
 		pageOffset: 0,
+		IsLoading:  true,
 	}
 }
 
 func (ct *CommentsTable) ScrollUp() {
-	if !ct.disableScrollDown {
-		ct.pageOffset++
+	ct.pageOffset++
+	end := len(ct.content) - ct.height
+
+	// Should not scroll past the end of the content
+	if ct.pageOffset > end {
+		ct.pageOffset = end
 	}
 }
 
 func (ct *CommentsTable) ScrollDown() {
 	ct.pageOffset--
 
-	// Should never scroll above the top line
+	// Should not scroll above the top line
 	if ct.pageOffset < 0 {
 		ct.pageOffset = 0
 	}
-
-	ct.disableScrollDown = false
 }
 
 func (ct *CommentsTable) SetData(pr *PullRequest) {
+	_, _, ct.width, ct.height = ct.GetInnerRect()
+
 	ct.pullRequest = pr
 	ct.loadingError = nil
+	ct.IsLoading = true
+	ct.content = make([][]*contentLineStatement, 0)
 
 	changes, err := ct.pullRequest.GitUtil.GetDiffPatch(
 		ct.pullRequest.PullRequest.Destination.Hash,
@@ -91,37 +102,13 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 
 		ct.pullRequest.PullRequest.Comments = list
 		ct.pullRequest.IsCommentsLoading = false
+		ct.diffs = diffs
+		ct.IsLoading = false
 		app.QueueUpdateDraw(func() {})
 	})()
-
-	ct.diffs = diffs
 }
 
-type commentMap struct {
-	RemovedLineComments map[uint]*client.PullRequestComment
-	AddedLineComments   map[uint]*client.PullRequestComment
-}
-
-type contentLineStatement struct {
-	Indent    int
-	Content   string
-	Alignment int
-}
-
-func (ct *CommentsTable) Draw(screen tcell.Screen) {
-	ct.Box.DrawForSubclass(screen, ct)
-	x, y, width, height := ct.GetInnerRect()
-
-	if ct.pullRequest.IsCommentsLoading {
-		tview.Print(screen, "Loading comments...", x, y, width, tview.AlignLeft, tcell.ColorWhite)
-		return
-	}
-
-	if ct.loadingError != nil {
-		tview.Print(screen, "Please pull", x, y, width, tview.AlignLeft, tcell.ColorWhite)
-		return
-	}
-
+func (ct *CommentsTable) prerenderContent() {
 	filesMap := make(map[string]*commentMap)
 	for _, prc := range ct.pullRequest.PullRequest.Comments {
 		if filesMap[prc.FilePath] == nil {
@@ -141,7 +128,7 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 	content := make([][]*contentLineStatement, 0)
 	prevIndent := 0
 	printComment := func(comment *client.PullRequestComment, indent int) error {
-		innerWidth := width - indent
+		innerWidth := ct.width - indent
 
 		tlb := ""
 		blbPrev := horizontalBorder
@@ -268,8 +255,6 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 		return 0, nil
 	}
 
-	reachedEnd := true
-
 	for _, d := range ct.diffs {
 		filename := d.NewName
 		if filename == "/dev/null" {
@@ -340,27 +325,61 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 				}
 			}
 		}
+	}
 
-		i := ct.pageOffset
-		end := int(math.Min(float64(len(content)), float64(i+height)))
-		offset := 0
-		for ; i < end; i++ {
-			cl := content[i]
+	ct.content = content
+}
 
-			for _, s := range cl {
-				tview.Print(
-					screen,
-					s.Content,
-					x+s.Indent,
-					y+offset,
-					width,
-					s.Alignment,
-					tcell.ColorWhite,
-				)
-			}
+type commentMap struct {
+	RemovedLineComments map[uint]*client.PullRequestComment
+	AddedLineComments   map[uint]*client.PullRequestComment
+}
 
-			offset++
+type contentLineStatement struct {
+	Indent    int
+	Content   string
+	Alignment int
+}
+
+func (ct *CommentsTable) Draw(screen tcell.Screen) {
+	ct.Box.DrawForSubclass(screen, ct)
+	x, y, width, height := ct.GetInnerRect()
+
+	if ct.loadingError != nil {
+		tview.Print(screen, "Could not find the commit hash locally. Please pull.", x, y, width, tview.AlignLeft, tcell.ColorWhite)
+		return
+	}
+
+	if ct.IsLoading {
+		tview.Print(screen, "Loading...", x, y, width, tview.AlignLeft, tcell.ColorWhite)
+		return
+	}
+
+	if len(ct.content) == 0 {
+		ct.width = width
+		ct.height = height
+		ct.prerenderContent()
+	}
+
+	i := ct.pageOffset
+	end := int(math.Min(float64(len(ct.content)), float64(i+height)))
+	offset := 0
+	for ; i < end; i++ {
+		cl := ct.content[i]
+
+		for _, s := range cl {
+			tview.Print(
+				screen,
+				s.Content,
+				x+s.Indent,
+				y+offset,
+				width,
+				s.Alignment,
+				tcell.ColorWhite,
+			)
 		}
+
+		offset++
 
 		tview.Print(screen, "", x, y+i, width, tview.AlignLeft, tcell.ColorWhite)
 	}
@@ -371,12 +390,6 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 		if prc.ParentID == "" {
 			topLevelComments = append(topLevelComments, prc)
 		}
-	}
-
-	// If everything was printed it means there is nothing more to scroll
-	// therefore the scroll can be disabled until scrolled in the other direction
-	if reachedEnd {
-		ct.disableScrollDown = true
 	}
 }
 
