@@ -65,7 +65,7 @@ func NewCommentsTable() *CommentsTable {
 func (ct *CommentsTable) scrollDown(size int) {
 	ct.pageOffset += size
 
-	end := len(ct.content) - ct.height
+	end := len(ct.content) - ct.height - 1
 	if end < 0 {
 		end = 0
 	}
@@ -345,7 +345,6 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 	content = append(content, []*contentLineStatement{
 		{Content: d.Title},
 	})
-
 
 	for _, h := range d.Hunks {
 		origIdx := h.OrigStartLine
