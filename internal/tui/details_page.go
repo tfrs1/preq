@@ -37,7 +37,7 @@ type CommentsTable struct {
 	IsLoading         bool
 	width             int
 	height            int
-	files             []*diffFile
+	files             map[string]*diffFile
 }
 
 const (
@@ -48,8 +48,10 @@ const (
 )
 
 type diffFile struct {
-	Type  int
-	Title string
+	DiffId string
+	Type   int
+	Title  string
+	Hunks  []*diff.Hunk
 }
 
 func NewCommentsTable() *CommentsTable {
@@ -99,6 +101,15 @@ func (ct *CommentsTable) ScrollHalfPageUp() {
 	ct.scrollUp(ct.height / 2)
 }
 
+func (ct *CommentsTable) makeId(diff *diff.FileDiff) string {
+	id := diff.NewName[2:]
+	if diff.NewName == "/dev/null" {
+		id = diff.OrigName[2:]
+	}
+
+	return id
+}
+
 func (ct *CommentsTable) SetData(pr *PullRequest) {
 	_, _, ct.width, ct.height = ct.GetInnerRect()
 
@@ -107,7 +118,7 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 	ct.IsLoading = true
 	ct.content = make([][]*contentLineStatement, 0)
 	ct.pageOffset = 0
-	ct.files = []*diffFile{}
+	ct.files = make(map[string]*diffFile, 0)
 
 	changes, err := ct.pullRequest.GitUtil.GetDiffPatch(
 		ct.pullRequest.PullRequest.Destination.Hash,
@@ -130,26 +141,35 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 		newName := d.NewName[2:]
 		oldName := d.OrigName[2:]
 
+		id := ct.makeId(d)
 		if d.OrigName == "/dev/null" {
-			ct.files = append(ct.files, &diffFile{
-				Title: newName,
-				Type:  DiffFileTypeAdded,
-			})
+			ct.files[id] = &diffFile{
+				DiffId: id,
+				Title:  newName,
+				Type:   DiffFileTypeAdded,
+				Hunks:  d.Hunks,
+			}
 		} else if d.NewName == "/dev/null" {
-			ct.files = append(ct.files, &diffFile{
-				Title: oldName,
-				Type:  DiffFileTypeRemoved,
-			})
+			ct.files[id] = &diffFile{
+				DiffId: id,
+				Title:  oldName,
+				Type:   DiffFileTypeRemoved,
+				Hunks:  d.Hunks,
+			}
 		} else if oldName != newName {
-			ct.files = append(ct.files, &diffFile{
-				Title: fmt.Sprintf("%s -> %s", oldName, newName),
-				Type:  DiffFileTypeRenamed,
-			})
+			ct.files[id] = &diffFile{
+				DiffId: id,
+				Title:  fmt.Sprintf("%s -> %s", oldName, newName),
+				Type:   DiffFileTypeRenamed,
+				Hunks:  d.Hunks,
+			}
 		} else {
-			ct.files = append(ct.files, &diffFile{
-				Title: newName,
-				Type:  DiffFileTypeUpdated,
-			})
+			ct.files[id] = &diffFile{
+				DiffId: id,
+				Title:  newName,
+				Type:   DiffFileTypeUpdated,
+				Hunks:  d.Hunks,
+			}
 		}
 	}
 
@@ -167,11 +187,13 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 		ct.pullRequest.PullRequest.Comments = list
 		ct.pullRequest.IsCommentsLoading = false
 		ct.IsLoading = false
-		app.QueueUpdateDraw(func() {})
+		app.QueueUpdateDraw(func() {
+			eventBus.Publish("DetailsPage:LoadingFinished", nil)
+		})
 	})()
 }
 
-func (ct *CommentsTable) prerenderContent() {
+func (ct *CommentsTable) prerenderContent(d *diffFile) {
 	filesMap := make(map[string]*commentMap)
 	for _, prc := range ct.pullRequest.PullRequest.Comments {
 		if filesMap[prc.FilePath] == nil {
@@ -318,74 +340,67 @@ func (ct *CommentsTable) prerenderContent() {
 		return 0, nil
 	}
 
-	for _, d := range ct.diffs {
-		filename := d.NewName
-		if filename == "/dev/null" {
-			filename = d.OrigName
-		}
+	comments := filesMap[d.DiffId]
 
-		comments := filesMap["Dockerfile"]
+	content = append(content, []*contentLineStatement{
+		{Content: d.Title},
+	})
 
-		content = append(content, []*contentLineStatement{
-			{Content: filename},
-		})
+	for _, h := range d.Hunks {
+		origIdx := h.OrigStartLine
+		newIdx := h.NewStartLine
 
-		for _, h := range d.Hunks {
-			origIdx := h.OrigStartLine
-			newIdx := h.NewStartLine
+		lines := strings.Split(string(h.Body), "\n")
+		for _, line := range lines {
+			isAddedLine := strings.HasPrefix(line, "+")
+			isRemoveLine := strings.HasPrefix(line, "-")
+			isCommonLine := strings.HasPrefix(line, " ")
 
-			lines := strings.Split(string(h.Body), "\n")
-			for _, line := range lines {
-				isAddedLine := strings.HasPrefix(line, "+")
-				isRemoveLine := strings.HasPrefix(line, "-")
-				isCommonLine := strings.HasPrefix(line, " ")
+			color := "white"
+			oldLineNumber := fmt.Sprint(origIdx)
+			if isAddedLine {
+				oldLineNumber = strings.Repeat(" ", len(oldLineNumber))
+				color = "green"
+			}
 
-				color := "white"
-				oldLineNumber := fmt.Sprint(origIdx)
+			newLineNumber := fmt.Sprint(newIdx)
+			if isRemoveLine {
+				newLineNumber = strings.Repeat(" ", len(newLineNumber))
+				color = "red"
+			}
+
+			output := fmt.Sprintf("%s %s│ [%s]", oldLineNumber, newLineNumber, color) + line
+			content = append(content, []*contentLineStatement{
+				{Content: output},
+			})
+
+			if comments != nil {
+				var comment *client.PullRequestComment = nil
 				if isAddedLine {
-					oldLineNumber = strings.Repeat(" ", len(oldLineNumber))
-					color = "green"
-				}
-
-				newLineNumber := fmt.Sprint(newIdx)
-				if isRemoveLine {
-					newLineNumber = strings.Repeat(" ", len(newLineNumber))
-					color = "red"
-				}
-
-				output := fmt.Sprintf("%s %s│ [%s]", oldLineNumber, newLineNumber, color) + line
-				content = append(content, []*contentLineStatement{
-					{Content: output},
-				})
-
-				if comments != nil {
-					var comment *client.PullRequestComment = nil
-					if isAddedLine {
-						if n, err := strconv.Atoi(newLineNumber); err == nil {
-							if c, ok := comments.AddedLineComments[uint(n)]; ok {
-								comment = c
-							}
-						}
-					} else {
-						if n, err := strconv.Atoi(oldLineNumber); err == nil {
-							if c, ok := comments.RemovedLineComments[uint(n)]; ok {
-								comment = c
-							}
+					if n, err := strconv.Atoi(newLineNumber); err == nil {
+						if c, ok := comments.AddedLineComments[uint(n)]; ok {
+							comment = c
 						}
 					}
-
-					if comment != nil {
-						handleComment(comment, 0)
+				} else {
+					if n, err := strconv.Atoi(oldLineNumber); err == nil {
+						if c, ok := comments.RemovedLineComments[uint(n)]; ok {
+							comment = c
+						}
 					}
 				}
 
-				if isAddedLine || isCommonLine {
-					newIdx++
+				if comment != nil {
+					handleComment(comment, 0)
 				}
+			}
 
-				if isRemoveLine || isCommonLine {
-					origIdx++
-				}
+			if isAddedLine || isCommonLine {
+				newIdx++
+			}
+
+			if isRemoveLine || isCommonLine {
+				origIdx++
 			}
 		}
 	}
@@ -429,7 +444,6 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 	if len(ct.content) == 0 {
 		ct.width = width
 		ct.height = height
-		ct.prerenderContent()
 	}
 
 	i := ct.pageOffset
@@ -471,12 +485,54 @@ type detailsPage struct {
 func newDetailsPage() *detailsPage {
 	grid := tview.NewGrid().SetRows(5, 0).SetColumns(0)
 	info := tview.NewFlex()
+	table := NewCommentsTable()
 
 	filesTable := tview.NewTable()
-	info.AddItem(filesTable, 0, 1, false)
+
+	eventBus.Subscribe("DetailsPage:LoadingFinished", func(data interface{}) {
+		row, _ := filesTable.GetSelection()
+    if row >= filesTable.GetRowCount() {
+      row = 0
+      filesTable.Select(row,0)
+    }
+
+		tableRow := filesTable.GetCell(row, 0)
+		var ref *diffFile
+		ref, ok := tableRow.GetReference().(*diffFile)
+		if !ok {
+			log.Error().Msg("changes table row reference")
+			return
+		}
+
+		eventBus.Publish("DetailsPage:OnFileChanged", ref)
+	})
+
+	filesTable.SetSelectionChangedFunc(func(row, column int) {
+		tableRow := filesTable.GetCell(row, 0)
+		var ref *diffFile
+		ref, ok := tableRow.GetReference().(*diffFile)
+		if !ok {
+			log.Error().Msg("changes table row reference")
+			return
+		}
+
+		eventBus.Publish("DetailsPage:OnFileChanged", ref)
+	})
+
+	filesTable.SetSelectable(true, false).
+		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			switch event.Key() {
+			case tcell.KeyEnter:
+				app.SetFocus(table)
+				return nil
+			}
+
+			return event
+		})
+
+	info.AddItem(filesTable, 0, 1, true)
 	info.SetTitle("Info").SetBorder(true)
 
-	table := NewCommentsTable()
 	table.
 		SetBorder(false).
 		SetBorder(true).
@@ -498,12 +554,15 @@ func newDetailsPage() *detailsPage {
 			case tcell.KeyCtrlU:
 				table.ScrollHalfPageUp()
 				return nil
+			case tcell.KeyEsc:
+				app.SetFocus(info)
+				return nil
 			}
 
 			return event
 		})
 
-	grid.AddItem(info, 0, 0, 1, 1, 1, 1, false)
+	grid.AddItem(info, 0, 0, 1, 1, 1, 1, true)
 	grid.AddItem(table, 1, 0, 1, 1, 1, 1, true)
 	grid.
 		SetBorder(true).
@@ -523,30 +582,47 @@ func newDetailsPage() *detailsPage {
 		})
 
 	eventBus.Subscribe("detailsPage:open", func(input interface{}) {
-		if pr, ok := input.(*PullRequest); ok {
-			table.SetData(pr)
-			filesTable.Clear()
-
-			typeText := ""
-			for i, v := range table.files {
-				switch v.Type {
-				case DiffFileTypeAdded:
-					typeText = "A"
-				case DiffFileTypeRenamed:
-					typeText = "R"
-				case DiffFileTypeRemoved:
-					typeText = "D"
-				case DiffFileTypeUpdated:
-					typeText = "U"
-				}
-
-				filesTable.SetCell(i, 0, tview.NewTableCell(typeText))
-				filesTable.SetCell(i, 1, tview.NewTableCell(v.Title))
-			}
-		} else {
+		pr, ok := input.(*PullRequest)
+		if !ok {
 			log.Error().Msg("cast failed when opening the details page")
 		}
 
+		table.SetData(pr)
+		filesTable.Clear()
+
+		typeText := ""
+		row := 0
+		for _, v := range table.files {
+			switch v.Type {
+			case DiffFileTypeAdded:
+				typeText = "A"
+			case DiffFileTypeRenamed:
+				typeText = "R"
+			case DiffFileTypeRemoved:
+				typeText = "D"
+			case DiffFileTypeUpdated:
+				typeText = "U"
+			}
+
+			filesTable.SetCell(row, 0, tview.NewTableCell(typeText).SetReference(v))
+			filesTable.SetCell(row, 1, tview.NewTableCell(v.Title))
+
+			row++
+		}
+
+		app.SetFocus(table)
+	})
+
+	eventBus.Subscribe("DetailsPage:OnFileChanged", func(input interface{}) {
+		fileDiff, ok := input.(*diffFile)
+
+		if !ok {
+			log.Error().Msg("cast failed when opening the details page")
+			return
+		}
+
+		diff := table.files[fileDiff.DiffId]
+		table.prerenderContent(diff)
 	})
 
 	return &detailsPage{
