@@ -598,13 +598,19 @@ func newDetailsPage() *detailsPage {
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Key() {
 			case tcell.KeyEscape:
+				if !info.HasFocus() {
+					return event
+				}
+
 				eventBus.Publish("detailsPage:close", nil)
+				return nil
 			}
 
 			switch event.Rune() {
 			case 'o':
 			case 'q':
 				eventBus.Publish("detailsPage:close", nil)
+				return nil
 			}
 
 			return event
