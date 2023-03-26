@@ -346,11 +346,31 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 		{Content: d.Title},
 	})
 
+
 	for _, h := range d.Hunks {
 		origIdx := h.OrigStartLine
 		newIdx := h.NewStartLine
 
 		lines := strings.Split(string(h.Body), "\n")
+
+		maxOrigIdx := h.OrigStartLine
+		maxNewIdx := h.NewStartLine
+		for _, line := range lines {
+			isAddedLine := strings.HasPrefix(line, "+")
+			isRemoveLine := strings.HasPrefix(line, "-")
+			isCommonLine := strings.HasPrefix(line, " ")
+
+			if isAddedLine || isCommonLine {
+				maxNewIdx++
+			}
+
+			if isRemoveLine || isCommonLine {
+				maxOrigIdx++
+			}
+		}
+
+		origIdxLen := len(fmt.Sprint(maxOrigIdx))
+		newIdxLen := len(fmt.Sprint(maxNewIdx))
 		for _, line := range lines {
 			isAddedLine := strings.HasPrefix(line, "+")
 			isRemoveLine := strings.HasPrefix(line, "-")
@@ -359,19 +379,28 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 			color := "white"
 			oldLineNumber := fmt.Sprint(origIdx)
 			if isAddedLine {
-				oldLineNumber = strings.Repeat(" ", len(oldLineNumber))
+				oldLineNumber = ""
 				color = "green"
 			}
 
 			newLineNumber := fmt.Sprint(newIdx)
 			if isRemoveLine {
-				newLineNumber = strings.Repeat(" ", len(newLineNumber))
+				newLineNumber = ""
 				color = "red"
 			}
 
-			output := fmt.Sprintf("%s %s│ [%s]", oldLineNumber, newLineNumber, color) + line
 			content = append(content, []*contentLineStatement{
-				{Content: output},
+				{
+					Content: fmt.Sprintf(
+						"%*s %*s│ [%s]%s",
+						origIdxLen,
+						oldLineNumber,
+						newIdxLen,
+						newLineNumber,
+						color,
+						line,
+					),
+				},
 			})
 
 			if comments != nil {
@@ -403,6 +432,8 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 				origIdx++
 			}
 		}
+
+		content = append(content, []*contentLineStatement{{Content: ""}})
 	}
 
 	ct.content = content
@@ -491,10 +522,10 @@ func newDetailsPage() *detailsPage {
 
 	eventBus.Subscribe("DetailsPage:LoadingFinished", func(data interface{}) {
 		row, _ := filesTable.GetSelection()
-    if row >= filesTable.GetRowCount() {
-      row = 0
-      filesTable.Select(row,0)
-    }
+		if row >= filesTable.GetRowCount() {
+			row = 0
+			filesTable.Select(row, 0)
+		}
 
 		tableRow := filesTable.GetCell(row, 0)
 		var ref *diffFile
