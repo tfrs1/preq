@@ -471,7 +471,7 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 		return
 	}
 
-	if len(ct.content) == 0 {
+	if len(ct.content) != 0 {
 		ct.width = width
 		ct.height = height
 	}
@@ -564,7 +564,6 @@ func newDetailsPage() *detailsPage {
 	info.SetTitle("Info").SetBorder(true)
 
 	table.
-		SetBorder(false).
 		SetBorder(true).
 		SetTitle("Comments").
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
