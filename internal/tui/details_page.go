@@ -650,6 +650,7 @@ func newDetailsPage() *detailsPage {
 			return
 		}
 
+		table.pageOffset = 0
 		diff := table.files[fileDiff.DiffId]
 		table.prerenderContent(diff)
 	})
