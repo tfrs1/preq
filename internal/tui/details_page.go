@@ -30,6 +30,7 @@ type CommentsTable struct {
 	*tview.Box
 	pullRequest       *PullRequest
 	pageOffset        int
+	selectedIndex     int
 	disableScrollDown bool
 	loadingError      error
 	diffs             []*diff.FileDiff
@@ -40,8 +41,10 @@ type CommentsTable struct {
 	files             map[string]*diffFile
 }
 
+type DiffFileType int
+
 const (
-	DiffFileTypeAdded = iota
+	DiffFileTypeAdded DiffFileType = iota
 	DiffFileTypeRemoved
 	DiffFileTypeRenamed
 	DiffFileTypeUpdated
@@ -49,7 +52,7 @@ const (
 
 type diffFile struct {
 	DiffId string
-	Type   int
+	Type   DiffFileType
 	Title  string
 	Hunks  []*diff.Hunk
 }
@@ -62,7 +65,21 @@ func NewCommentsTable() *CommentsTable {
 	}
 }
 
-func (ct *CommentsTable) scrollDown(size int) {
+func (ct *CommentsTable) moveSelected(size int) {
+	ct.selectedIndex += size
+
+	// Should not scroll past the end of the content
+	end := len(ct.content) - 1
+	if ct.selectedIndex > end {
+		ct.selectedIndex = end
+	}
+
+	if ct.selectedIndex < 0 {
+		ct.selectedIndex = 0
+	}
+}
+
+func (ct *CommentsTable) scroll(size int) {
 	ct.pageOffset += size
 
 	end := len(ct.content) - ct.height - 1
@@ -74,31 +91,36 @@ func (ct *CommentsTable) scrollDown(size int) {
 	if ct.pageOffset > end {
 		ct.pageOffset = end
 	}
-}
 
-func (ct *CommentsTable) scrollUp(size int) {
-	ct.pageOffset -= size
-
-	// Should not scroll above the top line
 	if ct.pageOffset < 0 {
 		ct.pageOffset = 0
 	}
 }
 
 func (ct *CommentsTable) ScrollDown() {
-	ct.scrollDown(1)
+	if (ct.pageOffset+ct.height)-ct.selectedIndex <= 4 {
+		ct.scroll(1)
+	}
+
+	ct.moveSelected(1)
 }
 
 func (ct *CommentsTable) ScrollHalfPageDown() {
-	ct.scrollDown(ct.height / 2)
+	ct.scroll(ct.height / 2)
+	ct.moveSelected(ct.height / 2)
 }
 
 func (ct *CommentsTable) ScrollUp() {
-	ct.scrollUp(1)
+	if ct.selectedIndex-ct.pageOffset <= 4 {
+		ct.scroll(-1)
+	}
+
+	ct.moveSelected(-1)
 }
 
 func (ct *CommentsTable) ScrollHalfPageUp() {
-	ct.scrollUp(ct.height / 2)
+	ct.scroll(-ct.height / 2)
+	ct.moveSelected(-ct.height / 2)
 }
 
 func (ct *CommentsTable) makeId(diff *diff.FileDiff) string {
@@ -483,15 +505,27 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 		cl := ct.content[i]
 
 		for _, s := range cl {
-			tview.Print(
-				screen,
-				s.Content,
-				x+s.Indent,
-				y+offset,
-				width,
-				s.Alignment,
-				tcell.ColorWhite,
-			)
+			if i == ct.selectedIndex {
+				tview.Print(
+					screen,
+					"[::r]"+s.Content,
+					x+s.Indent,
+					y+offset,
+					width,
+					s.Alignment,
+					tcell.ColorWhite,
+				)
+			} else {
+				tview.Print(
+					screen,
+					s.Content,
+					x+s.Indent,
+					y+offset,
+					width,
+					s.Alignment,
+					tcell.ColorWhite,
+				)
+			}
 		}
 
 		offset++
@@ -657,6 +691,7 @@ func newDetailsPage() *detailsPage {
 		}
 
 		table.pageOffset = 0
+		table.selectedIndex = 0
 		diff := table.files[fileDiff.DiffId]
 		table.prerenderContent(diff)
 	})
