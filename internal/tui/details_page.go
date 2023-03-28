@@ -82,7 +82,7 @@ func (ct *CommentsTable) moveSelected(size int) {
 func (ct *CommentsTable) scroll(size int) {
 	ct.pageOffset += size
 
-	end := len(ct.content) - ct.height - 1
+	end := len(ct.content) - ct.height
 	if end < 0 {
 		end = 0
 	}
@@ -368,7 +368,7 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 		{Content: d.Title},
 	})
 
-	for _, h := range d.Hunks {
+	for i, h := range d.Hunks {
 		origIdx := h.OrigStartLine
 		newIdx := h.NewStartLine
 
@@ -454,7 +454,9 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 			}
 		}
 
-		content = append(content, []*contentLineStatement{{Content: ""}})
+		if i < len(d.Hunks)-1 {
+			content = append(content, []*contentLineStatement{{Content: ""}})
+		}
 	}
 
 	ct.content = content
