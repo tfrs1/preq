@@ -503,29 +503,31 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 	offset := 0
 	for ; i < end; i++ {
 		cl := ct.content[i]
+		colorPrefix := ""
+		if i == ct.selectedIndex {
+			colorPrefix = "[:gray]"
+		}
+
+		tview.Print(
+			screen,
+			colorPrefix+strings.Repeat(" ", width),
+			x,
+			y+offset,
+			width,
+			tview.AlignRight,
+			tcell.ColorWhite,
+		)
 
 		for _, s := range cl {
-			if i == ct.selectedIndex {
-				tview.Print(
-					screen,
-					"[::r]"+s.Content,
-					x+s.Indent,
-					y+offset,
-					width,
-					s.Alignment,
-					tcell.ColorWhite,
-				)
-			} else {
-				tview.Print(
-					screen,
-					s.Content,
-					x+s.Indent,
-					y+offset,
-					width,
-					s.Alignment,
-					tcell.ColorWhite,
-				)
-			}
+			tview.Print(
+				screen,
+				colorPrefix+s.Content,
+				x+s.Indent,
+				y+offset,
+				width,
+				s.Alignment,
+				tcell.ColorWhite,
+			)
 		}
 
 		offset++
