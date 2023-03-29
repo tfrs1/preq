@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"preq/internal/pkg/client"
-	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -26,6 +25,35 @@ var (
 	bottomLeftPreviousBorder = "┻"
 )
 
+// TODO: Change this code so it's one map with unique string ID (ol--nl, eg 1--21)
+type commentMap struct {
+	RemovedLineComments map[uint]*client.PullRequestComment
+	AddedLineComments   map[uint]*client.PullRequestComment
+}
+
+type contentLine struct {
+	Statements []*contentLineStatement
+	Reference  interface{}
+}
+
+type contentLineStatement struct {
+	Indent    int
+	Content   string
+	Alignment int
+}
+
+type DiffLineType int
+
+const (
+	DiffLineTypeAdded DiffLineType = iota
+	DiffLineTypeRemoved
+)
+
+type diffLine struct {
+	LineNumber int
+	Type       DiffLineType
+}
+
 type CommentsTable struct {
 	*tview.Box
 	pullRequest       *PullRequest
@@ -34,7 +62,7 @@ type CommentsTable struct {
 	disableScrollDown bool
 	loadingError      error
 	diffs             []*diff.FileDiff
-	content           [][]*contentLineStatement
+	content           []*contentLine
 	IsLoading         bool
 	width             int
 	height            int
@@ -138,7 +166,7 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 	ct.pullRequest = pr
 	ct.loadingError = nil
 	ct.IsLoading = true
-	ct.content = make([][]*contentLineStatement, 0)
+	ct.content = make([]*contentLine, 0)
 	ct.pageOffset = 0
 	ct.files = make(map[string]*diffFile, 0)
 
@@ -232,7 +260,7 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 		}
 	}
 
-	content := make([][]*contentLineStatement, 0)
+	content := make([]*contentLine, 0)
 	prevIndent := 0
 	printComment := func(comment *client.PullRequestComment, indent int) error {
 		innerWidth := ct.width - indent
@@ -251,8 +279,9 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 		}
 
 		if indent > 0 {
-			statements := &content[len(content)-1]
-			*statements = append(*statements,
+			line := content[len(content)-1]
+			line.Reference = nil
+			line.Statements = append(line.Statements,
 				&contentLineStatement{
 					Content: tlb + blbPrev,
 					Indent:  indent,
@@ -264,36 +293,41 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 			)
 		} else {
 			trb := topRightBorder
-			content = append(content, []*contentLineStatement{
-				{
-					Content: fmt.Sprintf(
-						"%s%s%s%s",
-						tlb,
-						blbPrev,
-						strings.Repeat(horizontalBorder, innerWidth-3),
-						trb,
-					),
-					Alignment: tview.AlignLeft,
-					Indent:    indent,
+			content = append(content, &contentLine{
+				Reference: comment,
+				Statements: []*contentLineStatement{
+					{
+						Content: fmt.Sprintf(
+							"%s%s%s%s",
+							tlb,
+							blbPrev,
+							strings.Repeat(horizontalBorder, innerWidth-3),
+							trb,
+						),
+						Alignment: tview.AlignLeft,
+						Indent:    indent,
+					},
 				},
 			})
 		}
 
-		content = append(content, []*contentLineStatement{
-			{
-				Content: fmt.Sprintf("[white]%s%s", verticalBorder, comment.User),
-				Indent:  indent,
-			},
-			{
-				Content: fmt.Sprintf(
-					"%s[%v]%s",
-					comment.Created.Local().Format("2006-01-02 15:04:05"),
-					"yellow",
-					verticalBorder,
-				),
-				Alignment: tview.AlignRight,
-				Indent:    0,
-			},
+		content = append(content, &contentLine{
+			Reference: comment,
+			Statements: []*contentLineStatement{
+				{
+					Content: fmt.Sprintf("[white]%s%s", verticalBorder, comment.User),
+					Indent:  indent,
+				},
+				{
+					Content: fmt.Sprintf(
+						"%s[%v]%s",
+						comment.Created.Local().Format("2006-01-02 15:04:05"),
+						"yellow",
+						verticalBorder,
+					),
+					Alignment: tview.AlignRight,
+					Indent:    0,
+				}},
 		})
 
 		words := strings.Split(comment.Content, " ")
@@ -314,28 +348,32 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 		}
 		commentLines = append(commentLines, strings.Join(line, " "))
 		for _, line := range commentLines {
-			content = append(content, []*contentLineStatement{
-				{
-					Content: verticalBorder + line,
-					Indent:  indent,
-				},
-				{
-					Content:   verticalBorder,
-					Alignment: tview.AlignRight,
-				},
-			})
+			content = append(content, &contentLine{
+				Reference: comment,
+				Statements: []*contentLineStatement{
+					{
+						Content: verticalBorder + line,
+						Indent:  indent,
+					},
+					{
+						Content:   verticalBorder,
+						Alignment: tview.AlignRight,
+					},
+				}})
 		}
 
-		content = append(content, []*contentLineStatement{
-			{
-				Content: fmt.Sprintf(
-					"%s%s%s",
-					bottomLeftBorder,
-					strings.Repeat(horizontalBorder, innerWidth-2),
-					bottomRightBorder,
-				),
-				Indent: indent,
-			},
+		content = append(content, &contentLine{
+			Reference: comment,
+			Statements: []*contentLineStatement{
+				{
+					Content: fmt.Sprintf(
+						"%s%s%s",
+						bottomLeftBorder,
+						strings.Repeat(horizontalBorder, innerWidth-2),
+						bottomRightBorder,
+					),
+					Indent: indent,
+				}},
 		})
 
 		prevIndent = indent
@@ -364,8 +402,8 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 
 	comments := filesMap[d.DiffId]
 
-	content = append(content, []*contentLineStatement{
-		{Content: d.Title},
+	content = append(content, &contentLine{
+		Statements: []*contentLineStatement{{Content: d.Title}},
 	})
 
 	for i, h := range d.Hunks {
@@ -399,6 +437,7 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 
 			color := "white"
 			oldLineNumber := fmt.Sprint(origIdx)
+			diffLineType := DiffLineTypeAdded
 			if isAddedLine {
 				oldLineNumber = ""
 				color = "green"
@@ -406,13 +445,23 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 
 			newLineNumber := fmt.Sprint(newIdx)
 			if isRemoveLine {
+				diffLineType = DiffLineTypeRemoved
 				newLineNumber = ""
 				color = "red"
 			}
 
-			content = append(content, []*contentLineStatement{
-				{
-					Content: fmt.Sprintf(
+			lineNumber := origIdx
+			if isAddedLine {
+				lineNumber = newIdx
+			}
+
+			content = append(content, &contentLine{
+				Reference: &diffLine{
+					LineNumber: int(lineNumber),
+					Type:       diffLineType,
+				},
+				Statements: []*contentLineStatement{
+					{Content: fmt.Sprintf(
 						"%*s %*s│ [%s]%s",
 						origIdxLen,
 						oldLineNumber,
@@ -420,24 +469,19 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 						newLineNumber,
 						color,
 						line,
-					),
+					)},
 				},
 			})
 
 			if comments != nil {
 				var comment *client.PullRequestComment = nil
+				cm := comments.RemovedLineComments
 				if isAddedLine {
-					if n, err := strconv.Atoi(newLineNumber); err == nil {
-						if c, ok := comments.AddedLineComments[uint(n)]; ok {
-							comment = c
-						}
-					}
-				} else {
-					if n, err := strconv.Atoi(oldLineNumber); err == nil {
-						if c, ok := comments.RemovedLineComments[uint(n)]; ok {
-							comment = c
-						}
-					}
+					cm = comments.AddedLineComments
+				}
+
+				if c, ok := cm[uint(lineNumber)]; ok {
+					comment = c
 				}
 
 				if comment != nil {
@@ -455,22 +499,26 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 		}
 
 		if i < len(d.Hunks)-1 {
-			content = append(content, []*contentLineStatement{{Content: ""}})
+			content = append(content, &contentLine{
+				Statements: []*contentLineStatement{{Content: ""}},
+			})
 		}
 	}
 
 	ct.content = content
 }
 
-type commentMap struct {
-	RemovedLineComments map[uint]*client.PullRequestComment
-	AddedLineComments   map[uint]*client.PullRequestComment
-}
+func (ct *CommentsTable) GetSelectedReference() interface{} {
+	if ct.selectedIndex > len(ct.content) {
+		return nil
+	}
 
-type contentLineStatement struct {
-	Indent    int
-	Content   string
-	Alignment int
+	v := ct.content[ct.selectedIndex]
+	if v == nil {
+		return nil
+	}
+
+	return v.Reference
 }
 
 func (ct *CommentsTable) Draw(screen tcell.Screen) {
@@ -520,7 +568,7 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 			tcell.ColorWhite,
 		)
 
-		for _, s := range cl {
+		for _, s := range cl.Statements {
 			tview.Print(
 				screen,
 				colorPrefix+s.Content,
@@ -612,6 +660,9 @@ func newDetailsPage() *detailsPage {
 			case 'k':
 				table.ScrollUp()
 				return nil
+			case 'c':
+				eventBus.Publish("DetailsPage:NewCommentRequested", table.GetSelectedReference())
+				return nil
 			}
 
 			switch event.Key() {
@@ -698,6 +749,19 @@ func newDetailsPage() *detailsPage {
 		table.selectedIndex = 0
 		diff := table.files[fileDiff.DiffId]
 		table.prerenderContent(diff)
+	})
+
+	eventBus.Subscribe("DetailsPage:NewCommentRequested", func(ref interface{}) {
+		switch ref.(type) {
+		case *diffLine:
+			if d, ok := ref.(*diffLine); ok && d != nil {
+				fmt.Printf("new comment requested on a diff line %d\n", d.LineNumber)
+			}
+		case *client.PullRequestComment:
+			if c, ok := ref.(*client.PullRequestComment); ok && c != nil {
+				fmt.Printf("new comment requested on a comment %s\n", c.FilePath)
+			}
+		}
 	})
 
 	return &detailsPage{

@@ -109,6 +109,13 @@ type bbError struct {
 // 	Values     []*client.PullRequest `json:"values"`
 // }
 
+// CreateComment implements client.Client
+func (*GithubCloudClient) CreateComment(
+	o *preqClient.CreateCommentOptions,
+) (*preqClient.PullRequestComment, error) {
+	panic("unimplemented")
+}
+
 // GetComments implements client.Client
 func (*GithubCloudClient) GetComments(
 	o *preqClient.GetCommentsOptions,

@@ -29,6 +29,7 @@ type Client interface {
 	GetPullRequestInfo(o *ApproveOptions) (*PullRequest, error)
 	FillMiscInfoAsync(repo *Repository, pr *PullRequest) error
 	GetComments(o *GetCommentsOptions) ([]*PullRequestComment, error)
+	CreateComment(o *CreateCommentOptions) (*PullRequestComment, error)
 }
 
 type RepositoryProvider string
@@ -124,6 +125,22 @@ type GetPullRequestsOptions struct {
 type GetCommentsOptions struct {
 	Repository *Repository
 	ID         string
+}
+
+type CommentLineNumberType int
+
+const (
+	OriginalLineNumber CommentLineNumberType = iota
+	NewLineNumber
+)
+
+type CreateCommentOptions struct {
+	Repository     *Repository
+	ID             string
+	Content        string
+	FilePath       string
+	LineNumber     int
+	LineNumberType CommentLineNumberType
 }
 
 type DeclinePullRequestOptions struct {
