@@ -321,6 +321,16 @@ func Run(
 	pages.AddPage("HelpPage", helpPage, true, false)
 	pages.AddPage("error_modal", errorModal, false, false)
 
+	pages.AddPage("AddCommentModal", NewAddCommentModal(), true, false)
+
+	eventBus.Subscribe("DetailsPage:NewCommentRequested", func(ref interface{}) {
+		pages.ShowPage("AddCommentModal")
+	})
+
+	eventBus.Subscribe("AddCommentModal:Closed", func(_ interface{}) {
+		pages.HidePage("AddCommentModal")
+	})
+
 	tableData = make([]*tableRepoData, 0)
 	for _, v := range repos {
 		c, repo, err := loadConfig(&persistance.PersistanceRepoInfo{

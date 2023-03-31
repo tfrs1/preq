@@ -50,6 +50,7 @@ const (
 )
 
 type diffLine struct {
+	FilePath   string
 	LineNumber int
 	Type       DiffLineType
 }
@@ -457,6 +458,7 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 
 			content = append(content, &contentLine{
 				Reference: &diffLine{
+					FilePath:   d.DiffId,
 					LineNumber: int(lineNumber),
 					Type:       diffLineType,
 				},
@@ -598,6 +600,15 @@ type detailsPage struct {
 	View tview.Primitive
 }
 
+func CommentLineNumberTypeToDiffLineType(d DiffLineType) client.CommentLineNumberType {
+	var t client.CommentLineNumberType = client.OriginalLineNumber
+	if d == DiffLineTypeAdded {
+		t = client.NewLineNumber
+	}
+
+	return t
+}
+
 func newDetailsPage() *detailsPage {
 	grid := tview.NewGrid().SetRows(5, 0).SetColumns(0)
 	info := tview.NewFlex()
@@ -705,6 +716,11 @@ func newDetailsPage() *detailsPage {
 			return event
 		})
 
+	eventBus.Subscribe("AddCommentModal:CancelRequested", func(_ interface{}) {
+		eventBus.Publish("AddCommentModal:Closed", nil)
+		app.SetFocus(table)
+	})
+
 	eventBus.Subscribe("detailsPage:open", func(input interface{}) {
 		pr, ok := input.(*PullRequest)
 		if !ok {
@@ -751,16 +767,42 @@ func newDetailsPage() *detailsPage {
 		table.prerenderContent(diff)
 	})
 
-	eventBus.Subscribe("DetailsPage:NewCommentRequested", func(ref interface{}) {
+	eventBus.Subscribe("AddComentModal:Confirmed", func(ref interface{}) {
+		var comment *client.PullRequestComment
+		var err error
+
 		switch ref.(type) {
 		case *diffLine:
 			if d, ok := ref.(*diffLine); ok && d != nil {
-				fmt.Printf("new comment requested on a diff line %d\n", d.LineNumber)
+				// comment, err = table.pullRequest.Client.CreateComment(&client.CreateCommentOptions{
+				// 	Repository: table.pullRequest.Repository,
+				// 	ID:         table.pullRequest.PullRequest.ID,
+				// 	Content:    "A new comment from the code",
+				// 	FilePath:   d.FilePath,
+				// 	LineRef: &client.CreateCommentOptionsLineRef{
+				// 		LineNumber: d.LineNumber,
+				// 		Type:       CommentLineNumberTypeToDiffLineType(d.Type),
+				// 	},
+				// })
 			}
 		case *client.PullRequestComment:
 			if c, ok := ref.(*client.PullRequestComment); ok && c != nil {
 				fmt.Printf("new comment requested on a comment %s\n", c.FilePath)
 			}
+		}
+
+		if err != nil {
+			// TODO: Handle error
+			log.Error().Msg(err.Error())
+			return
+		}
+
+		if comment != nil {
+			table.pullRequest.PullRequest.Comments = append(
+				table.pullRequest.PullRequest.Comments,
+				comment,
+			)
+			app.QueueUpdateDraw(func() {})
 		}
 	})
 

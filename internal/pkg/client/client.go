@@ -134,13 +134,22 @@ const (
 	NewLineNumber
 )
 
+type CreateCommentOptionsLineRef struct {
+	LineNumber int
+	Type       CommentLineNumberType
+}
+
+type CreateCommentOptionsParentRef struct {
+	ID string
+}
+
 type CreateCommentOptions struct {
-	Repository     *Repository
-	ID             string
-	Content        string
-	FilePath       string
-	LineNumber     int
-	LineNumberType CommentLineNumberType
+	Repository *Repository
+	ID         string
+	Content    string
+	FilePath   string
+	LineRef    *CreateCommentOptionsLineRef
+	ParentRef  *CreateCommentOptionsParentRef
 }
 
 type DeclinePullRequestOptions struct {

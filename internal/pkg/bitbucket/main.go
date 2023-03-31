@@ -282,17 +282,17 @@ func (c *BitbucketCloudClient) FillMiscInfoAsync(
 
 func buildCommentBody(options *client.CreateCommentOptions) string {
 	extra := ""
-	if "options.ParentID" != "nil" {
-		extra = fmt.Sprintf(`"parent": { "id": %d }`, 1)
-	} else {
+	if options.ParentRef != nil {
+		extra = fmt.Sprintf(`"parent": { "id": %s }`, options.ParentRef.ID)
+	} else if options.LineRef != nil {
 		t := "to"
-		if options.LineNumberType == client.OriginalLineNumber {
+		if options.LineRef.Type == client.OriginalLineNumber {
 			t = "from"
 		}
-		extra = fmt.Sprintf(`"inline": {"%s": %d, "path": "%s"}`, t, options.LineNumber, options.FilePath)
+		extra = fmt.Sprintf(`"inline": {"%s": %d, "path": "%s"}`, t, options.LineRef.LineNumber, options.FilePath)
 	}
 
-	return fmt.Sprintf(` { "content": { "raw": "%s" }, %s }`, options.Content, extra)
+	return fmt.Sprintf(`{ "content": { "raw": "%s" }, %s }`, options.Content, extra)
 }
 
 func (c *BitbucketCloudClient) CreateComment(
@@ -328,6 +328,7 @@ func (c *BitbucketCloudClient) CreateComment(
 func (c *BitbucketCloudClient) GetComments(
 	options *client.GetCommentsOptions,
 ) ([]*client.PullRequestComment, error) {
+	// This needs an iterator as well because it s not returning all the comments
 	url := fmt.Sprintf(
 		"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/comments",
 		options.Repository.Name,
