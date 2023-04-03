@@ -101,18 +101,6 @@ type GetPullRequestActivityOptions struct {
 	Repository *client.Repository
 }
 
-type PullRequestActivityIterator struct {
-	client        *BitbucketCloudClient
-	pullRequestID string
-	repo          *client.Repository
-	hasNext       bool
-	nextURL       string
-}
-
-func (i *PullRequestActivityIterator) HasNext() bool {
-	return i.hasNext
-}
-
 type PullRequestActivityApprovalEvent struct {
 	Created time.Time
 	User    string
@@ -142,139 +130,52 @@ type PullRequestActivityLists struct {
 	ChangesRequests *[]*PullRequestActivityChangesRequestEvent
 }
 
-func (i *PullRequestActivityIterator) doNextCall() (*PullRequestActivityLists, error) {
-	r := resty.New().R().
-		SetBasicAuth(i.client.username, i.client.password).
-		SetError(bbError{})
-	r.URL = i.nextURL
-
-	return i.sendRequest(r)
-}
-
-func (i *PullRequestActivityIterator) parse(
-	parsed gjson.Result,
-) (*PullRequestActivityLists, error) {
-	approvalEventList := []*PullRequestActivityApprovalEvent{}
-	changesRequestEventList := []*PullRequestActivityChangesRequestEvent{}
-
-	result := parsed.Get("values")
-	result.ForEach(func(key, value gjson.Result) bool {
-		if value.Get("update").IsObject() {
-			// TODO: Skip this event? There is already the status?
-		} else if value.Get("approval").IsObject() {
-			approvalEventList = append(approvalEventList, &PullRequestActivityApprovalEvent{
-				Created: value.Get("approval.date").Time(),
-				User:    value.Get("approval.user.display_name").String(),
-			})
-		} else if value.Get("comment").IsObject() {
-			// TODO: Skip this event? Comments are requested explicitly
-		} else if value.Get("changes_requested").IsObject() {
-			changesRequestEventList = append(changesRequestEventList, &PullRequestActivityChangesRequestEvent{
-				Created: value.Get("changes_requested.created_on").Time(),
-				User:    value.Get("changes_requested.user.display_name").String(),
-			})
-		} else {
-			// TODO: Log unknown activity
-		}
-
-		return true
-	})
-
-	return &PullRequestActivityLists{
-		Approvals:       &approvalEventList,
-		ChangesRequests: &changesRequestEventList,
-	}, nil
-}
-
-func (i *PullRequestActivityIterator) sendRequest(
-	request *resty.Request,
-) (*PullRequestActivityLists, error) {
-	r, err := request.Send()
-
-	if err != nil {
-		return nil, err
-	}
-	if r.IsError() {
-		return nil, errors.New(string(r.Body()))
-	}
-	parsed := gjson.ParseBytes(r.Body())
-
-	i.nextURL = parsed.Get("next").String()
-	if i.nextURL == "" {
-		i.hasNext = false
-	}
-
-	return i.parse(parsed)
-}
-
-func (i *PullRequestActivityIterator) doInitialCall() (*PullRequestActivityLists, error) {
-	const pageLength = 20
-	url := fmt.Sprintf(
-		"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/activity",
-		i.repo.Name,
-		i.pullRequestID,
-	)
-
-	r := resty.New().R().
-		SetBasicAuth(i.client.username, i.client.password).
-		SetQueryParam("pagelen", fmt.Sprint(pageLength)).
-		SetError(bbError{})
-	r.Method = "GET"
-	r.URL = url
-
-	return i.sendRequest(r)
-}
-
-func (i *PullRequestActivityIterator) Next() (*PullRequestActivityLists, error) {
-	if !i.hasNext {
-		return nil, nil
-	}
-
-	if i.nextURL == "" {
-		return i.doInitialCall()
-	} else {
-		return i.doNextCall()
-	}
-}
-
-func (c *BitbucketCloudClient) createPullRequestActivityIterator(
-	o *GetPullRequestActivityOptions,
-) *PullRequestActivityIterator {
-	return &PullRequestActivityIterator{
-		client:        c,
-		pullRequestID: o.ID,
-		repo:          o.Repository,
-		hasNext:       true,
-		nextURL:       "",
-	}
-}
-
 func (c *BitbucketCloudClient) FillMiscInfoAsync(
 	repo *client.Repository,
 	pr *client.PullRequest,
 ) error {
-	iter := c.createPullRequestActivityIterator(
-		&GetPullRequestActivityOptions{
-			ID:         pr.ID,
-			Repository: repo,
+	// This rewrite is not working
+	iter := newBitbucketIterator(&newBitbucketIteratorOptions[gjson.Result]{
+		Client: c,
+		RequestURL: fmt.Sprintf(
+			"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/activity",
+			repo.Name,
+			pr.ID,
+		),
+		Parse: func(key, value gjson.Result) (gjson.Result, error) {
+			return value, nil
 		},
-	)
-	approvalList := []*PullRequestActivityApprovalEvent{}
-	changeRequestList := []*PullRequestActivityChangesRequestEvent{}
+	})
 
-	for iter.HasNext() {
-		lists, err := iter.Next()
-		if err != nil {
-			return err
-		}
-
-		approvalList = append(approvalList, *lists.Approvals...)
-		changeRequestList = append(changeRequestList, *lists.ChangesRequests...)
+	list, err := iter.GetAll()
+	if err != nil {
+		return err
 	}
 
 	pr.Approvals = []*client.PullRequestApproval{}
-	for _, v := range approvalList {
-		pr.Approvals = append(pr.Approvals, (*client.PullRequestApproval)(v))
+	pr.ChangesRequests = []*client.PullRequestChangesRequest{}
+	for _, parsed := range list {
+		parsed.ForEach(func(key, value gjson.Result) bool {
+			if key.String() == "approval" {
+				pr.Approvals = append(pr.Approvals, &client.PullRequestApproval{
+					Created: value.Get("approval.date").Time(),
+					User:    value.Get("approval.user.display_name").String(),
+				})
+			} else if key.String() == "changes_requested" {
+				pr.ChangesRequests = append(pr.ChangesRequests, &client.PullRequestChangesRequest{
+					Created: value.Get("changes_requested.created_on").Time(),
+					User:    value.Get("changes_requested.user.display_name").String(),
+				})
+			} else if key.String() == "update" {
+				// TODO: Skip this event? There is already the status?
+			} else if key.String() == "comment" {
+				// TODO: Skip this event? Comments are requested explicitly
+			} else {
+				// TODO: Log unknown activity
+			}
+
+			return true
+		})
 	}
 
 	return nil
@@ -328,50 +229,34 @@ func (c *BitbucketCloudClient) CreateComment(
 func (c *BitbucketCloudClient) GetComments(
 	options *client.GetCommentsOptions,
 ) ([]*client.PullRequestComment, error) {
-	// This needs an iterator as well because it s not returning all the comments
-	url := fmt.Sprintf(
-		"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/comments",
-		options.Repository.Name,
-		options.ID,
+	iter := newBitbucketIterator(
+		&newBitbucketIteratorOptions[*client.PullRequestComment]{
+			Client: c,
+			RequestURL: fmt.Sprintf(
+				"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/comments",
+				options.Repository.Name,
+				options.ID,
+			),
+			Parse: func(key, value gjson.Result) (*client.PullRequestComment, error) {
+				return &client.PullRequestComment{
+					ID:       value.Get("id").String(),
+					ParentID: value.Get("parent.id").String(),
+					Deleted:  value.Get("deleted").Bool(),
+					// TODO: Outdated: value.Get("comment.inline.outdated").Bool(),
+					Content:          value.Get("content.raw").String(),
+					Created:          value.Get("created_on").Time(),
+					Updated:          value.Get("updated_on").Time(),
+					User:             value.Get("user.display_name").String(),
+					BeforeLineNumber: uint(value.Get("inline.from").Uint()),
+					AfterLineNumber:  uint(value.Get("inline.to").Uint()),
+					// Check which name it when the file is renamed
+					FilePath: value.Get("inline.path").String(),
+				}, nil
+			},
+		},
 	)
 
-	rc := resty.New()
-	r, err := rc.R().
-		SetBasicAuth(c.username, c.password).
-		SetError(bbError{}).
-		Get(url)
-
-	if err != nil {
-		return nil, err
-	}
-	if r.IsError() {
-		return nil, errors.New(string(r.Body()))
-	}
-
-	parsed := gjson.ParseBytes(r.Body())
-	result := parsed.Get("values")
-
-	var list []*client.PullRequestComment
-	result.ForEach(func(key, value gjson.Result) bool {
-		list = append(list, &client.PullRequestComment{
-			ID:       value.Get("id").String(),
-			ParentID: value.Get("parent.id").String(),
-			Deleted:  value.Get("deleted").Bool(),
-			// TODO: Outdated: value.Get("comment.inline.outdated").Bool(),
-			Content:          value.Get("content.raw").String(),
-			Created:          value.Get("created_on").Time(),
-			Updated:          value.Get("updated_on").Time(),
-			User:             value.Get("user.display_name").String(),
-			BeforeLineNumber: uint(value.Get("inline.from").Uint()),
-			AfterLineNumber:  uint(value.Get("inline.to").Uint()),
-			// Check which name it when the file is renamed
-			FilePath: value.Get("inline.path").String(),
-		})
-
-		return true
-	})
-
-	return list, nil
+	return iter.GetAll()
 }
 
 func (c *BitbucketCloudClient) GetPullRequests(

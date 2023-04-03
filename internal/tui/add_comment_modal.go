@@ -5,8 +5,17 @@ import (
 	"github.com/rivo/tview"
 )
 
-func NewAddCommentModal() tview.Primitive {
-	modal := func(p tview.Primitive, width, height int) tview.Primitive {
+type AddCommentModal struct {
+	*tview.Flex
+	textArea *tview.TextArea
+}
+
+func (m *AddCommentModal) Clear() {
+	m.textArea.SetText("", false)
+}
+
+func NewAddCommentModal() *AddCommentModal {
+	modal := func(p tview.Primitive, width, height int) *tview.Flex {
 		return tview.NewFlex().
 			AddItem(nil, 0, 1, false).
 			AddItem(
@@ -33,7 +42,7 @@ func NewAddCommentModal() tview.Primitive {
 				return nil
 			case tcell.KeyEnter:
 				if event.Modifiers()&tcell.ModShift == 0 {
-					app.SetFocus(confirmButton)
+					eventBus.Publish("AddCommentModal:ConfirmRequested", textArea.GetText())
 					return nil
 				}
 			}
@@ -61,7 +70,11 @@ func NewAddCommentModal() tview.Primitive {
 		case tcell.KeyEsc:
 			eventBus.Publish("AddCommentModal:CancelRequested", nil)
 			return nil
+		case tcell.KeyEnter:
+			eventBus.Publish("AddCommentModal:ConfirmRequested", textArea.GetText())
+			return nil
 		}
+
 		return event
 	})
 
@@ -81,5 +94,8 @@ func NewAddCommentModal() tview.Primitive {
 		SetBorder(true).
 		SetBorderColor(s.GetBackgroundColor())
 
-	return modal(s, 80, 20)
+	return &AddCommentModal{
+		Flex:     modal(s, 80, 20),
+		textArea: textArea,
+	}
 }

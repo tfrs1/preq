@@ -327,8 +327,14 @@ func Run(
 		pages.ShowPage("AddCommentModal")
 	})
 
-	eventBus.Subscribe("AddCommentModal:Closed", func(_ interface{}) {
+	eventBus.Subscribe("AddCommentModal:CancelRequested", func(_ interface{}) {
 		pages.HidePage("AddCommentModal")
+		eventBus.Publish("AddCommentModal:Closed", nil)
+	})
+
+	eventBus.Subscribe("AddCommentModal:CloseRequested", func(_ interface{}) {
+		pages.HidePage("AddCommentModal")
+		eventBus.Publish("AddCommentModal:Closed", nil)
 	})
 
 	tableData = make([]*tableRepoData, 0)

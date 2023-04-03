@@ -672,7 +672,13 @@ func newDetailsPage() *detailsPage {
 				table.ScrollUp()
 				return nil
 			case 'c':
-				eventBus.Publish("DetailsPage:NewCommentRequested", table.GetSelectedReference())
+				ref := table.GetSelectedReference()
+				if ref != nil {
+					eventBus.Publish(
+						"DetailsPage:NewCommentRequested",
+						table.GetSelectedReference(),
+					)
+				}
 				return nil
 			}
 
@@ -716,8 +722,64 @@ func newDetailsPage() *detailsPage {
 			return event
 		})
 
-	eventBus.Subscribe("AddCommentModal:CancelRequested", func(_ interface{}) {
-		eventBus.Publish("AddCommentModal:Closed", nil)
+	eventBus.Subscribe("AddCommentModal:ConfirmRequested", func(input interface{}) {
+    // FIXME: Sent comment 7 times because I was spamming enter over the send button?!? 
+		content, ok := input.(string)
+		if !ok {
+			log.Error().Msg("cast failed when confirming the comment")
+			return
+		}
+
+		var comment *client.PullRequestComment
+		var err error
+
+		ref := table.GetSelectedReference()
+		switch ref.(type) {
+		case *diffLine:
+			if d, ok := ref.(*diffLine); ok && d != nil {
+				comment, err = table.pullRequest.Client.CreateComment(&client.CreateCommentOptions{
+					Repository: table.pullRequest.Repository,
+					ID:         table.pullRequest.PullRequest.ID,
+					Content:    content,
+					FilePath:   d.FilePath,
+					LineRef: &client.CreateCommentOptionsLineRef{
+						LineNumber: d.LineNumber,
+						Type:       CommentLineNumberTypeToDiffLineType(d.Type),
+					},
+				})
+			}
+		case *client.PullRequestComment:
+			if c, ok := ref.(*client.PullRequestComment); ok && c != nil {
+				comment, err = table.pullRequest.Client.CreateComment(&client.CreateCommentOptions{
+					Repository: table.pullRequest.Repository,
+					ID:         table.pullRequest.PullRequest.ID,
+					Content:    content,
+					FilePath:   c.FilePath,
+					ParentRef: &client.CreateCommentOptionsParentRef{
+						ID: c.ID,
+					},
+				})
+			}
+		}
+
+		eventBus.Publish("AddCommentModal:CloseRequsted", comment)
+
+		if err != nil {
+			// TODO: Handle error
+			log.Error().Msg(err.Error())
+			return
+		}
+
+		if comment != nil {
+			table.pullRequest.PullRequest.Comments = append(
+				table.pullRequest.PullRequest.Comments,
+				comment,
+			)
+			app.QueueUpdateDraw(func() {})
+		}
+	})
+
+	eventBus.Subscribe("AddCommentModal:Closed", func(_ interface{}) {
 		app.SetFocus(table)
 	})
 
@@ -768,42 +830,6 @@ func newDetailsPage() *detailsPage {
 	})
 
 	eventBus.Subscribe("AddComentModal:Confirmed", func(ref interface{}) {
-		var comment *client.PullRequestComment
-		var err error
-
-		switch ref.(type) {
-		case *diffLine:
-			if d, ok := ref.(*diffLine); ok && d != nil {
-				// comment, err = table.pullRequest.Client.CreateComment(&client.CreateCommentOptions{
-				// 	Repository: table.pullRequest.Repository,
-				// 	ID:         table.pullRequest.PullRequest.ID,
-				// 	Content:    "A new comment from the code",
-				// 	FilePath:   d.FilePath,
-				// 	LineRef: &client.CreateCommentOptionsLineRef{
-				// 		LineNumber: d.LineNumber,
-				// 		Type:       CommentLineNumberTypeToDiffLineType(d.Type),
-				// 	},
-				// })
-			}
-		case *client.PullRequestComment:
-			if c, ok := ref.(*client.PullRequestComment); ok && c != nil {
-				fmt.Printf("new comment requested on a comment %s\n", c.FilePath)
-			}
-		}
-
-		if err != nil {
-			// TODO: Handle error
-			log.Error().Msg(err.Error())
-			return
-		}
-
-		if comment != nil {
-			table.pullRequest.PullRequest.Comments = append(
-				table.pullRequest.PullRequest.Comments,
-				comment,
-			)
-			app.QueueUpdateDraw(func() {})
-		}
 	})
 
 	return &detailsPage{
