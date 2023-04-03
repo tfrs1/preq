@@ -221,9 +221,22 @@ func (c *BitbucketCloudClient) CreateComment(
 	}
 
 	parsed := gjson.ParseBytes(r.Body())
-	_ = parsed
-
-	return nil, nil
+	// FIXME: This is duplicated in GetComments()
+	return &client.PullRequestComment{
+		ID:       parsed.Get("id").String(),
+		ParentID: parsed.Get("parent.id").String(),
+		Deleted:  parsed.Get("deleted").Bool(),
+		// TODO: Outdated: value.Get("comment.inline.outdated").Bool(),
+		Content:          parsed.Get("content.raw").String(),
+		Created:          parsed.Get("created_on").Time(),
+		Updated:          parsed.Get("updated_on").Time(),
+		User:             parsed.Get("user.display_name").String(),
+		BeforeLineNumber: uint(parsed.Get("inline.from").Uint()),
+		AfterLineNumber:  uint(parsed.Get("inline.to").Uint()),
+		// Check which name it when the file is renamed
+		FilePath:  parsed.Get("inline.path").String(),
+		IsSending: false,
+	}, nil
 }
 
 func (c *BitbucketCloudClient) GetComments(
@@ -250,7 +263,8 @@ func (c *BitbucketCloudClient) GetComments(
 					BeforeLineNumber: uint(value.Get("inline.from").Uint()),
 					AfterLineNumber:  uint(value.Get("inline.to").Uint()),
 					// Check which name it when the file is renamed
-					FilePath: value.Get("inline.path").String(),
+					FilePath:  value.Get("inline.path").String(),
+					IsSending: false,
 				}, nil
 			},
 		},

@@ -5,6 +5,7 @@ import (
 	"math"
 	"preq/internal/pkg/client"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -68,6 +69,7 @@ type CommentsTable struct {
 	width             int
 	height            int
 	files             map[string]*diffFile
+	currentDiff       *diffFile
 }
 
 type DiffFileType int
@@ -243,8 +245,12 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 		})
 	})()
 }
+func (ct *CommentsTable) rerenderContent() {
+	ct.prerenderContent(ct.currentDiff)
+}
 
 func (ct *CommentsTable) prerenderContent(d *diffFile) {
+	ct.currentDiff = d
 	filesMap := make(map[string]*commentMap)
 	for _, prc := range ct.pullRequest.PullRequest.Comments {
 		if filesMap[prc.FilePath] == nil {
@@ -264,7 +270,7 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 	content := make([]*contentLine, 0)
 	prevIndent := 0
 	printComment := func(comment *client.PullRequestComment, indent int) error {
-		innerWidth := ct.width - indent
+		commentBoxWidth := ct.width - indent
 
 		tlb := ""
 		blbPrev := horizontalBorder
@@ -294,17 +300,15 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 			)
 		} else {
 			trb := topRightBorder
+			padding := ""
+			if commentBoxWidth > 3 {
+				padding = strings.Repeat(horizontalBorder, commentBoxWidth-3)
+			}
 			content = append(content, &contentLine{
 				Reference: comment,
 				Statements: []*contentLineStatement{
 					{
-						Content: fmt.Sprintf(
-							"%s%s%s%s",
-							tlb,
-							blbPrev,
-							strings.Repeat(horizontalBorder, innerWidth-3),
-							trb,
-						),
+						Content:   fmt.Sprintf("%s%s%s%s", tlb, blbPrev, padding, trb),
 						Alignment: tview.AlignLeft,
 						Indent:    indent,
 					},
@@ -312,23 +316,41 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 			})
 		}
 
-		content = append(content, &contentLine{
-			Reference: comment,
-			Statements: []*contentLineStatement{
+		borderColor := "white"
+
+		statements := []*contentLineStatement{
+			{
+				Content: fmt.Sprintf("[%s]%s⏳ %s", borderColor, verticalBorder, "Sending..."),
+				Indent:  indent,
+			},
+			{
+				Content:   fmt.Sprintf("[%v]%s", borderColor, verticalBorder),
+				Alignment: tview.AlignRight,
+			},
+		}
+
+		if !comment.IsSending {
+			statements = []*contentLineStatement{
 				{
-					Content: fmt.Sprintf("[white]%s%s", verticalBorder, comment.User),
+					Content: fmt.Sprintf("[%s]%s%s", borderColor, verticalBorder, comment.User),
 					Indent:  indent,
 				},
 				{
 					Content: fmt.Sprintf(
-						"%s[%v]%s",
+						"%s[%s]%s",
 						comment.Created.Local().Format("2006-01-02 15:04:05"),
-						"yellow",
+						borderColor,
 						verticalBorder,
 					),
 					Alignment: tview.AlignRight,
 					Indent:    0,
-				}},
+				},
+			}
+		}
+
+		content = append(content, &contentLine{
+			Reference:  comment,
+			Statements: statements,
 		})
 
 		words := strings.Split(comment.Content, " ")
@@ -340,7 +362,7 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 				lineLen += len(w) + 1
 			}
 
-			if lineLen+len(word) > innerWidth-2 {
+			if lineLen+len(word) > commentBoxWidth-2 {
 				commentLines = append(commentLines, strings.Join(line, " "))
 				line = []string{}
 			}
@@ -363,17 +385,16 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 				}})
 		}
 
+		padding := ""
+		if commentBoxWidth > 2 {
+			padding = strings.Repeat(horizontalBorder, commentBoxWidth-2)
+		}
 		content = append(content, &contentLine{
 			Reference: comment,
 			Statements: []*contentLineStatement{
 				{
-					Content: fmt.Sprintf(
-						"%s%s%s",
-						bottomLeftBorder,
-						strings.Repeat(horizontalBorder, innerWidth-2),
-						bottomRightBorder,
-					),
-					Indent: indent,
+					Content: fmt.Sprintf("%s%s%s", bottomLeftBorder, padding, bottomRightBorder),
+					Indent:  indent,
 				}},
 		})
 
@@ -719,22 +740,22 @@ func newDetailsPage() *detailsPage {
 			return event
 		})
 
+	// FIXME: Multiple comments on the same code line are not visible
+
 	eventBus.Subscribe("AddCommentModal:ConfirmRequested", func(input interface{}) {
-    // FIXME: Sent comment 7 times because I was spamming enter over the send button?!? 
+		// FIXME: Sent comment 7 times because I was spamming enter over the send button?!?
 		content, ok := input.(string)
 		if !ok {
 			log.Error().Msg("cast failed when confirming the comment")
 			return
 		}
 
-		var comment *client.PullRequestComment
-		var err error
-
 		ref := table.GetSelectedReference()
+		var options *client.CreateCommentOptions = nil
 		switch ref.(type) {
 		case *diffLine:
 			if d, ok := ref.(*diffLine); ok && d != nil {
-				comment, err = table.pullRequest.Client.CreateComment(&client.CreateCommentOptions{
+				options = &client.CreateCommentOptions{
 					Repository: table.pullRequest.Repository,
 					ID:         table.pullRequest.PullRequest.ID,
 					Content:    content,
@@ -743,11 +764,11 @@ func newDetailsPage() *detailsPage {
 						LineNumber: d.LineNumber,
 						Type:       CommentLineNumberTypeToDiffLineType(d.Type),
 					},
-				})
+				}
 			}
 		case *client.PullRequestComment:
 			if c, ok := ref.(*client.PullRequestComment); ok && c != nil {
-				comment, err = table.pullRequest.Client.CreateComment(&client.CreateCommentOptions{
+				options = &client.CreateCommentOptions{
 					Repository: table.pullRequest.Repository,
 					ID:         table.pullRequest.PullRequest.ID,
 					Content:    content,
@@ -755,25 +776,69 @@ func newDetailsPage() *detailsPage {
 					ParentRef: &client.CreateCommentOptionsParentRef{
 						ID: c.ID,
 					},
-				})
+				}
 			}
 		}
 
-		eventBus.Publish("AddCommentModal:CloseRequsted", comment)
-
-		if err != nil {
-			// TODO: Handle error
-			log.Error().Msg(err.Error())
-			return
+		parentId := ""
+		if options.ParentRef != nil {
+			parentId = options.ParentRef.ID
 		}
 
-		if comment != nil {
-			table.pullRequest.PullRequest.Comments = append(
-				table.pullRequest.PullRequest.Comments,
-				comment,
-			)
-			app.QueueUpdateDraw(func() {})
+		beforeLineNumber := 0
+		afterLineNumber := 0
+
+		if options.LineRef != nil {
+			if options.LineRef.Type == client.OriginalLineNumber {
+				beforeLineNumber = options.LineRef.LineNumber
+			} else {
+				afterLineNumber = options.LineRef.LineNumber
+			}
 		}
+
+		tempComment := &client.PullRequestComment{
+			ID:               fmt.Sprintf("%d", time.Now().UnixNano()),
+			IsSending:        true,
+			Created:          time.Now(),
+			Updated:          time.Now(),
+			Deleted:          false,
+			User:             "",
+			Content:          content,
+			ParentID:         parentId,
+			BeforeLineNumber: uint(beforeLineNumber),
+			AfterLineNumber:  uint(afterLineNumber),
+			FilePath:         options.FilePath,
+		}
+
+		table.pullRequest.PullRequest.Comments = append(
+			table.pullRequest.PullRequest.Comments,
+			tempComment,
+		)
+
+		go func() {
+			comment, err := table.pullRequest.Client.CreateComment(options)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to create comment")
+				return
+			}
+
+			tempComment.ID = comment.ID
+			tempComment.Created = comment.Created
+			tempComment.Updated = comment.Updated
+			tempComment.Deleted = comment.Deleted
+			tempComment.User = comment.User
+			tempComment.Content = comment.Content
+			tempComment.ParentID = comment.ParentID
+			tempComment.BeforeLineNumber = comment.BeforeLineNumber
+			tempComment.AfterLineNumber = comment.AfterLineNumber
+			tempComment.FilePath = comment.FilePath
+			tempComment.IsSending = comment.IsSending
+
+			app.QueueUpdateDraw(table.rerenderContent)
+		}()
+
+		table.rerenderContent()
+		eventBus.Publish("AddCommentModal:CloseRequested", nil)
 	})
 
 	eventBus.Subscribe("AddCommentModal:Closed", func(_ interface{}) {
@@ -824,9 +889,6 @@ func newDetailsPage() *detailsPage {
 		table.selectedIndex = 0
 		diff := table.files[fileDiff.DiffId]
 		table.prerenderContent(diff)
-	})
-
-	eventBus.Subscribe("AddComentModal:Confirmed", func(ref interface{}) {
 	})
 
 	return &detailsPage{

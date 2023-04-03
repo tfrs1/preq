@@ -42,7 +42,9 @@ func NewAddCommentModal() *AddCommentModal {
 				return nil
 			case tcell.KeyEnter:
 				if event.Modifiers()&tcell.ModShift == 0 {
-					eventBus.Publish("AddCommentModal:ConfirmRequested", textArea.GetText())
+					if textArea.GetText() != "" {
+						eventBus.Publish("AddCommentModal:ConfirmRequested", textArea.GetText())
+					}
 					return nil
 				}
 			}
@@ -71,7 +73,9 @@ func NewAddCommentModal() *AddCommentModal {
 			eventBus.Publish("AddCommentModal:CancelRequested", nil)
 			return nil
 		case tcell.KeyEnter:
-			eventBus.Publish("AddCommentModal:ConfirmRequested", textArea.GetText())
+			if textArea.GetText() != "" {
+				eventBus.Publish("AddCommentModal:ConfirmRequested", textArea.GetText())
+			}
 			return nil
 		}
 

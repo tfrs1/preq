@@ -195,6 +195,7 @@ type PullRequestComment struct {
 	Created          time.Time
 	Updated          time.Time
 	Deleted          bool
+	IsSending        bool
 	User             string
 	Content          string
 	ParentID         string
