@@ -526,6 +526,8 @@ func (ct *CommentsTable) GetSelectedReference() interface{} {
 func (ct *CommentsTable) Draw(screen tcell.Screen) {
 	ct.Box.DrawForSubclass(screen, ct)
 	x, y, width, height := ct.GetInnerRect()
+	ct.width = width
+	ct.height = height
 
 	if ct.loadingError != nil {
 		tview.Print(
@@ -533,7 +535,7 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 			"Could not find the commit hash locally. Please pull.",
 			x,
 			y,
-			width,
+			ct.width,
 			tview.AlignLeft,
 			tcell.ColorWhite,
 		)
@@ -541,17 +543,12 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 	}
 
 	if ct.IsLoading {
-		tview.Print(screen, "Loading...", x, y, width, tview.AlignLeft, tcell.ColorWhite)
+		tview.Print(screen, "Loading...", x, y, ct.width, tview.AlignLeft, tcell.ColorWhite)
 		return
 	}
 
-	if len(ct.content) != 0 {
-		ct.width = width
-		ct.height = height
-	}
-
 	i := ct.pageOffset
-	end := int(math.Min(float64(len(ct.content)), float64(i+height)))
+	end := int(math.Min(float64(len(ct.content)), float64(i+ct.height)))
 	offset := 0
 	for ; i < end; i++ {
 		cl := ct.content[i]
@@ -562,10 +559,10 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 
 		tview.Print(
 			screen,
-			colorPrefix+strings.Repeat(" ", width),
+			colorPrefix+strings.Repeat(" ", ct.width),
 			x,
 			y+offset,
-			width,
+			ct.width,
 			tview.AlignRight,
 			tcell.ColorWhite,
 		)
@@ -576,7 +573,7 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 				colorPrefix+s.Content,
 				x+s.Indent,
 				y+offset,
-				width,
+				ct.width,
 				s.Alignment,
 				tcell.ColorWhite,
 			)
@@ -584,7 +581,7 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 
 		offset++
 
-		tview.Print(screen, "", x, y+i, width, tview.AlignLeft, tcell.ColorWhite)
+		tview.Print(screen, "", x, y+i, ct.width, tview.AlignLeft, tcell.ColorWhite)
 	}
 	return
 
