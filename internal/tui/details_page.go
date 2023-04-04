@@ -26,12 +26,6 @@ var (
 	bottomLeftPreviousBorder = "┻"
 )
 
-// TODO: Change this code so it's one map with unique string ID (ol--nl, eg 1--21)
-type commentMap struct {
-	RemovedLineComments map[uint][]*client.PullRequestComment
-	AddedLineComments   map[uint][]*client.PullRequestComment
-}
-
 type contentLine struct {
 	Statements []*contentLineStatement
 	Reference  interface{}
@@ -110,6 +104,7 @@ func (ct *CommentsTable) moveSelected(size int) {
 	}
 }
 
+// Scrolls the table up or down
 func (ct *CommentsTable) scroll(size int) {
 	ct.pageOffset += size
 
@@ -249,41 +244,23 @@ func (ct *CommentsTable) rerenderContent() {
 	ct.prerenderContent(ct.currentDiff)
 }
 
+type lineCommentListMap map[string][]*client.PullRequestComment
+
+func lineCommentListMapId(before, after int) string {
+	return fmt.Sprintf("%d___%d", before, after)
+}
+
 func (ct *CommentsTable) prerenderContent(d *diffFile) {
 	ct.currentDiff = d
-	filesMap := make(map[string]*commentMap)
+	filesMap := make(map[string]lineCommentListMap)
 	for _, prc := range ct.pullRequest.PullRequest.Comments {
 		if filesMap[prc.FilePath] == nil {
-			filesMap[prc.FilePath] = &commentMap{
-				RemovedLineComments: make(map[uint][]*client.PullRequestComment),
-				AddedLineComments:   make(map[uint][]*client.PullRequestComment),
-			}
+			filesMap[prc.FilePath] = make(lineCommentListMap)
 		}
 
-		if prc.BeforeLineNumber != 0 && prc.ParentID == "" {
-			_, ok := filesMap[prc.FilePath].RemovedLineComments[prc.BeforeLineNumber]
-			if !ok {
-				filesMap[prc.FilePath].RemovedLineComments[prc.BeforeLineNumber] = make(
-					[]*client.PullRequestComment,
-					0,
-				)
-			}
-
-			filesMap[prc.FilePath].RemovedLineComments[prc.BeforeLineNumber] = append(
-				filesMap[prc.FilePath].RemovedLineComments[prc.BeforeLineNumber],
-				prc,
-			)
-
-		} else if prc.AfterLineNumber != 0 && prc.ParentID == "" {
-			_, ok := filesMap[prc.FilePath].AddedLineComments[prc.AfterLineNumber]
-			if !ok {
-				filesMap[prc.FilePath].AddedLineComments[prc.AfterLineNumber] = make([]*client.PullRequestComment, 0)
-			}
-
-			filesMap[prc.FilePath].AddedLineComments[prc.AfterLineNumber] = append(
-				filesMap[prc.FilePath].AddedLineComments[prc.AfterLineNumber],
-				prc,
-			)
+		if prc.ParentID == "" {
+			id := lineCommentListMapId(int(prc.BeforeLineNumber), int(prc.AfterLineNumber))
+			filesMap[prc.FilePath][id] = append(filesMap[prc.FilePath][id], prc)
 		}
 	}
 
@@ -517,12 +494,9 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 			})
 
 			if comments != nil {
-				cm := comments.RemovedLineComments
-				if isAddedLine {
-					cm = comments.AddedLineComments
-				}
-
-				if c, ok := cm[uint(lineNumber)]; ok {
+				id := lineCommentListMapId(int(origIdx), int(newIdx))
+				if c, ok := comments[id]; ok {
+					// FIXME: Sort comments chronologically
 					for _, prc := range c {
 						handleComment(prc, 0)
 					}
