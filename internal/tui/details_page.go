@@ -28,8 +28,8 @@ var (
 
 // TODO: Change this code so it's one map with unique string ID (ol--nl, eg 1--21)
 type commentMap struct {
-	RemovedLineComments map[uint]*client.PullRequestComment
-	AddedLineComments   map[uint]*client.PullRequestComment
+	RemovedLineComments map[uint][]*client.PullRequestComment
+	AddedLineComments   map[uint][]*client.PullRequestComment
 }
 
 type contentLine struct {
@@ -255,15 +255,35 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 	for _, prc := range ct.pullRequest.PullRequest.Comments {
 		if filesMap[prc.FilePath] == nil {
 			filesMap[prc.FilePath] = &commentMap{
-				RemovedLineComments: make(map[uint]*client.PullRequestComment),
-				AddedLineComments:   make(map[uint]*client.PullRequestComment),
+				RemovedLineComments: make(map[uint][]*client.PullRequestComment),
+				AddedLineComments:   make(map[uint][]*client.PullRequestComment),
 			}
 		}
 
 		if prc.BeforeLineNumber != 0 && prc.ParentID == "" {
-			filesMap[prc.FilePath].RemovedLineComments[prc.BeforeLineNumber] = prc
+			_, ok := filesMap[prc.FilePath].RemovedLineComments[prc.BeforeLineNumber]
+			if !ok {
+				filesMap[prc.FilePath].RemovedLineComments[prc.BeforeLineNumber] = make(
+					[]*client.PullRequestComment,
+					0,
+				)
+			}
+
+			filesMap[prc.FilePath].RemovedLineComments[prc.BeforeLineNumber] = append(
+				filesMap[prc.FilePath].RemovedLineComments[prc.BeforeLineNumber],
+				prc,
+			)
+
 		} else if prc.AfterLineNumber != 0 && prc.ParentID == "" {
-			filesMap[prc.FilePath].AddedLineComments[prc.AfterLineNumber] = prc
+			_, ok := filesMap[prc.FilePath].AddedLineComments[prc.AfterLineNumber]
+			if !ok {
+				filesMap[prc.FilePath].AddedLineComments[prc.AfterLineNumber] = make([]*client.PullRequestComment, 0)
+			}
+
+			filesMap[prc.FilePath].AddedLineComments[prc.AfterLineNumber] = append(
+				filesMap[prc.FilePath].AddedLineComments[prc.AfterLineNumber],
+				prc,
+			)
 		}
 	}
 
@@ -497,19 +517,17 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 			})
 
 			if comments != nil {
-				var comment *client.PullRequestComment = nil
 				cm := comments.RemovedLineComments
 				if isAddedLine {
 					cm = comments.AddedLineComments
 				}
 
 				if c, ok := cm[uint(lineNumber)]; ok {
-					comment = c
+					for _, prc := range c {
+						handleComment(prc, 0)
+					}
 				}
 
-				if comment != nil {
-					handleComment(comment, 0)
-				}
 			}
 
 			if isAddedLine || isCommonLine {
