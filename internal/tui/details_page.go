@@ -628,7 +628,7 @@ func CommentLineNumberTypeToDiffLineType(d DiffLineType) client.CommentLineNumbe
 }
 
 func newDetailsPage() *detailsPage {
-	grid := tview.NewGrid().SetRows(5, 0).SetColumns(0)
+	grid := tview.NewGrid().SetRows(0, 0).SetColumns(-2, -5)
 	info := tview.NewFlex()
 	table := NewCommentsTable()
 
@@ -715,8 +715,8 @@ func newDetailsPage() *detailsPage {
 			return event
 		})
 
-	grid.AddItem(info, 0, 0, 1, 1, 1, 1, true)
-	grid.AddItem(table, 1, 0, 1, 1, 1, 1, true)
+	grid.AddItem(info, 0, 0, 3, 1, 0, 0, true)
+	grid.AddItem(table, 0, 1, 3, 1, 0, 0, true)
 	grid.
 		SetBorder(true).
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {

@@ -86,12 +86,12 @@ func Run(
 		})
 
 	eventBus.Subscribe("detailsPage:close", func(_ interface{}) {
-		flex.RemoveItem(details.View)
+		pages.HidePage("details_page")
 		app.SetFocus(table.View)
 	})
 
 	eventBus.Subscribe("detailsPage:open", func(_ interface{}) {
-		flex.AddItem(details.View, 0, 1, false)
+		pages.ShowPage("details_page")
 		app.SetFocus(details.View)
 	})
 
@@ -295,6 +295,13 @@ func Run(
 	pages.AddPage("main", flex, true, true)
 
 	pages.AddPage(
+		"details_page",
+		details.View,
+		true,
+		false,
+	)
+
+	pages.AddPage(
 		PAGE_DECLINE_CONFIRMATION_MODAL,
 		declineConfirmationModal,
 		false,
@@ -344,7 +351,6 @@ func Run(
 			Provider: string(v.Provider),
 			Path:     v.Path,
 		})
-
 		if err != nil {
 			log.Error().Msg(err.Error())
 			os.Exit(123)
