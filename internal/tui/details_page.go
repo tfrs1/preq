@@ -90,6 +90,7 @@ func NewCommentsTable() *CommentsTable {
 	}
 }
 
+// Moves the highlighted line up or down
 func (ct *CommentsTable) moveSelected(size int) {
 	ct.selectedIndex += size
 
@@ -172,7 +173,6 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 		ct.pullRequest.PullRequest.Destination.Hash,
 		ct.pullRequest.PullRequest.Source.Hash,
 	)
-
 	if err != nil {
 		ct.loadingError = err
 		return
@@ -227,7 +227,6 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 			Repository: ct.pullRequest.Repository,
 			ID:         ct.pullRequest.PullRequest.ID,
 		})
-
 		if err != nil {
 			return
 		}
@@ -240,6 +239,7 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 		})
 	})()
 }
+
 func (ct *CommentsTable) rerenderContent() {
 	ct.prerenderContent(ct.currentDiff)
 }
@@ -247,6 +247,12 @@ func (ct *CommentsTable) rerenderContent() {
 type lineCommentListMap map[string][]*client.PullRequestComment
 
 func lineCommentListMapId(before, after int) string {
+	if before != 0 {
+		after = 0
+	} else {
+		before = 0
+	}
+
 	return fmt.Sprintf("%d___%d", before, after)
 }
 
@@ -379,7 +385,8 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 						Content:   verticalBorder,
 						Alignment: tview.AlignRight,
 					},
-				}})
+				},
+			})
 		}
 
 		padding := ""
@@ -392,7 +399,8 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 				{
 					Content: fmt.Sprintf("%s%s%s", bottomLeftBorder, padding, bottomRightBorder),
 					Indent:  indent,
-				}},
+				},
+			},
 		})
 
 		prevIndent = indent
