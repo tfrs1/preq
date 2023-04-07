@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"math"
 	"preq/internal/pkg/client"
 	"strings"
 	"time"
@@ -454,7 +453,8 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 }
 
 func (ct *CommentsTable) Draw(screen tcell.Screen) {
-	ct.Box.DrawForSubclass(screen, ct)
+	ct.DrawForSubclass(screen, ct.ScrollablePage)
+
 	x, y, width, height := ct.GetInnerRect()
 	ct.width = width
 	ct.height = height
@@ -477,42 +477,8 @@ func (ct *CommentsTable) Draw(screen tcell.Screen) {
 		return
 	}
 
-	i := ct.pageOffset
-	end := int(math.Min(float64(len(ct.content)), float64(i+ct.height)))
-	offset := 0
-	for ; i < end; i++ {
-		cl := ct.content[i]
-		colorPrefix := ""
-		if i == ct.selectedIndex {
-			colorPrefix = "[:gray]"
-		}
+	ct.ScrollablePage.Draw(screen)
 
-		tview.Print(
-			screen,
-			colorPrefix+strings.Repeat(" ", ct.width),
-			x,
-			y+offset,
-			ct.width,
-			tview.AlignRight,
-			tcell.ColorWhite,
-		)
-
-		for _, s := range cl.Statements {
-			tview.Print(
-				screen,
-				colorPrefix+s.Content,
-				x+s.Indent,
-				y+offset,
-				ct.width,
-				s.Alignment,
-				tcell.ColorWhite,
-			)
-		}
-
-		offset++
-
-		tview.Print(screen, "", x, y+i, ct.width, tview.AlignLeft, tcell.ColorWhite)
-	}
 	return
 
 	topLevelComments := []*client.PullRequestComment{}
