@@ -26,17 +26,6 @@ var (
 	bottomLeftPreviousBorder = "┻"
 )
 
-type contentLine struct {
-	Statements []*contentLineStatement
-	Reference  interface{}
-}
-
-type contentLineStatement struct {
-	Indent    int
-	Content   string
-	Alignment int
-}
-
 type DiffLineType int
 
 const (
@@ -51,19 +40,13 @@ type diffLine struct {
 }
 
 type CommentsTable struct {
-	*tview.Box
-	pullRequest       *PullRequest
-	pageOffset        int
-	selectedIndex     int
-	disableScrollDown bool
-	loadingError      error
-	diffs             []*diff.FileDiff
-	content           []*contentLine
-	IsLoading         bool
-	width             int
-	height            int
-	files             map[string]*diffFile
-	currentDiff       *diffFile
+	*ScrollablePage
+	pullRequest  *PullRequest
+	loadingError error
+	diffs        []*diff.FileDiff
+	IsLoading    bool
+	files        map[string]*diffFile
+	currentDiff  *diffFile
 }
 
 type DiffFileType int
@@ -84,70 +67,9 @@ type diffFile struct {
 
 func NewCommentsTable() *CommentsTable {
 	return &CommentsTable{
-		Box:        tview.NewBox(),
-		pageOffset: 0,
-		IsLoading:  true,
+		ScrollablePage: NewScrollablePage(),
+		IsLoading:      true,
 	}
-}
-
-// Moves the highlighted line up or down
-func (ct *CommentsTable) moveSelected(size int) {
-	ct.selectedIndex += size
-
-	// Should not scroll past the end of the content
-	end := len(ct.content) - 1
-	if ct.selectedIndex > end {
-		ct.selectedIndex = end
-	}
-
-	if ct.selectedIndex < 0 {
-		ct.selectedIndex = 0
-	}
-}
-
-// Scrolls the table up or down
-func (ct *CommentsTable) scroll(size int) {
-	ct.pageOffset += size
-
-	end := len(ct.content) - ct.height
-	if end < 0 {
-		end = 0
-	}
-
-	// Should not scroll past the end of the content
-	if ct.pageOffset > end {
-		ct.pageOffset = end
-	}
-
-	if ct.pageOffset < 0 {
-		ct.pageOffset = 0
-	}
-}
-
-func (ct *CommentsTable) ScrollDown() {
-	if (ct.pageOffset+ct.height)-ct.selectedIndex <= 4 {
-		ct.scroll(1)
-	}
-
-	ct.moveSelected(1)
-}
-
-func (ct *CommentsTable) ScrollHalfPageDown() {
-	ct.scroll(ct.height / 2)
-	ct.moveSelected(ct.height / 2)
-}
-
-func (ct *CommentsTable) ScrollUp() {
-	if ct.selectedIndex-ct.pageOffset <= 4 {
-		ct.scroll(-1)
-	}
-
-	ct.moveSelected(-1)
-}
-
-func (ct *CommentsTable) ScrollHalfPageUp() {
-	ct.scroll(-ct.height / 2)
-	ct.moveSelected(-ct.height / 2)
 }
 
 func (ct *CommentsTable) makeId(diff *diff.FileDiff) string {
@@ -165,7 +87,7 @@ func (ct *CommentsTable) SetData(pr *PullRequest) {
 	ct.pullRequest = pr
 	ct.loadingError = nil
 	ct.IsLoading = true
-	ct.content = make([]*contentLine, 0)
+	ct.content = make([]*ScrollablePageLine, 0)
 	ct.pageOffset = 0
 	ct.files = make(map[string]*diffFile, 0)
 
@@ -270,7 +192,7 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 		}
 	}
 
-	content := make([]*contentLine, 0)
+	content := make([]*ScrollablePageLine, 0)
 	prevIndent := 0
 	printComment := func(comment *client.PullRequestComment, indent int) error {
 		commentBoxWidth := ct.width - indent
@@ -292,11 +214,11 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 			line := content[len(content)-1]
 			line.Reference = nil
 			line.Statements = append(line.Statements,
-				&contentLineStatement{
+				&ScrollablePageLineStatement{
 					Content: tlb + blbPrev,
 					Indent:  indent,
 				},
-				&contentLineStatement{
+				&ScrollablePageLineStatement{
 					Content:   topRightReplyBorder,
 					Alignment: tview.AlignRight,
 				},
@@ -307,9 +229,9 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 			if commentBoxWidth > 3 {
 				padding = strings.Repeat(horizontalBorder, commentBoxWidth-3)
 			}
-			content = append(content, &contentLine{
+			content = append(content, &ScrollablePageLine{
 				Reference: comment,
-				Statements: []*contentLineStatement{
+				Statements: []*ScrollablePageLineStatement{
 					{
 						Content:   fmt.Sprintf("%s%s%s%s", tlb, blbPrev, padding, trb),
 						Alignment: tview.AlignLeft,
@@ -321,7 +243,7 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 
 		borderColor := "white"
 
-		statements := []*contentLineStatement{
+		statements := []*ScrollablePageLineStatement{
 			{
 				Content: fmt.Sprintf("[%s]%s⏳ %s", borderColor, verticalBorder, "Sending..."),
 				Indent:  indent,
@@ -333,7 +255,7 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 		}
 
 		if !comment.IsSending {
-			statements = []*contentLineStatement{
+			statements = []*ScrollablePageLineStatement{
 				{
 					Content: fmt.Sprintf("[%s]%s%s", borderColor, verticalBorder, comment.User),
 					Indent:  indent,
@@ -351,7 +273,7 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 			}
 		}
 
-		content = append(content, &contentLine{
+		content = append(content, &ScrollablePageLine{
 			Reference:  comment,
 			Statements: statements,
 		})
@@ -374,9 +296,9 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 		}
 		commentLines = append(commentLines, strings.Join(line, " "))
 		for _, line := range commentLines {
-			content = append(content, &contentLine{
+			content = append(content, &ScrollablePageLine{
 				Reference: comment,
-				Statements: []*contentLineStatement{
+				Statements: []*ScrollablePageLineStatement{
 					{
 						Content: verticalBorder + line,
 						Indent:  indent,
@@ -393,9 +315,9 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 		if commentBoxWidth > 2 {
 			padding = strings.Repeat(horizontalBorder, commentBoxWidth-2)
 		}
-		content = append(content, &contentLine{
+		content = append(content, &ScrollablePageLine{
 			Reference: comment,
-			Statements: []*contentLineStatement{
+			Statements: []*ScrollablePageLineStatement{
 				{
 					Content: fmt.Sprintf("%s%s%s", bottomLeftBorder, padding, bottomRightBorder),
 					Indent:  indent,
@@ -429,8 +351,8 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 
 	comments := filesMap[d.DiffId]
 
-	content = append(content, &contentLine{
-		Statements: []*contentLineStatement{{Content: d.Title}},
+	content = append(content, &ScrollablePageLine{
+		Statements: []*ScrollablePageLineStatement{{Content: d.Title}},
 	})
 
 	for i, h := range d.Hunks {
@@ -482,13 +404,13 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 				lineNumber = newIdx
 			}
 
-			content = append(content, &contentLine{
+			content = append(content, &ScrollablePageLine{
 				Reference: &diffLine{
 					FilePath:   d.DiffId,
 					LineNumber: int(lineNumber),
 					Type:       diffLineType,
 				},
-				Statements: []*contentLineStatement{
+				Statements: []*ScrollablePageLineStatement{
 					{Content: fmt.Sprintf(
 						"%*s %*s│ [%s]%s",
 						origIdxLen,
@@ -522,26 +444,13 @@ func (ct *CommentsTable) prerenderContent(d *diffFile) {
 		}
 
 		if i < len(d.Hunks)-1 {
-			content = append(content, &contentLine{
-				Statements: []*contentLineStatement{{Content: ""}},
+			content = append(content, &ScrollablePageLine{
+				Statements: []*ScrollablePageLineStatement{{Content: ""}},
 			})
 		}
 	}
 
 	ct.content = content
-}
-
-func (ct *CommentsTable) GetSelectedReference() interface{} {
-	if ct.selectedIndex > len(ct.content) {
-		return nil
-	}
-
-	v := ct.content[ct.selectedIndex]
-	if v == nil {
-		return nil
-	}
-
-	return v.Reference
 }
 
 func (ct *CommentsTable) Draw(screen tcell.Screen) {
@@ -629,66 +538,25 @@ func CommentLineNumberTypeToDiffLineType(d DiffLineType) client.CommentLineNumbe
 
 func newDetailsPage() *detailsPage {
 	grid := tview.NewGrid().SetRows(0, 0).SetColumns(-2, -5)
-	info := tview.NewFlex()
+	info := NewFileTree()
 	table := NewCommentsTable()
 
-	filesTable := tview.NewTable()
-
 	eventBus.Subscribe("DetailsPage:LoadingFinished", func(data interface{}) {
-		row, _ := filesTable.GetSelection()
-		if row >= filesTable.GetRowCount() {
-			row = 0
-			filesTable.Select(row, 0)
-		}
-
-		tableRow := filesTable.GetCell(row, 0)
 		var ref *diffFile
-		ref, ok := tableRow.GetReference().(*diffFile)
+		ref, ok := info.GetSelectionReference().(*diffFile)
 		if !ok {
-			log.Error().Msg("changes table row reference")
+			// log.Error().Msg("changes table row reference")
 			return
 		}
 
 		eventBus.Publish("DetailsPage:OnFileChanged", ref)
 	})
-
-	filesTable.SetSelectionChangedFunc(func(row, column int) {
-		tableRow := filesTable.GetCell(row, 0)
-		var ref *diffFile
-		ref, ok := tableRow.GetReference().(*diffFile)
-		if !ok {
-			log.Error().Msg("changes table row reference")
-			return
-		}
-
-		eventBus.Publish("DetailsPage:OnFileChanged", ref)
-	})
-
-	filesTable.SetSelectable(true, false).
-		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-			switch event.Key() {
-			case tcell.KeyEnter:
-				app.SetFocus(table)
-				return nil
-			}
-
-			return event
-		})
-
-	info.AddItem(filesTable, 0, 1, true)
-	info.SetTitle("Info").SetBorder(true)
 
 	table.
 		SetBorder(true).
 		SetTitle("Comments").
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Rune() {
-			case 'j':
-				table.ScrollDown()
-				return nil
-			case 'k':
-				table.ScrollUp()
-				return nil
 			case 'c':
 				ref := table.GetSelectedReference()
 				if ref != nil {
@@ -701,12 +569,6 @@ func newDetailsPage() *detailsPage {
 			}
 
 			switch event.Key() {
-			case tcell.KeyCtrlD:
-				table.ScrollHalfPageDown()
-				return nil
-			case tcell.KeyCtrlU:
-				table.ScrollHalfPageUp()
-				return nil
 			case tcell.KeyEsc:
 				app.SetFocus(info)
 				return nil
@@ -852,7 +714,7 @@ func newDetailsPage() *detailsPage {
 		}
 
 		table.SetData(pr)
-		filesTable.Clear()
+		info.Clear()
 
 		typeText := ""
 		row := 0
@@ -868,13 +730,12 @@ func newDetailsPage() *detailsPage {
 				typeText = "U"
 			}
 
-			filesTable.SetCell(row, 0, tview.NewTableCell(typeText).SetReference(v))
-			filesTable.SetCell(row, 1, tview.NewTableCell(v.Title))
+			info.AddFile(NewFileTreeItem(v.Title, typeText))
 
 			row++
 		}
 
-		app.SetFocus(table)
+		app.SetFocus(info)
 	})
 
 	eventBus.Subscribe("DetailsPage:OnFileChanged", func(input interface{}) {
