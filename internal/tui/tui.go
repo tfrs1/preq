@@ -90,9 +90,16 @@ func Run(
 		app.SetFocus(table.View)
 	})
 
-	eventBus.Subscribe("detailsPage:open", func(_ interface{}) {
+	eventBus.Subscribe("detailsPage:open", func(input interface{}) {
+		err := details.SetData(input)
+		if err != nil {
+			// FIXME: Show error modal
+			log.Error().Msg(err.Error())
+			return
+		}
+
 		pages.ShowPage("details_page")
-		app.SetFocus(details.View)
+		app.SetFocus(details)
 	})
 
 	eventBus.Subscribe("errorModal:open", func(err interface{}) {
@@ -294,12 +301,7 @@ func Run(
 
 	pages.AddPage("main", flex, true, true)
 
-	pages.AddPage(
-		"details_page",
-		details.View,
-		true,
-		false,
-	)
+	pages.AddPage("details_page", details, true, false)
 
 	pages.AddPage(
 		PAGE_DECLINE_CONFIRMATION_MODAL,

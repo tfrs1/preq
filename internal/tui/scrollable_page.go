@@ -59,6 +59,14 @@ func (sp *ScrollablePage) InputHandler() func(event *tcell.EventKey, setFocus fu
 	})
 }
 
+func (sp *ScrollablePage) Clear() *ScrollablePage {
+	sp.pageOffset = 0
+	sp.selectedIndex = 0
+	sp.content = []*ScrollablePageLine{}
+
+	return sp
+}
+
 func (sp *ScrollablePage) GetSelectedReference() interface{} {
 	if sp.selectedIndex > len(sp.content) {
 		return nil

@@ -77,6 +77,7 @@ func (ft FileTree) Draw(screen tcell.Screen) {
 }
 
 func (ft *FileTree) Clear() {
+	ft.ScrollablePage.Clear()
 	ft.fileList = []*FileTreeItem{}
 }
 
@@ -87,14 +88,20 @@ func (ft *FileTree) AddFile(file *FileTreeItem) *FileTree {
 }
 
 type FileTreeItem struct {
-	Filename  string
-	reference interface{}
+	Filename   string
+	Decoration string
+	reference  interface{}
 }
 
-func NewFileTreeItem(filename, annotation string) *FileTreeItem {
+func NewFileTreeItem(filename string) *FileTreeItem {
 	return &FileTreeItem{
 		Filename: filename,
 	}
+}
+
+func (fti *FileTreeItem) SetDecoration(decoration string) *FileTreeItem {
+	fti.Decoration = decoration
+	return fti
 }
 
 func (fti *FileTreeItem) SetReference(ref interface{}) *FileTreeItem {
@@ -107,10 +114,11 @@ func (fti *FileTreeItem) GetReference() interface{} {
 }
 
 type FileTreeNode struct {
-	Filename  string
-	Children  []*FileTreeNode
-	Collapsed bool
-	reference interface{}
+	Filename   string
+	Children   []*FileTreeNode
+	Collapsed  bool
+	Decoration string
+	reference  interface{}
 }
 
 func FilesToTree(items []*FileTreeItem) *FileTreeNode {
@@ -138,7 +146,12 @@ func FilesToTree(items []*FileTreeItem) *FileTreeNode {
 
 			child := findNode(currentNode.Children, v)
 			if child == nil {
-				child = &FileTreeNode{Filename: v, Collapsed: false, reference: item.reference}
+				child = &FileTreeNode{
+					Filename:   v,
+					Collapsed:  false,
+					Decoration: item.Decoration,
+					reference:  item.reference,
+				}
 				currentNode.Children = append(currentNode.Children, child)
 			}
 
@@ -183,15 +196,16 @@ func (node *FileTreeNode) rebuildStatements() []*ScrollablePageLine {
 		if len(node.Children) > 0 {
 			// TODO: Add nerd font icons
 			// decoration = "[blue::][white::b]"
-			decoration = " [white::b]"
+			decoration = "[white::b]"
 
 			if node.Collapsed == true {
 				icon = ""
 			}
 		} else {
 			// TODO: Add Git letter status
-			// decoration = "[green::]A[white::]"
-			decoration = " "
+			if node.Decoration != "" {
+				decoration = node.Decoration
+			}
 		}
 
 		statements = append(statements, &ScrollablePageLine{
@@ -200,7 +214,7 @@ func (node *FileTreeNode) rebuildStatements() []*ScrollablePageLine {
 				Diff: node.reference,
 			},
 			Statements: []*ScrollablePageLineStatement{{
-				Content: fmt.Sprintf("%s%s %s %s", prefix, icon, decoration, node.Filename),
+				Content: fmt.Sprintf("%s%s%s [white::]%s", prefix, icon, decoration, node.Filename),
 			}},
 		})
 
