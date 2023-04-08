@@ -508,14 +508,10 @@ func newDetailsPage() *detailsPage {
 	table := NewCommentsTable()
 
 	eventBus.Subscribe("DetailsPage:LoadingFinished", func(data interface{}) {
-		var ref *diffFile
-		ref, ok := info.GetSelectionReference().(*diffFile)
-		if !ok {
-			// log.Error().Msg("changes table row reference")
-			return
+		ref := info.GetSelectedReference()
+		if ref != nil {
+			eventBus.Publish("DetailsPage:OnFileChanged", ref)
 		}
-
-		eventBus.Publish("DetailsPage:OnFileChanged", ref)
 	})
 
 	table.
@@ -567,6 +563,10 @@ func newDetailsPage() *detailsPage {
 
 			return event
 		})
+
+	eventBus.Subscribe("FileTree:FileSelectionRequested", func(input interface{}) {
+		app.SetFocus(table)
+	})
 
 	// FIXME: Multiple comments on the same code line are not visible
 
@@ -696,7 +696,7 @@ func newDetailsPage() *detailsPage {
 				typeText = "U"
 			}
 
-			info.AddFile(NewFileTreeItem(v.Title, typeText))
+			info.AddFile(NewFileTreeItem(v.Title, typeText).SetReference(v))
 
 			row++
 		}
@@ -705,15 +705,20 @@ func newDetailsPage() *detailsPage {
 	})
 
 	eventBus.Subscribe("DetailsPage:OnFileChanged", func(input interface{}) {
-		fileDiff, ok := input.(*diffFile)
+		table.pageOffset = 0
+		table.selectedIndex = 0
+		table.content = []*ScrollablePageLine{}
 
+		if input == nil {
+			return
+		}
+
+		fileDiff, ok := input.(*diffFile)
 		if !ok {
 			log.Error().Msg("cast failed when opening the details page")
 			return
 		}
 
-		table.pageOffset = 0
-		table.selectedIndex = 0
 		diff := table.files[fileDiff.DiffId]
 		table.prerenderContent(diff)
 	})
