@@ -7,11 +7,13 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/rs/zerolog/log"
 )
 
 type FileTree struct {
 	*ScrollablePage
 	fileList []*FileTreeItem
+	root     *FileTreeNode
 }
 
 func NewFileTree() *FileTree {
@@ -22,13 +24,18 @@ func NewFileTree() *FileTree {
 	info.SetBorder(true).SetTitle("Info")
 	info.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case ' ':
+				eventBus.Publish("FileTree:ToggleExpandCollapseRequest", info.selectedIndex)
+				return nil
+			}
 		case tcell.KeyEnter:
 			eventBus.Publish(
 				"FileTree:FileSelectionRequested",
 				info.selectedIndex,
 			)
 			return nil
-		default:
 		}
 
 		return event
@@ -41,14 +48,28 @@ func NewFileTree() *FileTree {
 		)
 	})
 
+	eventBus.Subscribe("FileTree:ToggleExpandCollapseRequest", func(input interface{}) {
+		ref := info.GetSelectedReference()
+		if ref == nil {
+			return
+		}
+
+		node, ok := ref.(*FileTreeStatementReference)
+		if !ok {
+			log.Error().Msg("cast to FileTreeStatementReference failed")
+			return
+		}
+
+		node.Node.Collapsed = !node.Node.Collapsed
+	})
+
 	return info
 }
 
 func (ft FileTree) Draw(screen tcell.Screen) {
 	ft.DrawForSubclass(screen, ft.ScrollablePage)
 
-	root := FilesToTree(ft.fileList)
-	ft.content = root.rebuildStatements()
+	ft.content = ft.root.rebuildStatements()
 
 	ft.ScrollablePage.Draw(screen)
 }
@@ -59,6 +80,7 @@ func (ft *FileTree) Clear() {
 
 func (ft *FileTree) AddFile(file *FileTreeItem) *FileTree {
 	ft.fileList = append(ft.fileList, file)
+	ft.root = FilesToTree(ft.fileList)
 	return ft
 }
 
@@ -85,6 +107,7 @@ func (fti *FileTreeItem) GetReference() interface{} {
 type FileTreeNode struct {
 	Filename  string
 	Children  []*FileTreeNode
+	Collapsed bool
 	reference interface{}
 }
 
@@ -102,7 +125,7 @@ func FilesToTree(items []*FileTreeItem) *FileTreeNode {
 		return items[i].Filename < items[j].Filename
 	})
 
-	root := &FileTreeNode{Filename: "root"}
+	root := &FileTreeNode{Filename: "root", Collapsed: false}
 
 	for _, item := range items {
 		currentNode := root
@@ -113,7 +136,7 @@ func FilesToTree(items []*FileTreeItem) *FileTreeNode {
 
 			child := findNode(currentNode.Children, v)
 			if child == nil {
-				child = &FileTreeNode{Filename: v, reference: item.reference}
+				child = &FileTreeNode{Filename: v, Collapsed: false, reference: item.reference}
 				currentNode.Children = append(currentNode.Children, child)
 			}
 
@@ -141,6 +164,11 @@ func FilesToTree(items []*FileTreeItem) *FileTreeNode {
 	return root
 }
 
+type FileTreeStatementReference struct {
+	Node *FileTreeNode
+	Diff interface{}
+}
+
 func (node *FileTreeNode) rebuildStatements() []*ScrollablePageLine {
 	statements := []*ScrollablePageLine{}
 
@@ -148,7 +176,7 @@ func (node *FileTreeNode) rebuildStatements() []*ScrollablePageLine {
 	recurse = func(node *FileTreeNode, level int) {
 		prefix := strings.Repeat(" ", level)
 		icon := " "
-		if len(node.Children) > 0 {
+		if len(node.Children) > 0 && node.Collapsed == true {
 			icon = ""
 		}
 
@@ -158,14 +186,19 @@ func (node *FileTreeNode) rebuildStatements() []*ScrollablePageLine {
 		// }
 
 		statements = append(statements, &ScrollablePageLine{
-			Reference: node.reference,
+			Reference: &FileTreeStatementReference{
+				Node: node,
+				Diff: node.reference,
+			},
 			Statements: []*ScrollablePageLineStatement{{
 				Content: fmt.Sprintf("%s%s %s", prefix, icon, node.Filename),
 			}},
 		})
 
-		for _, child := range node.Children {
-			recurse(child, level+1)
+		if node.Collapsed == false {
+			for _, child := range node.Children {
+				recurse(child, level+1)
+			}
 		}
 	}
 

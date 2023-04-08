@@ -713,9 +713,19 @@ func newDetailsPage() *detailsPage {
 			return
 		}
 
-		fileDiff, ok := input.(*diffFile)
+		rr, ok := input.(*FileTreeStatementReference)
 		if !ok {
-			log.Error().Msg("cast failed when opening the details page")
+			log.Error().Msg("cast failed to FileTreeStatementReference when opening the details page")
+			return
+		}
+
+		if rr.Diff == nil {
+			return
+		}
+
+		fileDiff, ok := rr.Diff.(*diffFile)
+		if !ok {
+			log.Error().Msg("cast failed to diffFile when opening the details page")
 			return
 		}
 
