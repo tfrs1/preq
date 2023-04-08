@@ -10,6 +10,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// TODO: Add NerdFont icons
+
 type FileTree struct {
 	*ScrollablePage
 	fileList []*FileTreeItem
@@ -176,14 +178,21 @@ func (node *FileTreeNode) rebuildStatements() []*ScrollablePageLine {
 	recurse = func(node *FileTreeNode, level int) {
 		prefix := strings.Repeat(" ", level)
 		icon := " "
-		if len(node.Children) > 0 && node.Collapsed == true {
-			icon = ""
-		}
+		decoration := " "
 
-		// TODO: Decorate directories differently
-		// if strings.Contains(v, "") {
-		// 	v = "[::b]" + v
-		// }
+		if len(node.Children) > 0 {
+			// TODO: Add nerd font icons
+			// decoration = "[blue::][white::b]"
+			decoration = " [white::b]"
+
+			if node.Collapsed == true {
+				icon = ""
+			}
+		} else {
+			// TODO: Add Git letter status
+			// decoration = "[green::]A[white::]"
+			decoration = " "
+		}
 
 		statements = append(statements, &ScrollablePageLine{
 			Reference: &FileTreeStatementReference{
@@ -191,7 +200,7 @@ func (node *FileTreeNode) rebuildStatements() []*ScrollablePageLine {
 				Diff: node.reference,
 			},
 			Statements: []*ScrollablePageLineStatement{{
-				Content: fmt.Sprintf("%s%s %s", prefix, icon, node.Filename),
+				Content: fmt.Sprintf("%s%s %s %s", prefix, icon, decoration, node.Filename),
 			}},
 		})
 
