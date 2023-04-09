@@ -78,6 +78,16 @@ func Run(
 
 	errorModal := tview.NewModal().
 		SetText("Unknown error").
+		AddButtons([]string{"Close"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonIndex == 0 {
+				pages.HidePage("ErrorModal")
+				app.SetFocus(table.View)
+			}
+		})
+
+	fatalErrorModal := tview.NewModal().
+		SetText("Unknown error").
 		AddButtons([]string{"Quit"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			if buttonIndex == 0 {
@@ -93,7 +103,7 @@ func Run(
 	eventBus.Subscribe("detailsPage:open", func(input interface{}) {
 		err := details.SetData(input)
 		if err != nil {
-			// FIXME: Show error modal
+			eventBus.Publish("ErrorModal:RequestOpen", err)
 			log.Error().Msg(err.Error())
 			return
 		}
@@ -102,9 +112,14 @@ func Run(
 		app.SetFocus(details)
 	})
 
-	eventBus.Subscribe("errorModal:open", func(err interface{}) {
+	eventBus.Subscribe("ErrorModal:RequestOpen", func(err interface{}) {
 		errorModal.SetText(err.(error).Error())
-		pages.ShowPage("error_modal")
+		pages.ShowPage("ErrorModal")
+	})
+
+	eventBus.Subscribe("FatalErrorModal:RequestOpen", func(err interface{}) {
+		fatalErrorModal.SetText(err.(error).Error())
+		pages.ShowPage("FatalErrorModal")
 	})
 
 	eventBus.Subscribe("mergeModal:closed", func(_ interface{}) {
@@ -328,7 +343,8 @@ func Run(
 		false,
 	)
 	pages.AddPage("HelpPage", helpPage, true, false)
-	pages.AddPage("error_modal", errorModal, false, false)
+	pages.AddPage("FatalErrorModal", fatalErrorModal, false, false)
+	pages.AddPage("ErrorModal", errorModal, false, false)
 
 	pages.AddPage("AddCommentModal", NewAddCommentModal(), true, false)
 

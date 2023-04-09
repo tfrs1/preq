@@ -2,7 +2,9 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"path"
 	approvecmd "preq/internal/cli/approve"
 	createcmd "preq/internal/cli/create"
 	declinecmd "preq/internal/cli/decline"
@@ -16,6 +18,7 @@ import (
 	"preq/internal/tui"
 	"time"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -26,42 +29,6 @@ var (
 	commit  = "none"
 	date    = "unknown"
 )
-
-func init() {
-	log.Logger = log.Output(
-		zerolog.ConsoleWriter{
-			Out:        os.Stderr,
-			TimeFormat: time.RFC3339,
-		})
-
-	zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-
-	// TODO: Read the log level value from the config
-	levelInput := "debug"
-	level, err := zerolog.ParseLevel(levelInput)
-	if err != nil {
-		log.Error().
-			Msgf("unknown log level '%v', reverting to default error level", levelInput)
-	} else {
-		zerolog.SetGlobalLevel(level)
-	}
-
-	// TODO: Add full file logging behind a flag?
-	// logFile, err := homedir.Expand("~/.local/state/preq/full.log")
-	// if err == nil {
-	// 	log.Logger = log.Output(
-	// 		zerolog.ConsoleWriter{
-	// 			Out: &lumberjack.Logger{
-	// 				Filename:   logFile,
-	// 				MaxSize:    20, // megabytes
-	// 				MaxBackups: 3,
-	// 				MaxAge:     28, //days
-	// 				Compress:   false,
-	// 			},
-	// 			TimeFormat: time.RFC3339,
-	// 		})
-	// }
-}
 
 var rootCmd = &cobra.Command{
 	Use:     "preq",
@@ -140,6 +107,40 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	dir, err := homedir.Expand(`~/.local/state/preq`)
+	if err != nil {
+		panic(err)
+	}
+
+	os.MkdirAll(dir, 0o700)
+	file, err := os.OpenFile(path.Join(dir, "app.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o0600)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to open log file")
+	}
+	defer file.Close()
+
+	mw := io.MultiWriter(
+		// TODO: Write to a in memory file writer? To show errors (logs) in the app, or maybe just use a hook or something?
+		zerolog.ConsoleWriter{
+			Out:        file,
+			TimeFormat: time.RFC3339,
+		},
+	)
+
+	log.Logger = zerolog.New(mw).With().Timestamp().Logger()
+
+	zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+
+	// TODO: Read the log level value from the config
+	levelInput := "debug"
+	level, err := zerolog.ParseLevel(levelInput)
+	if err != nil {
+		log.Error().
+			Msgf("unknown log level '%v', reverting to default error level", levelInput)
+	} else {
+		zerolog.SetGlobalLevel(level)
+	}
+
 	rootCmd.AddCommand(createcmd.New())
 	rootCmd.AddCommand(approvecmd.New())
 	rootCmd.AddCommand(declinecmd.New())
