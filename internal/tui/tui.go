@@ -76,6 +76,8 @@ func Run(
 
 	pages := tview.NewPages()
 
+	addCommentModal := NewAddCommentModal()
+
 	errorModal := tview.NewModal().
 		SetText("Unknown error").
 		AddButtons([]string{"Close"}).
@@ -346,9 +348,10 @@ func Run(
 	pages.AddPage("FatalErrorModal", fatalErrorModal, false, false)
 	pages.AddPage("ErrorModal", errorModal, false, false)
 
-	pages.AddPage("AddCommentModal", NewAddCommentModal(), true, false)
+	pages.AddPage("AddCommentModal", addCommentModal, true, false)
 
 	eventBus.Subscribe("DetailsPage:NewCommentRequested", func(ref interface{}) {
+		addCommentModal.Clear()
 		pages.ShowPage("AddCommentModal")
 	})
 
