@@ -48,8 +48,8 @@ const (
 
 type detailsPage struct {
 	*tview.Grid
-	info  *FileTree
-	table *ReviewPanel
+	fileTree    *FileTree
+	reviewPanel *ReviewPanel
 }
 
 func CommentLineNumberTypeToDiffLineType(d DiffLineType) client.CommentLineNumberType {
@@ -63,49 +63,63 @@ func CommentLineNumberTypeToDiffLineType(d DiffLineType) client.CommentLineNumbe
 
 func newDetailsPage() *detailsPage {
 	grid := tview.NewGrid().SetRows(0, 0).SetColumns(-2, -5)
-	info := NewFileTree()
-	table := NewReviewPanel()
+	fileTree := NewFileTree()
+	reviewPanel := NewReviewPanel()
 
 	eventBus.Subscribe("DetailsPage:LoadingFinished", func(data interface{}) {
-		ref := info.GetSelectedReference()
+		ref := fileTree.GetSelectedReference()
 		if ref != nil {
 			eventBus.Publish("DetailsPage:OnFileChanged", ref)
 		}
 	})
 
-	table.
+	reviewPanel.
 		SetBorder(true).
 		SetTitle("Comments").
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Rune() {
 			case 'c':
-				ref := table.GetSelectedReference()
+				ref := reviewPanel.GetSelectedReference()
 				if ref != nil {
 					eventBus.Publish(
 						"DetailsPage:NewCommentRequested",
-						table.GetSelectedReference(),
+						reviewPanel.GetSelectedReference(),
 					)
 				}
 				return nil
+			case 'd':
+				ref := reviewPanel.GetSelectedReference()
+				if ref == nil {
+					return nil
+				}
+
+				if comment, ok := ref.(*client.PullRequestComment); ok {
+					eventBus.Publish(
+						"DetailsPage:DeleteCommentRequested",
+						comment,
+					)
+				} else {
+					log.Debug().Msg("[DetailsPage] Delete request on line without a comment reference")
+				}
 			}
 
 			switch event.Key() {
 			case tcell.KeyEsc:
-				app.SetFocus(info)
+				app.SetFocus(fileTree)
 				return nil
 			}
 
 			return event
 		})
 
-	grid.AddItem(info, 0, 0, 3, 1, 0, 0, true)
-	grid.AddItem(table, 0, 1, 3, 1, 0, 0, true)
+	grid.AddItem(fileTree, 0, 0, 3, 1, 0, 0, true)
+	grid.AddItem(reviewPanel, 0, 1, 3, 1, 0, 0, true)
 	grid.
 		SetBorder(true).
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Key() {
 			case tcell.KeyEscape:
-				if !info.HasFocus() {
+				if !fileTree.HasFocus() {
 					return event
 				}
 
@@ -124,11 +138,32 @@ func newDetailsPage() *detailsPage {
 		})
 
 	eventBus.Subscribe("FileTree:FileSelectionRequested", func(input interface{}) {
-		app.SetFocus(table)
+		app.SetFocus(reviewPanel)
+	})
+
+	eventBus.Subscribe("DeleteCommendModal:DeleteCancelled", func(_ interface{}) {
+		app.SetFocus(reviewPanel)
+	})
+	eventBus.Subscribe("DeleteCommendModal:DeleteConfirmed", func(input interface{}) {
+		comment, ok := input.(*client.PullRequestComment)
+		if !ok {
+			log.Debug().Msg("cast failed when confirming comment deletion")
+			return
+		}
+
+		err := reviewPanel.pullRequest.Client.DeleteComment(&client.DeleteCommentOptions{
+			Repository: reviewPanel.pullRequest.Repository,
+			ID:         reviewPanel.pullRequest.PullRequest.ID,
+			CommentID:  comment.ID,
+		})
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to delete comment %s", comment.ID)
+		}
+
+		app.SetFocus(reviewPanel)
 	})
 
 	// FIXME: Multiple comments on the same code line are not visible
-
 	eventBus.Subscribe("AddCommentModal:ConfirmRequested", func(input interface{}) {
 		// FIXME: Sent comment 7 times because I was spamming enter over the send button?!?
 		content, ok := input.(string)
@@ -137,14 +172,14 @@ func newDetailsPage() *detailsPage {
 			return
 		}
 
-		ref := table.GetSelectedReference()
+		ref := reviewPanel.GetSelectedReference()
 		var options *client.CreateCommentOptions = nil
 		switch ref.(type) {
 		case *diffLine:
 			if d, ok := ref.(*diffLine); ok && d != nil {
 				options = &client.CreateCommentOptions{
-					Repository: table.pullRequest.Repository,
-					ID:         table.pullRequest.PullRequest.ID,
+					Repository: reviewPanel.pullRequest.Repository,
+					ID:         reviewPanel.pullRequest.PullRequest.ID,
 					Content:    content,
 					FilePath:   d.FilePath,
 					LineRef: &client.CreateCommentOptionsLineRef{
@@ -156,8 +191,8 @@ func newDetailsPage() *detailsPage {
 		case *client.PullRequestComment:
 			if c, ok := ref.(*client.PullRequestComment); ok && c != nil {
 				options = &client.CreateCommentOptions{
-					Repository: table.pullRequest.Repository,
-					ID:         table.pullRequest.PullRequest.ID,
+					Repository: reviewPanel.pullRequest.Repository,
+					ID:         reviewPanel.pullRequest.PullRequest.ID,
 					Content:    content,
 					FilePath:   c.FilePath,
 					ParentRef: &client.CreateCommentOptionsParentRef{
@@ -197,13 +232,13 @@ func newDetailsPage() *detailsPage {
 			FilePath:         options.FilePath,
 		}
 
-		table.pullRequest.PullRequest.Comments = append(
-			table.pullRequest.PullRequest.Comments,
+		reviewPanel.pullRequest.PullRequest.Comments = append(
+			reviewPanel.pullRequest.PullRequest.Comments,
 			tempComment,
 		)
 
 		go func() {
-			comment, err := table.pullRequest.Client.CreateComment(options)
+			comment, err := reviewPanel.pullRequest.Client.CreateComment(options)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to create comment")
 				return
@@ -221,21 +256,21 @@ func newDetailsPage() *detailsPage {
 			tempComment.FilePath = comment.FilePath
 			tempComment.IsSending = comment.IsSending
 
-			app.QueueUpdateDraw(table.rerenderContent)
+			app.QueueUpdateDraw(reviewPanel.rerenderContent)
 		}()
 
-		table.rerenderContent()
+		reviewPanel.rerenderContent()
 		eventBus.Publish("AddCommentModal:CloseRequested", nil)
 	})
 
 	eventBus.Subscribe("AddCommentModal:Closed", func(_ interface{}) {
-		app.SetFocus(table)
+		app.SetFocus(reviewPanel)
 	})
 
 	eventBus.Subscribe("DetailsPage:OnFileChanged", func(input interface{}) {
-		table.pageOffset = 0
-		table.selectedIndex = 0
-		table.content = []*ScrollablePageLine{}
+		reviewPanel.pageOffset = 0
+		reviewPanel.selectedIndex = 0
+		reviewPanel.content = []*ScrollablePageLine{}
 
 		if input == nil {
 			return
@@ -257,14 +292,14 @@ func newDetailsPage() *detailsPage {
 			return
 		}
 
-		diff := table.files[fileDiff.DiffId]
-		table.prerenderContent(diff)
+		diff := reviewPanel.files[fileDiff.DiffId]
+		reviewPanel.prerenderContent(diff)
 	})
 
 	return &detailsPage{
-		Grid:  grid,
-		info:  info,
-		table: table,
+		Grid:        grid,
+		fileTree:    fileTree,
+		reviewPanel: reviewPanel,
 	}
 }
 
@@ -282,11 +317,11 @@ func (d *detailsPage) SetData(input interface{}) error {
 		return err
 	}
 
-	d.table.SetData(pr, changes)
-	d.info.Clear()
+	d.reviewPanel.SetData(pr, changes)
+	d.fileTree.Clear()
 
 	row := 0
-	for _, v := range d.table.files {
+	for _, v := range d.reviewPanel.files {
 		item := NewFileTreeItem(v.Title).SetReference(v)
 
 		switch v.Type {
@@ -300,7 +335,7 @@ func (d *detailsPage) SetData(input interface{}) error {
 			item.SetDecoration("[green::]U")
 		}
 
-		d.info.AddFile(item)
+		d.fileTree.AddFile(item)
 		row++
 	}
 

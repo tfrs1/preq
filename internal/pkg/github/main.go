@@ -123,6 +123,11 @@ func (*GithubCloudClient) GetComments(
 	panic("unimplemented")
 }
 
+// DeleteComment implements client.Client
+func (*GithubCloudClient) DeleteComment(o *preqClient.DeleteCommentOptions) error {
+	panic("unimplemented")
+}
+
 func (c *GithubCloudClient) GetPullRequests(
 	o *preqClient.GetPullRequestsOptions,
 ) (*preqClient.PullRequestList, error) {
@@ -141,7 +146,6 @@ func (c *GithubCloudClient) GetPullRequests(
 		SetQueryParam("state", string(o.State)).
 		SetError(bbError{}).
 		Get(url)
-
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +216,6 @@ func (c *GithubCloudClient) post(url string) (*resty.Response, error) {
 		SetAuthToken(c.token).
 		SetError(bbError{}).
 		Post(url)
-
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +334,6 @@ func (c *GithubCloudClient) getReviews(
 			o.Repository.Name,
 			o.ID,
 		))
-
 	if err != nil {
 		return nil, err
 	}
@@ -474,7 +476,6 @@ func (c *GithubCloudClient) CreatePullRequest(
 			"https://api.github.com/repos/%s/pulls",
 			o.Repository.Name,
 		))
-
 	if err != nil {
 		log.Fatal(err)
 	}

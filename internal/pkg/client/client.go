@@ -30,6 +30,7 @@ type Client interface {
 	FillMiscInfoAsync(repo *Repository, pr *PullRequest) error
 	GetComments(o *GetCommentsOptions) ([]*PullRequestComment, error)
 	CreateComment(o *CreateCommentOptions) (*PullRequestComment, error)
+	DeleteComment(o *DeleteCommentOptions) error
 }
 
 type RepositoryProvider string
@@ -141,6 +142,12 @@ type CreateCommentOptionsLineRef struct {
 
 type CreateCommentOptionsParentRef struct {
 	ID string
+}
+
+type DeleteCommentOptions struct {
+	Repository *Repository
+	ID         string
+	CommentID  string
 }
 
 type CreateCommentOptions struct {

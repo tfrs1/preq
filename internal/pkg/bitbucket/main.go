@@ -212,7 +212,6 @@ func (c *BitbucketCloudClient) CreateComment(
 		SetBody(buildCommentBody(options)).
 		SetError(bbError{}).
 		Post(url)
-
 	if err != nil {
 		return nil, err
 	}
@@ -237,6 +236,32 @@ func (c *BitbucketCloudClient) CreateComment(
 		FilePath:  parsed.Get("inline.path").String(),
 		IsSending: false,
 	}, nil
+}
+
+func (c *BitbucketCloudClient) DeleteComment(
+	options *client.DeleteCommentOptions,
+) error {
+	url := fmt.Sprintf(
+		"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/comments/%s",
+		options.Repository.Name,
+		options.ID,
+		options.CommentID,
+	)
+
+	rc := resty.New()
+	r, err := rc.R().
+		SetBasicAuth(c.username, c.password).
+		SetHeader("Content-Type", "application/json").
+		SetError(bbError{}).
+		Delete(url)
+	if err != nil {
+		return err
+	}
+	if r.IsError() {
+		return errors.New(string(r.Body()))
+	}
+
+	return nil
 }
 
 func (c *BitbucketCloudClient) GetComments(
@@ -291,7 +316,6 @@ func (c *BitbucketCloudClient) GetPullRequests(
 		SetQueryParam("state", string(o.State)).
 		SetError(bbError{}).
 		Get(url)
-
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +383,6 @@ func (c *BitbucketCloudClient) get(url string) (*resty.Response, error) {
 		SetBasicAuth(c.username, c.password).
 		SetError(bbError{}).
 		Get(url)
-
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +400,6 @@ func (c *BitbucketCloudClient) delete(url string) (*resty.Response, error) {
 		SetBasicAuth(c.username, c.password).
 		SetError(bbError{}).
 		Delete(url)
-
 	if err != nil {
 		return nil, err
 	}
@@ -395,7 +417,6 @@ func (c *BitbucketCloudClient) post(url string) (*resty.Response, error) {
 		SetBasicAuth(c.username, c.password).
 		SetError(bbError{}).
 		Post(url)
-
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +568,6 @@ func (c *BitbucketCloudClient) GetDefaultReviewers(
 			"https://api.bitbucket.org/2.0/repositories/%s/effective-default-reviewers",
 			c.repository,
 		))
-
 	if err != nil {
 		return nil, err
 	}
@@ -613,7 +633,6 @@ func (c *BitbucketCloudClient) CreatePullRequest(
 			"https://api.bitbucket.org/2.0/repositories/%s/pullrequests",
 			c.repository,
 		))
-
 	if err != nil {
 		log.Fatal(err)
 	}
