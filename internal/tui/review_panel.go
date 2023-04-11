@@ -198,18 +198,30 @@ func (ct *ReviewPanel) prerenderContent(d *diffFile) {
 
 		borderColor := "white"
 
-		statements := []*ScrollablePageLineStatement{
-			{
-				Content: fmt.Sprintf("[%s]%s⏳ %s", borderColor, verticalBorder, "Sending..."),
-				Indent:  indent,
-			},
-			{
-				Content:   fmt.Sprintf("[%v]%s", borderColor, verticalBorder),
-				Alignment: tview.AlignRight,
-			},
-		}
-
-		if !comment.IsSending {
+		statements := []*ScrollablePageLineStatement{}
+		if comment.IsBeingStored {
+			statements = []*ScrollablePageLineStatement{
+				{
+					Content: fmt.Sprintf("[%s]%s⏳ %s", borderColor, verticalBorder, "Sending..."),
+					Indent:  indent,
+				},
+				{
+					Content:   fmt.Sprintf("[%v]%s", borderColor, verticalBorder),
+					Alignment: tview.AlignRight,
+				},
+			}
+		} else if comment.IsBeingDeleted {
+			statements = []*ScrollablePageLineStatement{
+				{
+					Content: fmt.Sprintf("[%s]%s⏳ %s", borderColor, verticalBorder, "Deleting..."),
+					Indent:  indent,
+				},
+				{
+					Content:   fmt.Sprintf("[%v]%s", borderColor, verticalBorder),
+					Alignment: tview.AlignRight,
+				},
+			}
+		} else {
 			statements = []*ScrollablePageLineStatement{
 				{
 					Content: fmt.Sprintf("[%s]%s%s", borderColor, verticalBorder, comment.User),

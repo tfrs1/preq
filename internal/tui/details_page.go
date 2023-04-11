@@ -154,6 +154,7 @@ func newDetailsPage() *detailsPage {
 		/**
 		 * TODO: Update the state of the comment as deleteing and update the table
 		 */
+		comment.IsBeingDeleted = true
 
 		go (func() {
 			err := reviewPanel.pullRequest.Client.DeleteComment(&client.DeleteCommentOptions{
@@ -166,6 +167,7 @@ func newDetailsPage() *detailsPage {
 			}
 
 			comment.Deleted = true
+			comment.IsBeingDeleted = false
 
 			app.QueueUpdateDraw(reviewPanel.rerenderContent)
 		})()
@@ -231,7 +233,8 @@ func newDetailsPage() *detailsPage {
 
 		tempComment := &client.PullRequestComment{
 			ID:               fmt.Sprintf("%d", time.Now().UnixNano()),
-			IsSending:        true,
+			IsBeingStored:    true,
+			IsBeingDeleted:   false,
 			Created:          time.Now(),
 			Updated:          time.Now(),
 			Deleted:          false,
@@ -265,7 +268,7 @@ func newDetailsPage() *detailsPage {
 			tempComment.BeforeLineNumber = comment.BeforeLineNumber
 			tempComment.AfterLineNumber = comment.AfterLineNumber
 			tempComment.FilePath = comment.FilePath
-			tempComment.IsSending = comment.IsSending
+			tempComment.IsBeingStored = comment.IsBeingStored
 
 			app.QueueUpdateDraw(reviewPanel.rerenderContent)
 		}()

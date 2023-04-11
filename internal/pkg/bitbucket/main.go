@@ -233,8 +233,9 @@ func (c *BitbucketCloudClient) CreateComment(
 		BeforeLineNumber: uint(parsed.Get("inline.from").Uint()),
 		AfterLineNumber:  uint(parsed.Get("inline.to").Uint()),
 		// Check which name it when the file is renamed
-		FilePath:  parsed.Get("inline.path").String(),
-		IsSending: false,
+		FilePath:       parsed.Get("inline.path").String(),
+		IsBeingStored:  false,
+		IsBeingDeleted: false,
 	}, nil
 }
 
@@ -288,8 +289,9 @@ func (c *BitbucketCloudClient) GetComments(
 					BeforeLineNumber: uint(value.Get("inline.from").Uint()),
 					AfterLineNumber:  uint(value.Get("inline.to").Uint()),
 					// Check which name it when the file is renamed
-					FilePath:  value.Get("inline.path").String(),
-					IsSending: false,
+					FilePath:       value.Get("inline.path").String(),
+					IsBeingStored:  false,
+					IsBeingDeleted: false,
 				}, nil
 			},
 		},
