@@ -151,15 +151,26 @@ func newDetailsPage() *detailsPage {
 			return
 		}
 
-		err := reviewPanel.pullRequest.Client.DeleteComment(&client.DeleteCommentOptions{
-			Repository: reviewPanel.pullRequest.Repository,
-			ID:         reviewPanel.pullRequest.PullRequest.ID,
-			CommentID:  comment.ID,
-		})
-		if err != nil {
-			log.Error().Err(err).Msgf("failed to delete comment %s", comment.ID)
-		}
+		/**
+		 * TODO: Update the state of the comment as deleteing and update the table
+		 */
 
+		go (func() {
+			err := reviewPanel.pullRequest.Client.DeleteComment(&client.DeleteCommentOptions{
+				Repository: reviewPanel.pullRequest.Repository,
+				ID:         reviewPanel.pullRequest.PullRequest.ID,
+				CommentID:  comment.ID,
+			})
+			if err != nil {
+				log.Error().Err(err).Msgf("failed to delete comment %s", comment.ID)
+			}
+
+			comment.Deleted = true
+
+			app.QueueUpdateDraw(reviewPanel.rerenderContent)
+		})()
+
+		reviewPanel.rerenderContent()
 		app.SetFocus(reviewPanel)
 	})
 

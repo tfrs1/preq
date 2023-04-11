@@ -233,7 +233,12 @@ func (ct *ReviewPanel) prerenderContent(d *diffFile) {
 			Statements: statements,
 		})
 
-		words := strings.Split(comment.Content, " ")
+		words := []string{}
+		if comment.Deleted {
+			words = []string{"[gray::s]This comment has been deleted.[::]"}
+		} else {
+			words = strings.Split(comment.Content, " ")
+		}
 		commentLines := []string{}
 		line := []string{}
 		for _, word := range words {
