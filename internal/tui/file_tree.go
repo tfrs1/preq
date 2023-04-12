@@ -79,6 +79,7 @@ func (ft FileTree) Draw(screen tcell.Screen) {
 func (ft *FileTree) Clear() {
 	ft.ScrollablePage.Clear()
 	ft.fileList = []*FileTreeItem{}
+	ft.root = nil
 }
 
 func (ft *FileTree) AddFile(file *FileTreeItem) *FileTree {
@@ -88,9 +89,10 @@ func (ft *FileTree) AddFile(file *FileTreeItem) *FileTree {
 }
 
 type FileTreeItem struct {
-	Filename   string
-	Decoration string
-	reference  interface{}
+	Filename    string
+	Decoration  string
+	reference   interface{}
+	hasComments bool
 }
 
 func NewFileTreeItem(filename string) *FileTreeItem {
@@ -104,6 +106,11 @@ func (fti *FileTreeItem) SetDecoration(decoration string) *FileTreeItem {
 	return fti
 }
 
+func (fti *FileTreeItem) SetHasComments(value bool) *FileTreeItem {
+	fti.hasComments = value
+	return fti
+}
+
 func (fti *FileTreeItem) SetReference(ref interface{}) *FileTreeItem {
 	fti.reference = ref
 	return fti
@@ -114,11 +121,12 @@ func (fti *FileTreeItem) GetReference() interface{} {
 }
 
 type FileTreeNode struct {
-	Filename   string
-	Children   []*FileTreeNode
-	Collapsed  bool
-	Decoration string
-	reference  interface{}
+	Filename          string
+	Children          []*FileTreeNode
+	Collapsed         bool
+	Decoration        string
+	GlobalDecorations []string
+	reference         interface{}
 }
 
 func FilesToTree(items []*FileTreeItem) *FileTreeNode {
@@ -144,15 +152,24 @@ func FilesToTree(items []*FileTreeItem) *FileTreeNode {
 				continue
 			}
 
+			globalDecorations := []string{}
+			if item.hasComments {
+				globalDecorations = append(globalDecorations, "[green::b]💬")
+			}
+
 			child := findNode(currentNode.Children, v)
 			if child == nil {
 				child = &FileTreeNode{
-					Filename:   v,
-					Collapsed:  false,
-					Decoration: item.Decoration,
-					reference:  item.reference,
+					Filename:          v,
+					Collapsed:         false,
+					GlobalDecorations: globalDecorations,
+					reference:         item.reference,
+					Decoration:        item.Decoration,
 				}
+
 				currentNode.Children = append(currentNode.Children, child)
+				currentNode.reference = nil
+				currentNode.GlobalDecorations = []string{}
 			}
 
 			currentNode = child
@@ -184,27 +201,48 @@ type FileTreeStatementReference struct {
 	Diff interface{}
 }
 
+func (node *FileTreeNode) dfs(level int, callback func(node *FileTreeNode)) {
+	if node == nil {
+		return
+	}
+
+	callback(node)
+
+	for _, child := range node.Children {
+		child.dfs(level+1, callback)
+	}
+}
+
 func (node *FileTreeNode) rebuildStatements() []*ScrollablePageLine {
 	statements := []*ScrollablePageLine{}
+	maxDecorations := 0
+	node.dfs(0, func(node *FileTreeNode) {
+		if l := len(node.GlobalDecorations); l > maxDecorations {
+			maxDecorations = l
+		}
+	})
 
 	var recurse func(node *FileTreeNode, level int)
 	recurse = func(node *FileTreeNode, level int) {
-		prefix := strings.Repeat(" ", level)
+		if node == nil {
+			return
+		}
+
+		indent := strings.Repeat(" ", level+maxDecorations)
 		icon := " "
-		decoration := " "
+		decoration := ""
 
 		if len(node.Children) > 0 {
 			// TODO: Add nerd font icons
 			// decoration = "[blue::][white::b]"
-			decoration = "[white::b]"
+			decoration = ""
 
 			if node.Collapsed == true {
 				icon = ""
 			}
 		} else {
-			// TODO: Add Git letter status
 			if node.Decoration != "" {
-				decoration = node.Decoration
+				decoration = strings.Trim(node.Decoration, " ") + " "
 			}
 		}
 
@@ -214,9 +252,15 @@ func (node *FileTreeNode) rebuildStatements() []*ScrollablePageLine {
 				Diff: node.reference,
 			},
 			Statements: []*ScrollablePageLineStatement{{
-				Content: fmt.Sprintf("%s%s%s [white::]%s", prefix, icon, decoration, node.Filename),
+				Content: fmt.Sprintf("%s%s %s[white::-]%s", indent, icon, decoration, node.Filename),
 			}},
 		})
+
+		if len(node.GlobalDecorations) > 0 {
+			statements[len(statements)-1].Statements = append(statements[len(statements)-1].Statements, &ScrollablePageLineStatement{
+				Content: fmt.Sprintf("%s", node.GlobalDecorations[0]),
+			})
+		}
 
 		if node.Collapsed == false {
 			for _, child := range node.Children {

@@ -31,12 +31,14 @@ func lineCommentListMapId(before, after int) string {
 
 type ReviewPanel struct {
 	*ScrollablePage
-	pullRequest  *PullRequest
-	loadingError error
-	diffs        []*diff.FileDiff
-	IsLoading    bool
-	files        map[string]*diffFile
-	currentDiff  *diffFile
+	pullRequest   *PullRequest
+	loadingError  error
+	diffs         []*diff.FileDiff
+	IsLoading     bool
+	files         map[string]*diffFile
+	currentDiff   *diffFile
+	currentDiffId string
+	commentMap    map[string]map[string][]*client.PullRequestComment
 }
 
 func NewReviewPanel() *ReviewPanel {
@@ -55,14 +57,15 @@ func (ct *ReviewPanel) makeId(diff *diff.FileDiff) string {
 	return id
 }
 
-func (ct *ReviewPanel) SetData(pr *PullRequest, changes []byte) {
+func (ct *ReviewPanel) SetData(pr *PullRequest, changes []byte, commentsMap map[string]map[string][]*client.PullRequestComment) {
 	_, _, ct.width, ct.height = ct.GetInnerRect()
 
-	ct.ScrollablePage.Clear()
+	ct.Clear()
 	ct.pullRequest = pr
 	ct.loadingError = nil
-	ct.IsLoading = true
+	ct.IsLoading = false
 	ct.files = make(map[string]*diffFile, 0)
+	ct.commentMap = commentsMap
 
 	diffs, err := diff.ParseMultiFileDiff(changes)
 	if err != nil {
@@ -108,43 +111,19 @@ func (ct *ReviewPanel) SetData(pr *PullRequest, changes []byte) {
 	}
 
 	ct.pullRequest.IsCommentsLoading = true
-	go (func() {
-		list, err := ct.pullRequest.Client.GetComments(&client.GetCommentsOptions{
-			Repository: ct.pullRequest.Repository,
-			ID:         ct.pullRequest.PullRequest.ID,
-		})
-		if err != nil {
-			return
-		}
-
-		ct.pullRequest.PullRequest.Comments = list
-		ct.pullRequest.IsCommentsLoading = false
-		ct.IsLoading = false
-		app.QueueUpdateDraw(func() {
-			eventBus.Publish("DetailsPage:LoadingFinished", nil)
-		})
-	})()
 }
 
 func (ct *ReviewPanel) rerenderContent() {
-	ct.prerenderContent(ct.currentDiff)
+	ct.prerenderContent(ct.currentDiffId)
 }
 
-func (ct *ReviewPanel) prerenderContent(d *diffFile) {
-	ct.pageOffset = 0
-	ct.selectedIndex = 0
-	ct.content = make([]*ScrollablePageLine, 0)
-	ct.currentDiff = d
-	filesMap := make(map[string]lineCommentListMap)
-	for _, prc := range ct.pullRequest.PullRequest.Comments {
-		if filesMap[prc.FilePath] == nil {
-			filesMap[prc.FilePath] = make(lineCommentListMap)
-		}
+func (ct *ReviewPanel) prerenderContent(diffId string) {
+	ct.Clear()
+	ct.currentDiffId = diffId
+	ct.currentDiff = ct.files[diffId]
 
-		if prc.ParentID == "" {
-			id := lineCommentListMapId(int(prc.BeforeLineNumber), int(prc.AfterLineNumber))
-			filesMap[prc.FilePath][id] = append(filesMap[prc.FilePath][id], prc)
-		}
+	if ct.currentDiff == nil {
+		return
 	}
 
 	content := make([]*ScrollablePageLine, 0)
@@ -321,7 +300,8 @@ func (ct *ReviewPanel) prerenderContent(d *diffFile) {
 		return 0, nil
 	}
 
-	comments := filesMap[d.DiffId]
+	d := ct.currentDiff
+	comments := ct.commentMap[ct.currentDiffId]
 
 	content = append(content, &ScrollablePageLine{
 		Statements: []*ScrollablePageLineStatement{{Content: d.Title}},

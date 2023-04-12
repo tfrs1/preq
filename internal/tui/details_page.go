@@ -50,6 +50,8 @@ type detailsPage struct {
 	*tview.Grid
 	fileTree    *FileTree
 	reviewPanel *ReviewPanel
+	changes     []byte
+	commentsMap map[string]map[string][]*client.PullRequestComment
 }
 
 func CommentLineNumberTypeToDiffLineType(d DiffLineType) client.CommentLineNumberType {
@@ -282,9 +284,7 @@ func newDetailsPage() *detailsPage {
 	})
 
 	eventBus.Subscribe("DetailsPage:OnFileChanged", func(input interface{}) {
-		reviewPanel.pageOffset = 0
-		reviewPanel.selectedIndex = 0
-		reviewPanel.content = []*ScrollablePageLine{}
+		reviewPanel.Clear()
 
 		if input == nil {
 			return
@@ -306,8 +306,7 @@ func newDetailsPage() *detailsPage {
 			return
 		}
 
-		diff := reviewPanel.files[fileDiff.DiffId]
-		reviewPanel.prerenderContent(diff)
+		reviewPanel.prerenderContent(fileDiff.DiffId)
 	})
 
 	return &detailsPage{
@@ -317,7 +316,10 @@ func newDetailsPage() *detailsPage {
 	}
 }
 
-func (d *detailsPage) SetData(input interface{}) error {
+func (dp *detailsPage) SetData(input interface{}) error {
+	dp.fileTree.Clear()
+	dp.reviewPanel.Clear()
+
 	pr, ok := input.(*PullRequest)
 	if !ok {
 		return errors.New("cast failed when opening the details page")
@@ -330,29 +332,63 @@ func (d *detailsPage) SetData(input interface{}) error {
 	if err != nil {
 		return err
 	}
+	dp.changes = changes
+	dp.commentsMap = make(map[string]map[string][]*client.PullRequestComment)
 
-	d.reviewPanel.SetData(pr, changes)
-	d.fileTree.Clear()
+	dp.reviewPanel.SetData(pr, dp.changes, nil)
+	dp.reviewPanel.rerenderContent()
 
-	row := 0
-	for _, v := range d.reviewPanel.files {
-		item := NewFileTreeItem(v.Title).SetReference(v)
-
-		switch v.Type {
-		case DiffFileTypeAdded:
-			item.SetDecoration("[green::]A")
-		case DiffFileTypeRenamed:
-			item.SetDecoration("[white::]R")
-		case DiffFileTypeRemoved:
-			item.SetDecoration("[red::]D")
-		case DiffFileTypeUpdated:
-			item.SetDecoration("[green::]U")
+	go func() {
+		list, err := pr.Client.GetComments(&client.GetCommentsOptions{
+			Repository: pr.Repository,
+			ID:         pr.PullRequest.ID,
+		})
+		if err != nil {
+			return
 		}
 
-		d.fileTree.AddFile(item)
-		row++
-	}
+		pr.PullRequest.Comments = list
+		pr.IsCommentsLoading = false
 
-	// app.SetFocus(d.info)
+		dp.commentsMap = make(map[string]map[string][]*client.PullRequestComment)
+		for _, prc := range pr.PullRequest.Comments {
+			if dp.commentsMap[prc.FilePath] == nil {
+				dp.commentsMap[prc.FilePath] = make(map[string][]*client.PullRequestComment)
+			}
+
+			if prc.ParentID == "" {
+				id := lineCommentListMapId(int(prc.BeforeLineNumber), int(prc.AfterLineNumber))
+				dp.commentsMap[prc.FilePath][id] = append(dp.commentsMap[prc.FilePath][id], prc)
+			}
+		}
+
+		row := 0
+		for f, v := range dp.reviewPanel.files {
+			item := NewFileTreeItem(v.Title).SetReference(v)
+
+			switch v.Type {
+			case DiffFileTypeAdded:
+				item.SetDecoration("[green::]A")
+			case DiffFileTypeRenamed:
+				item.SetDecoration("[white::]R")
+			case DiffFileTypeRemoved:
+				item.SetDecoration("[red::]D")
+			case DiffFileTypeUpdated:
+				item.SetDecoration("[green::]U")
+			}
+
+			if dp.commentsMap[f] != nil {
+				item.SetHasComments(true)
+			}
+
+			dp.fileTree.AddFile(item)
+			row++
+		}
+
+		app.QueueUpdateDraw(func() {
+			dp.reviewPanel.SetData(pr, dp.changes, dp.commentsMap)
+		})
+	}()
+
 	return nil
 }
