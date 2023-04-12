@@ -77,7 +77,7 @@ func newDetailsPage() *detailsPage {
 
 	reviewPanel.
 		SetBorder(true).
-		SetTitle("Comments").
+		SetTitle("Diff").
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Rune() {
 			case 'c':

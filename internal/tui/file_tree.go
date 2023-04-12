@@ -23,7 +23,7 @@ func NewFileTree() *FileTree {
 		ScrollablePage: NewScrollablePage(),
 		fileList:       []*FileTreeItem{},
 	}
-	info.SetBorder(true).SetTitle("Info")
+	info.SetBorder(true).SetTitle("Files")
 	info.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyRune:
