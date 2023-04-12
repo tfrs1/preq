@@ -10,8 +10,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// TODO: Add NerdFont icons
-
 type FileTree struct {
 	*ScrollablePage
 	fileList []*FileTreeItem
@@ -25,18 +23,32 @@ func NewFileTree() *FileTree {
 	}
 	info.SetBorder(true).SetTitle("Files")
 	info.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		node, err := info.GetSelectedNode()
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to get highlighted node at index %d", info.selectedIndex)
+			return nil
+		}
+
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case ' ':
-				eventBus.Publish("FileTree:ToggleExpandCollapseRequest", info.selectedIndex)
+				if !node.IsLeaf() {
+					eventBus.Publish("FileTree:ToggleExpandCollapseRequest", info.selectedIndex)
+				}
+				return nil
+			case 'o':
+				if node.IsLeaf() {
+					eventBus.Publish("FileTree:FileSelectionRequested", info.selectedIndex)
+				}
 				return nil
 			}
 		case tcell.KeyEnter:
-			eventBus.Publish(
-				"FileTree:FileSelectionRequested",
-				info.selectedIndex,
-			)
+			if !node.IsLeaf() {
+				eventBus.Publish("FileTree:ToggleExpandCollapseRequest", info.selectedIndex)
+			} else {
+				eventBus.Publish("FileTree:FileSelectionRequested", info.selectedIndex)
+			}
 			return nil
 		}
 
@@ -44,31 +56,41 @@ func NewFileTree() *FileTree {
 	})
 
 	info.SetSelectionChangedFunc(func(index int) {
-		eventBus.Publish(
-			"DetailsPage:OnFileChanged",
-			info.GetSelectedReference(),
-		)
+		eventBus.Publish("DetailsPage:OnFileChanged", info.GetSelectedReference())
 	})
 
-	eventBus.Subscribe("FileTree:ToggleExpandCollapseRequest", func(input interface{}) {
-		ref := info.GetSelectedReference()
-		if ref == nil {
-			return
-		}
-
-		node, ok := ref.(*FileTreeStatementReference)
-		if !ok {
-			log.Error().Msg("cast to FileTreeStatementReference failed")
-			return
-		}
-
-		node.Node.Collapsed = !node.Node.Collapsed
+	eventBus.Subscribe("FileTree:ToggleExpandCollapseRequest", func(_ interface{}) {
+		info.ToggleSelectedNode()
 	})
 
 	return info
 }
 
-func (ft FileTree) Draw(screen tcell.Screen) {
+func (sp *FileTree) ToggleSelectedNode() {
+	node, err := sp.GetSelectedNode()
+	if err != nil {
+		return
+	}
+
+	node.Collapsed = !node.Collapsed
+}
+
+func (sp *FileTree) GetSelectedNode() (*FileTreeNode, error) {
+	ref := sp.GetSelectedReference()
+	if ref == nil {
+		return nil, fmt.Errorf("no file selected")
+	}
+
+	node, ok := ref.(*FileTreeStatementReference)
+	if !ok {
+		log.Error().Msg("cast to FileTreeStatementReference failed")
+		return nil, fmt.Errorf("cast to FileTreeStatementReference failed")
+	}
+
+	return node.Node, nil
+}
+
+func (ft *FileTree) Draw(screen tcell.Screen) {
 	ft.DrawForSubclass(screen, ft.ScrollablePage)
 
 	ft.content = ft.root.rebuildStatements()
@@ -199,6 +221,10 @@ func FilesToTree(items []*FileTreeItem) *FileTreeNode {
 type FileTreeStatementReference struct {
 	Node *FileTreeNode
 	Diff interface{}
+}
+
+func (node *FileTreeNode) IsLeaf() bool {
+	return len(node.Children) == 0
 }
 
 func (node *FileTreeNode) dfs(level int, callback func(node *FileTreeNode)) {
