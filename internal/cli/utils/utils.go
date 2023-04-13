@@ -147,8 +147,10 @@ func PromptPullRequestSelect(
 	return nil
 }
 
-type runCommandError func(*cobra.Command, []string) error
-type runCommandNoError func(*cobra.Command, []string)
+type (
+	runCommandError   func(*cobra.Command, []string) error
+	runCommandNoError func(*cobra.Command, []string)
+)
 
 func RunCommandWrapper(fn runCommandError) runCommandNoError {
 	return func(cmd *cobra.Command, args []string) {
@@ -179,19 +181,19 @@ func WriteVisitToState(
 
 	wd, err := os.Getwd()
 	if err != nil {
-		log.Error().Msg(err.Error())
+		log.Error().Err(err).Msg("unabled to get the current working directory when writing to state")
 		return
 	}
 
-	isWdGitRepo := gitutils.IsDirGitRepo(wd)
-	if !isWdGitRepo {
+	repoDir, err := gitutils.GetRepoRootDir(wd)
+	if err != nil {
 		return
 	}
 
 	err = persistance.GetDefault().AddVisited(
 		params.Name,
 		string(params.Provider),
-		wd,
+		repoDir,
 	)
 	if err != nil {
 		log.Error().Msg(err.Error())

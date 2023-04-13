@@ -71,7 +71,6 @@ func execute(
 			State:      client.PullRequestState_OPEN,
 			Next:       nextURL,
 		})
-
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(systemcodes.ErrorCodeGeneric)
@@ -127,6 +126,6 @@ func New() *cobra.Command {
 }
 
 func clearLine(out io.Writer) {
-	var clear = fmt.Sprintf("%c[%dA%c[2K", 27, 1, 27)
+	clear := fmt.Sprintf("%c[%dA%c[2K", 27, 1, 27)
 	_, _ = fmt.Fprint(out, clear)
 }

@@ -3,6 +3,7 @@ package gitutils
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"preq/internal/pkg/client"
 	"preq/internal/pkg/fs"
 	"regexp"
@@ -34,6 +35,21 @@ func IsDirGitRepo(path string) bool {
 
 	_, err := openRepo(path)
 	return err == nil
+}
+
+func GetRepoRootDir(path string) (string, error) {
+	for path != "/" {
+		_, err := git.PlainOpen(path)
+		if err == nil {
+			return path, nil
+		}
+
+		// Move up to the parent directory
+		path = filepath.Dir(path)
+	}
+
+	// Reached the root without finding a repo
+	return "", fmt.Errorf("cannot find a git repository at %s", path)
 }
 
 var getWorkingDir = func(fs fs.Filesystem) (string, error) {
