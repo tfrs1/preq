@@ -62,12 +62,11 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		r.Provider,
 		r.Name,
 	)
-
 	if err != nil {
 		return err
 	}
 
-	utils.WriteVisitToState(cmd.Flags(), &params.Repository)
+	utils.SafelyWriteVisitToState(cmd.Flags(), &params.Repository)
 	err = execute(cl, params)
 	if err != nil {
 		return err
@@ -116,7 +115,6 @@ func execute(c client.Client, params *createCmdParams) error {
 		Destination: params.Destination,
 		Draft:       params.Draft,
 	})
-
 	if err != nil {
 		return err
 	}

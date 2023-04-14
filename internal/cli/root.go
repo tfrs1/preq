@@ -78,7 +78,7 @@ var rootCmd = &cobra.Command{
 
 		isWdGitRepo := gitutils.IsDirGitRepo(wd)
 		if isWdGitRepo {
-			utils.WriteVisitToState(cmd.Flags(), params)
+			utils.SafelyWriteVisitToState(cmd.Flags(), params)
 		} else {
 			global = true
 		}

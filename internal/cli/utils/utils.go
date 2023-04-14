@@ -3,7 +3,6 @@ package utils
 import (
 	"fmt"
 	"os"
-
 	"preq/internal/cli/paramutils"
 	"preq/internal/gitutils"
 	"preq/internal/persistance"
@@ -167,7 +166,7 @@ func RunCommandWrapper(fn runCommandError) runCommandNoError {
 	}
 }
 
-func WriteVisitToState(
+func SafelyWriteVisitToState(
 	flags *pflag.FlagSet,
 	params *paramutils.RepositoryParams,
 ) {
@@ -175,6 +174,8 @@ func WriteVisitToState(
 	providerFlag, _ := flags.GetString("provider")
 	isExplicitRepo := repoFlag != "" && providerFlag != ""
 
+	// Explicitly defiend repos should not be stored as the dir
+	// cannot be infered from the working directory
 	if isExplicitRepo {
 		return
 	}
