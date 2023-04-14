@@ -4,52 +4,46 @@ import (
 	"fmt"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
-	"preq/internal/clientutils"
 	"preq/internal/pkg/client"
 
 	"github.com/spf13/cobra"
 )
 
-var promptPullRequestMultiSelect = utils.PromptPullRequestMultiSelect
-var processPullRequestMap = utils.ProcessPullRequestMap
+var (
+	promptPullRequestMultiSelect = utils.PromptPullRequestMultiSelect
+	processPullRequestMap        = utils.ProcessPullRequestMap
+)
+
+func New() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "decline [ID]",
+		Aliases: []string{"del", "dec", "d"},
+		Short:   "Decline pull request",
+		Long:    `Declines a pull requests on the web service hosting your origin repository`,
+		Args:    cobra.MaximumNArgs(1),
+		Run:     utils.RunCommandWrapper(runCmd),
+	}
+
+	return cmd
+}
 
 func runCmd(cmd *cobra.Command, args []string) error {
 	cmdArgs := parseArgs(args)
-	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 
-	params := &cmdParams{}
-	_, err := paramutils.GetRepoAndFillRepoParams(flags, &params.Repository)
+	cl, repoParams, err := paramutils.GetClientAndRepoParams(cmd.Flags())
 	if err != nil {
 		return err
 	}
 
-	cl, err := clientutils.ClientFactory{}.DefaultClient(
-		params.Repository.Provider,
-	)
-	if err != nil {
-		return err
-	}
-
-	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider: params.Repository.Provider,
-		Name:     params.Repository.Name,
+	return execute(cl, cmdArgs, &client.Repository{
+		Provider: repoParams.Provider,
+		Name:     repoParams.Name,
 	})
-	if err != nil {
-		return err
-	}
-
-	err = execute(cl, cmdArgs, params, r)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func execute(
 	c client.Client,
 	args *cmdArgs,
-	params *cmdParams,
 	repo *client.Repository,
 ) error {
 	if args.ID != "" {
@@ -83,19 +77,6 @@ func execute(
 	}
 
 	return nil
-}
-
-func New() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "decline [ID]",
-		Aliases: []string{"del", "dec", "d"},
-		Short:   "Decline pull request",
-		Long:    `Declines a pull requests on the web service hosting your origin repository`,
-		Args:    cobra.MaximumNArgs(1),
-		Run:     utils.RunCommandWrapper(runCmd),
-	}
-
-	return cmd
 }
 
 type ProcessPullRequestResponse struct {

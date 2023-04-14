@@ -7,7 +7,6 @@ import (
 	"os"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
-	"preq/internal/clientutils"
 	"preq/internal/pkg/client"
 	"preq/internal/systemcodes"
 
@@ -16,43 +15,34 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func New() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List pull requests",
+		Long:    `Lists all pull requests on the web service hosting your origin repository`,
+		Run:     utils.RunCommandWrapper(runCmd),
+	}
+
+	return cmd
+}
+
 func runCmd(cmd *cobra.Command, args []string) error {
-	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
-
-	params := &listCmdParams{}
-	_, err := paramutils.GetRepoAndFillRepoParams(flags, &params.Repository)
+	cl, repoParams, err := paramutils.GetClientAndRepoParams(cmd.Flags())
 	if err != nil {
 		return err
 	}
 
-	c, err := clientutils.ClientFactory{}.DefaultClient(
-		params.Repository.Provider,
-	)
-	if err != nil {
-		return err
-	}
+	utils.SafelyWriteVisitToState(cmd.Flags(), repoParams)
 
-	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider: params.Repository.Provider,
-		Name:     params.Repository.Name,
+	return execute(cl, &client.Repository{
+		Provider: repoParams.Provider,
+		Name:     repoParams.Name,
 	})
-	if err != nil {
-		return err
-	}
-
-	utils.SafelyWriteVisitToState(cmd.Flags(), &params.Repository)
-
-	err = execute(cl, params, r)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func execute(
 	c client.Client,
-	params *listCmdParams,
 	repo *client.Repository,
 ) error {
 	nextURL := ""
@@ -112,18 +102,6 @@ func execute(
 	}
 
 	return nil
-}
-
-func New() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "list",
-		Aliases: []string{"ls"},
-		Short:   "List pull requests",
-		Long:    `Lists all pull requests on the web service hosting your origin repository`,
-		Run:     utils.RunCommandWrapper(runCmd),
-	}
-
-	return cmd
 }
 
 func clearLine(out io.Writer) {

@@ -1,6 +1,9 @@
 package gitutils
 
 import (
+	"fmt"
+	"path"
+
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -26,7 +29,22 @@ type repository struct {
 }
 
 var openRepo = func(path string) (*git.Repository, error) {
-	return git.PlainOpen(path)
+	// return git.PlainOpen(path)
+	return OpenRepoRecursevely(path)
+}
+
+func OpenRepoRecursevely(input string) (*git.Repository, error) {
+	dir := input
+	for dir != "/" && dir != "." {
+		repo, err := git.PlainOpen(dir)
+		if err == nil {
+			return repo, nil
+		}
+
+		dir = path.Dir(dir)
+	}
+
+	return nil, fmt.Errorf("Could not recursivelly open a repo at %s", input)
 }
 
 func (r *repository) GetRemoteURLs() ([]string, error) {

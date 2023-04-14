@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"github.com/tidwall/gjson"
 )
 
@@ -30,15 +29,19 @@ type BitbucketCloudClient struct {
 }
 
 type ClientOptions struct {
-	Username string
-	Password string
+	Username   string
+	Password   string
+	Uuid       string
+	Repository string
 }
 
-func New(o *ClientOptions) *BitbucketCloudClient {
+func NewClient(options *ClientOptions) (client.Client, error) {
 	return &BitbucketCloudClient{
-		username: o.Username,
-		password: o.Password,
-	}
+		username:   options.Username,
+		password:   options.Password,
+		uuid:       options.Uuid,
+		repository: options.Repository,
+	}, nil
 }
 
 type clientConfiguration struct {
@@ -46,54 +49,6 @@ type clientConfiguration struct {
 	password   string
 	uuid       string
 	repository string
-}
-
-func getDefaultConfiguration() (*clientConfiguration, error) {
-	username := viper.GetString("bitbucket.username")
-	if username == "" {
-		return nil, ErrMissingBitbucketUsername
-	}
-	password := viper.GetString("bitbucket.password")
-	if password == "" {
-		return nil, ErrMissingBitbucketPassword
-	}
-	uuid := viper.GetString("bitbucket.uuid")
-	repository := viper.GetString("default.repository")
-
-	return &clientConfiguration{
-		username:   username,
-		password:   password,
-		uuid:       uuid,
-		repository: repository,
-	}, nil
-}
-
-func DefaultClientCustom(repository string) (client.Client, error) {
-	config, err := getDefaultConfiguration()
-	if err != nil {
-		return nil, err
-	}
-
-	return &BitbucketCloudClient{
-		username:   config.username,
-		password:   config.password,
-		uuid:       config.uuid,
-		repository: repository,
-	}, nil
-}
-
-func DefaultClient() (client.Client, error) {
-	config, err := getDefaultConfiguration()
-	if err != nil {
-		return nil, err
-	}
-
-	return &BitbucketCloudClient{
-		username:   config.username,
-		password:   config.password,
-		uuid:       config.uuid,
-		repository: config.repository,
-	}, nil
 }
 
 type GetPullRequestActivityOptions struct {

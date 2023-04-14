@@ -1,11 +1,5 @@
 package approve
 
-// import (
-// 	"preq/internal/cli/paramutils"
-// )
-
-// package decline
-
 import (
 	"preq/internal/cli/paramutils"
 	"preq/internal/errcodes"
@@ -53,7 +47,7 @@ func fillDefaultDeclineCmdParams(params *cmdParams) {
 	params.Provider = defaultRepo.Provider
 }
 
-func fillFlagDeclineCmdParams(flags paramutils.FlagSet, params *cmdParams) {
+func fillFlagDeclineCmdParams(flags paramutils.FlagRepo, params *cmdParams) {
 	var (
 		repo     = flags.GetStringOrDefault("repository", "")
 		provider = flags.GetStringOrDefault("provider", "")

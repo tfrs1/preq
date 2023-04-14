@@ -43,7 +43,7 @@ func (params *createCmdParams) Validate() error {
 	return nil
 }
 
-func fillInParamsFromFlags(flags paramutils.FlagSet, params *createCmdParams) {
+func fillInParamsFromFlags(flags paramutils.FlagRepo, params *createCmdParams) {
 	if params.Source == "" {
 		params.Source = flags.GetStringOrDefault("source", params.Source)
 	}
@@ -114,7 +114,7 @@ func fillInteractiveParams(params *createCmdParams) error {
 	}
 
 	// the questions to ask
-	var qs = []*survey.Question{
+	qs := []*survey.Question{
 		{
 			Name: "provider",
 			Prompt: &survey.Select{

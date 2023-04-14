@@ -5,9 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"preq/internal/cli/paramutils"
+	"preq/internal/clientutils"
 	"preq/internal/configutils"
 	"preq/internal/persistance"
-	"preq/internal/pkg/bitbucket"
 	"preq/internal/pkg/client"
 	"runtime"
 
@@ -22,7 +22,6 @@ var (
 	details   = newDetailsPage()
 	table     = newPullRequestTable()
 	eventBus  = NewEventBus()
-	prClient  client.Client
 	prRepo    *client.Repository
 	tableData []*tableRepoData
 )
@@ -41,19 +40,19 @@ func loadConfig(
 	if err != nil {
 		// TODO: Do something
 	}
+
 	err = configutils.MergeLocalConfig(config, repoInfo.Path)
 	if err != nil {
 		// TODO: Do something
 	}
-	c := bitbucket.New(&bitbucket.ClientOptions{
-		Username: config.GetString("bitbucket.username"),
-		Password: config.GetString("bitbucket.password"),
-	})
+
+	c, err := clientutils.ClientFactory{}.NewClient(
+		client.RepositoryProviderEnum.BITBUCKET,
+		config,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	prClient = c
 
 	r, err := client.NewRepositoryFromOptions(
 		&client.RepositoryOptions{

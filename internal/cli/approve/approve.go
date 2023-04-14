@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
-	"preq/internal/clientutils"
 	"preq/internal/pkg/client"
 
 	"github.com/spf13/cobra"
@@ -12,44 +11,23 @@ import (
 
 func runCmd(cmd *cobra.Command, args []string) error {
 	cmdArgs := parseArgs(args)
-	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 
-	params := &approveCmdParams{}
-	_, err := paramutils.GetRepoAndFillRepoParams(flags, &params.Repository)
+	cl, repoParams, err := paramutils.GetClientAndRepoParams(cmd.Flags())
 	if err != nil {
 		return err
 	}
 
-	cl, err := clientutils.ClientFactory{}.DefaultClient(
-		params.Repository.Provider,
-	)
-	if err != nil {
-		return err
-	}
+	utils.SafelyWriteVisitToState(cmd.Flags(), repoParams)
 
-	r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-		Provider: client.RepositoryProvider(
-			params.Repository.Provider,
-		),
-		Name: params.Repository.Name,
+	return execute(cl, cmdArgs, &client.Repository{
+		Provider: repoParams.Provider,
+		Name:     repoParams.Name,
 	})
-	if err != nil {
-		return err
-	}
-
-	utils.SafelyWriteVisitToState(cmd.Flags(), &params.Repository)
-	err = execute(cl, cmdArgs, params, r)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func execute(
 	c client.Client,
 	args *cmdArgs,
-	params *approveCmdParams,
 	repo *client.Repository,
 ) error {
 	if args.ID != "" {

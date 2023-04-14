@@ -43,7 +43,7 @@ func execute(args *cmdArgs, params *openCmdParams) error {
 			args.ID,
 		)
 	} else if params.Interactive {
-		cl, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
+		cl, err := clientutils.ClientFactory{}.NewClient(params.Repository.Provider, nil)
 		if err != nil {
 			return err
 		}

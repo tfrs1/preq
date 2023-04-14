@@ -20,6 +20,12 @@ type PromptPullRequest struct {
 	Title string
 }
 
+func HasRepoFlagsSet(flags paramutils.FlagRepo) bool {
+	repoFlag := flags.GetStringOrDefault("repository", "")
+	providerFlag := flags.GetStringOrDefault("provider", "")
+	return repoFlag != "" && providerFlag != ""
+}
+
 func PromptPullRequestMultiSelect(
 	prList *client.PullRequestList,
 ) map[string]*PromptPullRequest {

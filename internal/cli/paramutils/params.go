@@ -1,6 +1,9 @@
 package paramutils
 
 import (
+	"os"
+	"preq/internal/clientutils"
+	"preq/internal/configutils"
 	"preq/internal/errcodes"
 	"preq/internal/gitutils"
 	"preq/internal/persistance"
@@ -20,9 +23,13 @@ func (p *RepositoryParams) SetDefault() {
 	p.Name = "owner/repo-name"
 }
 
-type FlagSet interface {
+type FlagRepo interface {
 	GetStringOrDefault(flag, d string) string
 	GetBoolOrDefault(flag string, d bool) bool
+}
+
+func NewFlagRepo(flags *pflag.FlagSet) FlagRepo {
+	return &PFlagSetWrapper{Flags: flags}
 }
 
 type PFlagSetWrapper struct {
@@ -84,58 +91,85 @@ func (pf *viperConfigParamsFiller) Fill(params *RepositoryParams) {
 	}
 }
 
-// type flagsParamsFiller struct {}
-// func (pf *flagsParamsFiller) Fill(params *RepositoryParams) {
-// 	var (
-// 		repo     = flags.GetStringOrDefault("repository", params.Name)
-// 		provider = flags.GetStringOrDefault("provider", string(params.Provider))
-// 	)
+func GetRepoPath(flagSet *pflag.FlagSet) (string, error) {
+	flags := NewFlagRepo(flagSet)
+	name := flags.GetStringOrDefault("repository", "")
+	provider := flags.GetStringOrDefault("provider", "")
+	isExplicitRepo := name != "" && provider != ""
+	path := ""
 
-// 	params.Name = repo
-// 	params.Provider = client.RepositoryProvider(provider)
-// }
-
-func GetRepoAndFillRepoParams(
-	flags FlagSet,
-	repoParams *RepositoryParams,
-) (gitutils.GitUtilsClient, error) {
-	repoName := flags.GetStringOrDefault("repository", "")
-	providerName := flags.GetStringOrDefault("provider", "")
-
-	// For flag provided repo information check for other
-	// information in the persistance repository.
-	if repoName != "" && providerName != "" {
-		info, err := persistance.GetDefault().GetInfo(repoName, providerName)
+	if isExplicitRepo {
+		info, err := persistance.GetDefault().GetInfo(name, provider)
 		if err != nil {
-			return nil, err
+			return "", err
+		}
+		path = info.Path
+	} else {
+		wd, err := os.Getwd()
+		if err != nil {
+			return "", err
 		}
 
-		repoParams.Provider = client.RepositoryProvider(providerName)
-		repoParams.Name = repoName
-
-		return gitutils.GetRepo(info.Path)
-	}
-
-	git, err := gitutils.GetWorkingDirectoryRepo()
-	if err == nil {
-		info, err := git.GetRemoteInfo()
-		if err == nil {
-			repoParams.Provider = info.Provider
-			repoParams.Name = info.Name
-
-			return git, nil
+		path, err = gitutils.GetRepoRootDir(wd)
+		if err != nil {
+			return "", err
 		}
 	}
 
-	// TODO: Read the default repo from global config?
-	// config, err := configutils.DefaultConfig()
-	// if err != nil {
-	// 	log.Panic().Msg(err.Error())
-	// }
-	// r := config.GetString("default.repository")
-	// p := config.GetString("default.provider")
+	return path, nil
+}
 
-	return nil, err
+func GetRepoUtilsAndParams(flagSet *pflag.FlagSet) (gitutils.GitUtilsClient, *RepositoryParams, error) {
+	path, err := GetRepoPath(flagSet)
+	params := &RepositoryParams{}
+
+	git, err := gitutils.GetRepo(path)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	info, err := git.GetRemoteInfo()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	params.Provider = info.Provider
+	params.Name = info.Name
+
+	return git, params, nil
+}
+
+func GetClientAndRepoParams(flagSet *pflag.FlagSet) (client.Client, *RepositoryParams, error) {
+	path, err := GetRepoPath(flagSet)
+	params := &RepositoryParams{}
+
+	git, err := gitutils.GetRepo(path)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	info, err := git.GetRemoteInfo()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	params.Provider = info.Provider
+	params.Name = info.Name
+
+	config, err := configutils.LoadConfigForPath(path)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cl, err := clientutils.ClientFactory{}.NewClient(
+		params.Provider,
+		config,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return cl, params, nil
 }
 
 func FillDefaultRepositoryParams(params *RepositoryParams) {
@@ -149,7 +183,7 @@ func FillDefaultRepositoryParams(params *RepositoryParams) {
 	}
 }
 
-func FillFlagRepositoryParams(flags FlagSet, params *RepositoryParams) {
+func FillFlagRepositoryParams(flags FlagRepo, params *RepositoryParams) {
 	var (
 		repo     = flags.GetStringOrDefault("repository", params.Name)
 		provider = flags.GetStringOrDefault("provider", string(params.Provider))

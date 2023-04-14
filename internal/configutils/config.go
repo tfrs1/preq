@@ -82,6 +82,25 @@ func MergeLocalConfig(v *viper.Viper, path string) error {
 	return loadConfig(filepath.Join(path, ".preqcfg"), v)
 }
 
+func LoadConfigForPath(path string) (*viper.Viper, error) {
+	globalConfigPath, err := getGlobalConfigPath()
+	if err != nil {
+		return nil, ErrHomeDirNotFound
+	}
+
+	v := viper.New()
+	v.SetConfigType("toml")
+	configs := []string{globalConfigPath, filepath.Join(path, ".preqcfg")}
+	for _, config := range configs {
+		err = loadConfig(config, v)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return v, nil
+}
+
 func DefaultConfig() (*viper.Viper, error) {
 	hdCfgPath, err := getGlobalConfigPath()
 	if err != nil {
@@ -97,12 +116,12 @@ func DefaultConfig() (*viper.Viper, error) {
 }
 
 func Load() error {
-	hdCfgPath, err := getGlobalConfigPath()
+	globalConfigPath, err := getGlobalConfigPath()
 	if err != nil {
 		return ErrHomeDirNotFound
 	}
 
-	configs := []string{hdCfgPath, ".preqcfg"}
+	configs := []string{globalConfigPath, ".preqcfg"}
 	for _, v := range configs {
 		err = loadConfig(v, viper.GetViper())
 		if err != nil {

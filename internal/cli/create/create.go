@@ -4,12 +4,26 @@ import (
 	"fmt"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
-	"preq/internal/clientutils"
 	"preq/internal/domain/pullrequest"
+	"preq/internal/gitutils"
 	"preq/internal/pkg/client"
 
 	"github.com/spf13/cobra"
 )
+
+func New() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "create",
+		Aliases: []string{"cr"},
+		Short:   "Create pull request",
+		Long:    `Creates a pull request on the web service hosting your origin repository`,
+		Run:     utils.RunCommandWrapper(runCmd),
+	}
+
+	setUpFlags(cmd)
+
+	return cmd
+}
 
 func setUpFlags(cmd *cobra.Command) {
 	cmd.Flags().
@@ -29,19 +43,22 @@ func setUpFlags(cmd *cobra.Command) {
 func runCmd(cmd *cobra.Command, args []string) error {
 	flags := paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 
+	var c gitutils.GitUtilsClient
+
 	params := &createCmdParams{}
-	c, err := paramutils.GetRepoAndFillRepoParams(&flags, &params.Repository)
+	c, repoParams, err := paramutils.GetRepoUtilsAndParams(cmd.Flags())
 	if err != nil {
 		return err
 	}
+
+	params.Repository = *repoParams
 
 	fillInParamsFromFlags(&flags, params)
 	fillInParamsFromRepo(c, params)
 	// TODO: Also add fillInParamsFromConfig()?
 	fillInDefaultParams(params)
 
-	interactive := flags.GetBoolOrDefault("interactive", false)
-	if interactive {
+	if flags.GetBoolOrDefault("interactive", false) {
 		err := fillInteractiveParams(params)
 		if err != nil {
 			return err
@@ -53,26 +70,14 @@ func runCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	r, err := c.GetRemoteInfo()
-	if err != nil {
-		return err
-	}
-
-	cl, err := clientutils.ClientFactory{}.DefaultClientCustom(
-		r.Provider,
-		r.Name,
-	)
+	cl, _, err := paramutils.GetClientAndRepoParams(cmd.Flags())
 	if err != nil {
 		return err
 	}
 
 	utils.SafelyWriteVisitToState(cmd.Flags(), &params.Repository)
-	err = execute(cl, params)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return execute(cl, params)
 }
 
 type creatorAdapter struct {
@@ -127,18 +132,4 @@ func execute(c client.Client, params *createCmdParams) error {
 	fmt.Println("  ", pr.URL)
 
 	return nil
-}
-
-func New() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "create",
-		Aliases: []string{"cr"},
-		Short:   "Create pull request",
-		Long:    `Creates a pull request on the web service hosting your origin repository`,
-		Run:     utils.RunCommandWrapper(runCmd),
-	}
-
-	setUpFlags(cmd)
-
-	return cmd
 }
