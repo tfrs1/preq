@@ -3,13 +3,9 @@ package open
 import (
 	"fmt"
 	"log"
-	"os"
 	"os/exec"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
-	"preq/internal/clientutils"
-	"preq/internal/pkg/client"
-	"preq/internal/systemcodes"
 	"runtime"
 
 	"github.com/spf13/cobra"
@@ -42,32 +38,6 @@ func execute(args *cmdArgs, params *openCmdParams) error {
 			params.Repository.Name,
 			args.ID,
 		)
-	} else if params.Interactive {
-		cl, err := clientutils.ClientFactory{}.NewClient(params.Repository.Provider, nil)
-		if err != nil {
-			return err
-		}
-		r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-			Provider: client.RepositoryProvider(params.Repository.Provider),
-			Name:     params.Repository.Name,
-		})
-		if err != nil {
-			return err
-		}
-		prList, err := cl.GetPullRequests(&client.GetPullRequestsOptions{
-			Repository: r,
-			State:      client.PullRequestState_OPEN,
-		})
-		if err != nil {
-			return err
-		}
-
-		selectedPR := utils.PromptPullRequestSelect(prList)
-		if selectedPR == nil {
-			os.Exit(systemcodes.ErrorCodeGeneric)
-		}
-
-		url = fmt.Sprintf("https://bitbucket.org/%s/pull-requests/%s", params.Repository.Name, selectedPR.ID)
 	}
 
 	if params.PrintOnly {
@@ -89,7 +59,6 @@ func New() *cobra.Command {
 		Run:     utils.RunCommandWrapper(runCmd),
 	}
 
-	cmd.Flags().BoolP("interactive", "i", false, "interactive mode")
 	cmd.Flags().Bool("print", false, "print the pull request URL")
 
 	return cmd

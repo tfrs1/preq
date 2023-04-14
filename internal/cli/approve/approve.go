@@ -1,7 +1,6 @@
 package approve
 
 import (
-	"fmt"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
 	"preq/internal/pkg/client"
@@ -38,20 +37,6 @@ func execute(
 		if err != nil {
 			return err
 		}
-	} else {
-		prList, err := c.GetPullRequests(&client.GetPullRequestsOptions{
-			Repository: repo,
-			State:      client.PullRequestState_OPEN,
-		})
-		if err != nil {
-			return err
-		}
-
-		selectedPRs := utils.PromptPullRequestMultiSelect(prList)
-		utils.ProcessPullRequestMap(selectedPRs, c, repo, approvePR, func(msg interface{}) string {
-			m := msg.(approveResponse)
-			return fmt.Sprintf("Approving #%s... %s\n", m.ID, m.Status)
-		})
 	}
 
 	return nil

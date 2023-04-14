@@ -34,8 +34,6 @@ func setUpFlags(cmd *cobra.Command) {
 		StringP("title", "t", "", "the title of the pull request (default last commit message)")
 	// TODO: Open default editor for description?
 	cmd.Flags().String("description", "", "the description of the pull request")
-	cmd.Flags().
-		BoolP("interactive", "i", false, "the description of the pull request")
 	cmd.Flags().Bool("close", true, "do not close source branch")
 	cmd.Flags().Bool("draft", false, "mark the pull request as draft")
 }
@@ -57,13 +55,6 @@ func runCmd(cmd *cobra.Command, args []string) error {
 	fillInParamsFromRepo(c, params)
 	// TODO: Also add fillInParamsFromConfig()?
 	fillInDefaultParams(params)
-
-	if flags.GetBoolOrDefault("interactive", false) {
-		err := fillInteractiveParams(params)
-		if err != nil {
-			return err
-		}
-	}
 
 	err = params.Validate()
 	if err != nil {

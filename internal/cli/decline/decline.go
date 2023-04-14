@@ -1,17 +1,11 @@
 package decline
 
 import (
-	"fmt"
 	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
 	"preq/internal/pkg/client"
 
 	"github.com/spf13/cobra"
-)
-
-var (
-	promptPullRequestMultiSelect = utils.PromptPullRequestMultiSelect
-	processPullRequestMap        = utils.ProcessPullRequestMap
 )
 
 func New() *cobra.Command {
@@ -54,26 +48,6 @@ func execute(
 		if err != nil {
 			return err
 		}
-	} else {
-		prList, err := c.GetPullRequests(&client.GetPullRequestsOptions{
-			Repository: repo,
-			State:      client.PullRequestState_OPEN,
-		})
-		if err != nil {
-			return err
-		}
-
-		selectedPRs := promptPullRequestMultiSelect(prList)
-		processPullRequestMap(
-			selectedPRs,
-			c,
-			repo,
-			declinePR,
-			func(msg interface{}) string {
-				m := msg.(ProcessPullRequestResponse)
-				return fmt.Sprintf("Declining #%s... %s\n", m.ID, m.Status)
-			},
-		)
 	}
 
 	return nil

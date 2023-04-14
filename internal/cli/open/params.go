@@ -5,9 +5,8 @@ import (
 )
 
 type openCmdParams struct {
-	Repository  paramutils.RepositoryParams
-	PrintOnly   bool
-	Interactive bool
+	Repository paramutils.RepositoryParams
+	PrintOnly  bool
 }
 
 type cmdArgs struct {
@@ -20,7 +19,6 @@ func parseArgs(args []string) *cmdArgs {
 
 func fillDefaultOpenCmdParams(params *openCmdParams) {
 	params.PrintOnly = false
-	params.Interactive = false
 }
 
 func fillFlagOpenCmdParams(
@@ -28,5 +26,4 @@ func fillFlagOpenCmdParams(
 	params *openCmdParams,
 ) {
 	params.PrintOnly = flags.GetBoolOrDefault("print", false)
-	params.Interactive = flags.GetBoolOrDefault("interactive", false)
 }
