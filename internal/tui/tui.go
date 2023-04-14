@@ -83,11 +83,15 @@ func Run(
 		SetText("Are you sure want to delete this comment?").
 		AddButtons([]string{"No", "Yes"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			log.Info().Msgf("DeleteCommendModal answered buttonIndex: %d, buttonLabel: %s", buttonIndex, buttonLabel)
+			log.Info().
+				Msgf("DeleteCommendModal answered buttonIndex: %d, buttonLabel: %s", buttonIndex, buttonLabel)
 			pages.HidePage("DeleteCommentModal")
 
 			if buttonIndex == 0 || buttonIndex < 0 {
-				eventBus.Publish("DeleteCommendModal:DeleteCancelled", deletionCommentReference)
+				eventBus.Publish(
+					"DeleteCommendModal:DeleteCancelled",
+					deletionCommentReference,
+				)
 			} else if buttonIndex == 1 {
 				eventBus.Publish("DeleteCommendModal:DeleteConfirmed", deletionCommentReference)
 			}
@@ -368,15 +372,21 @@ func Run(
 	pages.AddPage("AddCommentModal", addCommentModal, true, false)
 	pages.AddPage("DeleteCommentModal", deleteCommentModal, true, false)
 
-	eventBus.Subscribe("DetailsPage:NewCommentRequested", func(ref interface{}) {
-		addCommentModal.Clear()
-		pages.ShowPage("AddCommentModal")
-	})
+	eventBus.Subscribe(
+		"DetailsPage:NewCommentRequested",
+		func(ref interface{}) {
+			addCommentModal.Clear()
+			pages.ShowPage("AddCommentModal")
+		},
+	)
 
-	eventBus.Subscribe("DetailsPage:DeleteCommentRequested", func(ref interface{}) {
-		deletionCommentReference = ref
-		pages.ShowPage("DeleteCommentModal")
-	})
+	eventBus.Subscribe(
+		"DetailsPage:DeleteCommentRequested",
+		func(ref interface{}) {
+			deletionCommentReference = ref
+			pages.ShowPage("DeleteCommentModal")
+		},
+	)
 
 	eventBus.Subscribe("AddCommentModal:CancelRequested", func(_ interface{}) {
 		pages.HidePage("AddCommentModal")
