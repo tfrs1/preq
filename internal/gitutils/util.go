@@ -37,15 +37,23 @@ func IsDirGitRepo(path string) bool {
 	return err == nil
 }
 
+// Return the root diretory of a Git repository when the supplied path
+// is a subdirectory of a Git repository. Errors if the root cannot be found.
 func GetRepoRootDir(path string) (string, error) {
-	for path != "/" {
+	for {
 		_, err := git.PlainOpen(path)
 		if err == nil {
 			return path, nil
 		}
 
+		// Exit if we are at the root
+		parent := filepath.Dir(path)
+		if path == parent {
+			break
+		}
+
 		// Move up to the parent directory
-		path = filepath.Dir(path)
+		path = parent
 	}
 
 	// Reached the root without finding a repo
