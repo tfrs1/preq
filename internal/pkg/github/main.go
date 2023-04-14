@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/go-resty/resty/v2"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 	"github.com/tidwall/gjson"
 )
@@ -477,15 +477,15 @@ func (c *GithubCloudClient) CreatePullRequest(
 			o.Repository.Name,
 		))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg(("error while creating a pull request"))
 	}
 	if r.IsError() {
-		log.Fatal(string(r.Body()))
+		log.Fatal().Msg(("error while creating a pull request"))
 	}
 	pr := &PullRequest{}
 	err = json.Unmarshal(r.Body(), pr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg(("error while unmarshalling a pull request"))
 	}
 
 	return &preqClient.PullRequest{

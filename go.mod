@@ -12,7 +12,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rivo/tview v0.0.0-20230307144320-cc10b288e304
 	github.com/rs/zerolog v1.28.0
-	github.com/sirupsen/logrus v1.7.0
 	github.com/sourcegraph/go-diff v0.7.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5

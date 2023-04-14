@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"github.com/tidwall/gjson"
 )
 
@@ -591,7 +591,7 @@ func (c *BitbucketCloudClient) CreatePullRequest(
 			c.repository,
 		))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("could not create pull request")
 	}
 	if r.IsError() {
 		m := r.Error().(*bbErrorReal).Error.Message
@@ -608,14 +608,14 @@ func (c *BitbucketCloudClient) CreatePullRequest(
 					v.UUID,
 				)
 			}
-			log.Fatal(errorMessage)
+			log.Fatal().Msg(errorMessage)
 		}
-		log.Fatal(string(r.Body()))
+		log.Fatal().Msg(string(r.Body()))
 	}
 	pr := &bitbucketPullRequest{}
 	err = json.Unmarshal(r.Body(), pr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("could not unmarshal pull request")
 	}
 
 	return &client.PullRequest{
