@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/rs/zerolog/log"
 	"github.com/tidwall/gjson"
 )
 
@@ -148,7 +147,11 @@ func buildCommentBody(options *client.CreateCommentOptions) string {
 		extra = fmt.Sprintf(`"inline": {"%s": %d, "path": "%s"}`, t, options.LineRef.LineNumber, options.FilePath)
 	}
 
-	return fmt.Sprintf(`{ "content": { "raw": "%s" }, %s }`, options.Content, extra)
+	return fmt.Sprintf(
+		`{ "content": { "raw": "%s" }, %s }`,
+		options.Content,
+		extra,
+	)
 }
 
 func (c *BitbucketCloudClient) CreateComment(
@@ -474,6 +477,7 @@ func verifyCreatePullRequestOptions(o *client.CreatePullRequestOptions) error {
 func (c *BitbucketCloudClient) GetDefaultReviewer(
 	username string,
 ) (*client.User, error) {
+	panic("not implemented")
 	r, err := resty.New().R().
 		SetBasicAuth(c.username, c.password).
 		SetResult(user{}).
@@ -523,7 +527,7 @@ func (c *BitbucketCloudClient) GetDefaultReviewers(
 		SetError(bbError{}).
 		Get(fmt.Sprintf(
 			"https://api.bitbucket.org/2.0/repositories/%s/effective-default-reviewers",
-			c.repository,
+			o.Repository.Name,
 		))
 	if err != nil {
 		return nil, err
@@ -588,10 +592,10 @@ func (c *BitbucketCloudClient) CreatePullRequest(
 		SetError(bbErrorReal{}).
 		Post(fmt.Sprintf(
 			"https://api.bitbucket.org/2.0/repositories/%s/pullrequests",
-			c.repository,
+			o.Repository.Name,
 		))
 	if err != nil {
-		log.Fatal().Err(err).Msg("could not create pull request")
+		return nil, err
 	}
 	if r.IsError() {
 		m := r.Error().(*bbErrorReal).Error.Message
@@ -608,14 +612,14 @@ func (c *BitbucketCloudClient) CreatePullRequest(
 					v.UUID,
 				)
 			}
-			log.Fatal().Msg(errorMessage)
+			return nil, fmt.Errorf(errorMessage)
 		}
-		log.Fatal().Msg(string(r.Body()))
+		return nil, fmt.Errorf(string(r.Body()))
 	}
 	pr := &bitbucketPullRequest{}
 	err = json.Unmarshal(r.Body(), pr)
 	if err != nil {
-		log.Fatal().Err(err).Msg("could not unmarshal pull request")
+		return nil, err
 	}
 
 	return &client.PullRequest{

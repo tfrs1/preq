@@ -13,18 +13,20 @@ import (
 
 func runCmd(cmd *cobra.Command, args []string) error {
 	cmdArgs := parseArgs(args)
-	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
 
-	params := &openCmdParams{}
-	fillDefaultOpenCmdParams(params)
-	fillFlagOpenCmdParams(flags, params)
-
-	err := execute(cmdArgs, params)
+	_, repoParams, err := paramutils.GetRepoUtilsAndParams(cmd.Flags())
 	if err != nil {
 		return err
 	}
+	params := &openCmdParams{
+		Repository: *repoParams,
+	}
 
-	return nil
+	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
+	fillDefaultOpenCmdParams(params)
+	fillFlagOpenCmdParams(flags, params)
+
+	return execute(cmdArgs, params)
 }
 
 func execute(args *cmdArgs, params *openCmdParams) error {

@@ -1,5 +1,7 @@
 package pullrequest
 
+import "preq/internal/pkg/client"
+
 type Creator interface {
 	Create(o *CreateOptions) (*Entity, error)
 }
@@ -9,6 +11,7 @@ type CreateService struct {
 }
 
 type CreateOptions struct {
+	Repository  *client.Repository
 	Title       string
 	Source      string
 	Destination string

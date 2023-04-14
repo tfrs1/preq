@@ -79,6 +79,7 @@ func (ca *creatorAdapter) Create(
 	o *pullrequest.CreateOptions,
 ) (*pullrequest.Entity, error) {
 	cpro := &client.CreatePullRequestOptions{
+		Repository:  o.Repository,
 		CloseBranch: o.CloseBranch,
 		Destination: o.Destination,
 		Source:      o.Source,
@@ -105,6 +106,10 @@ func execute(c client.Client, params *createCmdParams) error {
 
 	service := pullrequest.NewCreateService(ca)
 	pr, err := service.Create(&pullrequest.CreateOptions{
+		Repository: &client.Repository{
+			Provider: params.Repository.Provider,
+			Name:     params.Repository.Name,
+		},
 		CloseBranch: params.CloseBranch,
 		Title:       params.Title,
 		Source:      params.Source,
