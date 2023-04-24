@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/rs/zerolog/log"
 	"github.com/tidwall/gjson"
 )
 
@@ -88,49 +89,53 @@ func (c *BitbucketCloudClient) FillMiscInfoAsync(
 	repo *client.Repository,
 	pr *client.PullRequest,
 ) error {
-	// This rewrite is not working
-	iter := newBitbucketIterator(&newBitbucketIteratorOptions[gjson.Result]{
-		Client: c,
-		RequestURL: fmt.Sprintf(
-			"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/activity",
-			repo.Name,
-			pr.ID,
-		),
-		Parse: func(key, value gjson.Result) (gjson.Result, error) {
-			return value, nil
-		},
-	})
+	url := fmt.Sprintf(
+		"https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s",
+		repo.Name,
+		pr.ID,
+	)
 
-	list, err := iter.GetAll()
+	rc := resty.New()
+	r, err := rc.R().
+		SetBasicAuth(c.username, c.password).
+		SetHeader("Content-Type", "application/json").
+		SetError(bbError{}).
+		Get(url)
 	if err != nil {
 		return err
 	}
-
-	pr.Approvals = []*client.PullRequestApproval{}
-	pr.ChangesRequests = []*client.PullRequestChangesRequest{}
-	for _, parsed := range list {
-		parsed.ForEach(func(key, value gjson.Result) bool {
-			if key.String() == "approval" {
-				pr.Approvals = append(pr.Approvals, &client.PullRequestApproval{
-					Created: value.Get("approval.date").Time(),
-					User:    value.Get("approval.user.display_name").String(),
-				})
-			} else if key.String() == "changes_requested" {
-				pr.ChangesRequests = append(pr.ChangesRequests, &client.PullRequestChangesRequest{
-					Created: value.Get("changes_requested.created_on").Time(),
-					User:    value.Get("changes_requested.user.display_name").String(),
-				})
-			} else if key.String() == "update" {
-				// TODO: Skip this event? There is already the status?
-			} else if key.String() == "comment" {
-				// TODO: Skip this event? Comments are requested explicitly
-			} else {
-				// TODO: Log unknown activity
-			}
-
-			return true
-		})
+	if r.IsError() {
+		return errors.New(string(r.Body()))
 	}
+
+	parsed := gjson.ParseBytes(r.Body())
+	parsed.Get("participants").ForEach(func(key, value gjson.Result) bool {
+		role := value.Get("role").String()
+		log.Info().Msgf("found a reviewer %v\n", role)
+		if role == "REVIEWER" {
+		} else if role == "PARTICIPANT" {
+			// Role "PARTICIPANT" doesn't really count? When a user
+			// approves his/her own pull request they end up in the category
+			// of a "PARTICIPANT" instead of a "REVIEWER"
+			return true
+		}
+		state := value.Get("state").String()
+		if state == "approved" {
+			pr.Approvals = append(pr.Approvals, &client.PullRequestApproval{
+				Created: value.Get("participated_on").Time(),
+				User:    value.Get("user.display_name").String(),
+			})
+		} else if state == "changes_requested" {
+			pr.ChangesRequests = append(pr.ChangesRequests, &client.PullRequestChangesRequest{
+				Created: value.Get("participated_on").Time(),
+				User:    value.Get("user.display_name").String(),
+			})
+		}
+
+		// FIXME: Does state == "approved" and aprroved == true mean the same thing?
+		_ = value.Get("approved").Bool()
+		return true
+	})
 
 	return nil
 }
@@ -292,10 +297,11 @@ func (c *BitbucketCloudClient) GetPullRequests(
 	result := parsed.Get("values")
 	result.ForEach(func(key, value gjson.Result) bool {
 		pr.Values = append(pr.Values, &client.PullRequest{
-			ID:    value.Get("id").String(),
-			Title: value.Get("title").String(),
-			URL:   value.Get("links.html.href").String(),
-			State: client.PullRequestState(value.Get("state").String()),
+			ID:           value.Get("id").String(),
+			CommentCount: int(value.Get("comment_count").Float()),
+			Title:        value.Get("title").String(),
+			URL:          value.Get("links.html.href").String(),
+			State:        client.PullRequestState(value.Get("state").String()),
 			Source: client.PullRequestBranch{
 				Name: value.Get("source.branch.name").String(),
 				Hash: value.Get("source.commit.hash").String(),

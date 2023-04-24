@@ -7,12 +7,10 @@ import (
 	"github.com/rivo/tview"
 )
 
-var (
-	approveConfirmationModal = tview.NewModal().
-		SetText("Are you sure you want to approve %d pull requests?").
-		AddButtons([]string{"Approve", "Cancel"}).
-		SetDoneFunc(approveConfirmationCallback)
-)
+var approveConfirmationModal = tview.NewModal().
+	SetText("Are you sure you want to approve %d pull requests?").
+	AddButtons([]string{"Approve", "Cancel"}).
+	SetDoneFunc(approveConfirmationCallback)
 
 func approveConfirmationCallback(buttonIndex int, buttonLabel string) {
 	if buttonIndex == 0 {

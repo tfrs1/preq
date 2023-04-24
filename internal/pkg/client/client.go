@@ -219,6 +219,7 @@ type PullRequestBranch struct {
 
 type PullRequest struct {
 	ID              string
+	CommentCount    int
 	Title           string
 	URL             string
 	State           PullRequestState
