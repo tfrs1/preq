@@ -7,12 +7,10 @@ import (
 	"github.com/rivo/tview"
 )
 
-var (
-	mergeConfirmationModal = tview.NewModal().
-		SetText("Are you sure you want to merge %d pull requests?").
-		AddButtons([]string{"Merge", "Cancel"}).
-		SetDoneFunc(mergeConfirmationCallback())
-)
+var mergeConfirmationModal = tview.NewModal().
+	SetText("Are you sure you want to merge %d pull requests?").
+	AddButtons([]string{"Merge", "Cancel"}).
+	SetDoneFunc(mergeConfirmationCallback())
 
 func mergeConfirmationCallback() func(int, string) {
 	return func(buttonIndex int, buttonLabel string) {

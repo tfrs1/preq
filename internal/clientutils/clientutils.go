@@ -15,16 +15,16 @@ type ClientFactory struct{}
 func (cf ClientFactory) NewClient(provider client.RepositoryProvider, config *viper.Viper) (client.Client, error) {
 	switch provider {
 	case client.RepositoryProviderEnum.BITBUCKET:
-		username := viper.GetString("bitbucket.username")
+		username := config.GetString("bitbucket.username")
 		if username == "" {
 			return nil, fmt.Errorf("missing username")
 		}
-		password := viper.GetString("bitbucket.password")
+		password := config.GetString("bitbucket.password")
 		if password == "" {
 			return nil, fmt.Errorf("missing password")
 		}
-		uuid := viper.GetString("bitbucket.uuid")
-		repository := viper.GetString("default.repository")
+		uuid := config.GetString("bitbucket.uuid")
+		repository := config.GetString("default.repository")
 
 		return bitbucket.NewClient(&bitbucket.ClientOptions{
 			Username:   username,

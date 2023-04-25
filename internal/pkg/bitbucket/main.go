@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/rs/zerolog/log"
 	"github.com/tidwall/gjson"
 )
 
@@ -111,7 +110,6 @@ func (c *BitbucketCloudClient) FillMiscInfoAsync(
 	parsed := gjson.ParseBytes(r.Body())
 	parsed.Get("participants").ForEach(func(key, value gjson.Result) bool {
 		role := value.Get("role").String()
-		log.Info().Msgf("found a reviewer %v\n", role)
 		if role == "REVIEWER" {
 		} else if role == "PARTICIPANT" {
 			// Role "PARTICIPANT" doesn't really count? When a user
