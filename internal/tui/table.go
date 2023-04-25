@@ -402,18 +402,31 @@ func (prt *pullRequestTable) updateRowStatus(
 	prt.colorRow(rowId, color)
 }
 
+func cropString(input string, max int) string {
+	if max > 3 && len(input) > max {
+		return input[:max-3] + "..."
+	}
+
+	return input
+}
+
 func (prt *pullRequestTable) addRow(
 	v *client.PullRequest,
 	rowId int,
 ) {
+	maxLen := 40
+	source := cropString(v.Source.Name, maxLen)
+	destination := cropString(v.Destination.Name, maxLen)
+	title := cropString(v.Title, maxLen)
+
 	// Escape the title string
-	escapedTitle := strings.ReplaceAll(v.Title, "]", "[]")
+	title = strings.ReplaceAll(title, "]", "[]")
 
 	values := []string{
 		v.ID,
-		escapedTitle,
-		v.Source.Name,
-		v.Destination.Name,
+		title,
+		source,
+		destination,
 		"Open",
 		"⏳",
 		"⏳",
