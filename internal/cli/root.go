@@ -22,6 +22,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 var (
@@ -44,20 +45,6 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			global = false
 			// TODO: Log error
-		}
-
-		repo, err := client.NewRepositoryFromOptions(
-			&client.RepositoryOptions{
-				Provider: client.RepositoryProvider(
-					params.Provider,
-				),
-				Name: params.Name,
-			},
-		)
-
-		if repo == nil && !global && err != nil {
-			log.Error().Msg(err.Error())
-			os.Exit(123)
 		}
 
 		// TODO: Check other configs (empty, no default, etc)
@@ -90,6 +77,27 @@ var rootCmd = &cobra.Command{
 		}
 
 		if !global {
+			// TODO: Add params only utils method? Without flags param?
+			_, params, err := paramutils.GetRepoUtilsAndParams(&pflag.FlagSet{})
+			if err != nil {
+				log.Error().Msg(err.Error())
+				os.Exit(5)
+			}
+
+			repo, err := client.NewRepositoryFromOptions(
+				&client.RepositoryOptions{
+					Provider: client.RepositoryProvider(
+						params.Provider,
+					),
+					Name: params.Name,
+				},
+			)
+
+			if repo == nil && !global && err != nil {
+				log.Error().Msg(err.Error())
+				os.Exit(123)
+			}
+
 			filtered := make([]*persistance.PersistanceRepoInfo, 0)
 			for _, v := range repos {
 				if v.Provider == string(repo.Provider) &&
@@ -112,7 +120,11 @@ func Execute() {
 	}
 
 	os.MkdirAll(dir, 0o700)
-	file, err := os.OpenFile(path.Join(dir, "app.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o0600)
+	file, err := os.OpenFile(
+		path.Join(dir, "app.log"),
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND,
+		0o0600,
+	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to open log file")
 	}
