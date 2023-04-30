@@ -1,13 +1,15 @@
 package configutils
 
 import (
+	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"preq/internal/pkg/fs"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
-
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
@@ -63,14 +65,11 @@ var loadFile = func(filename string, fs fs.Filesystem) (io.Reader, error) {
 
 var loadConfig = func(filename string, v *viper.Viper) error {
 	f, err := loadFile(filename, fs.OS{})
-	if err == nil {
-		err = mergeConfig(f, v)
-		if err != nil {
-			return err
-		}
+	if err != nil {
+		return err
 	}
 
-	return nil
+	return mergeConfig(f, v)
 }
 
 var getGlobalConfigPath = func() (string, error) {
@@ -79,57 +78,62 @@ var getGlobalConfigPath = func() (string, error) {
 
 func MergeLocalConfig(v *viper.Viper, path string) error {
 	// TODO: Extract .preqcfg file name to global
-	return loadConfig(filepath.Join(path, ".preqcfg"), v)
+	f := filepath.Join(path, ".preqcfg")
+	if _, err := os.Stat(f); errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
+	// Try for every supported file type
+	filetypes := []string{"yaml", "json", "toml"}
+	var err error = nil
+	for _, ft := range filetypes {
+		v.SetConfigType(ft)
+		err := loadConfig(f, v)
+		if err == nil {
+			return nil
+		}
+	}
+
+	return err
 }
 
 func LoadConfigForPath(path string) (*viper.Viper, error) {
-	globalConfigPath, err := getGlobalConfigPath()
+	v, err := DefaultConfig()
 	if err != nil {
-		return nil, ErrHomeDirNotFound
+		return nil, err
+	}
+	if v == nil {
+		v = viper.New()
 	}
 
-	v := viper.New()
-	v.SetConfigType("toml")
-	configs := []string{globalConfigPath, filepath.Join(path, ".preqcfg")}
-	for _, config := range configs {
-		err = loadConfig(config, v)
-		if err != nil {
-			return nil, err
-		}
+	err = MergeLocalConfig(v, path)
+	if err != nil {
+		return nil, err
 	}
 
 	return v, nil
 }
 
 func DefaultConfig() (*viper.Viper, error) {
-	hdCfgPath, err := getGlobalConfigPath()
+	cfgDir, err := homedir.Expand("~/.config/preq")
 	if err != nil {
 		return nil, ErrHomeDirNotFound
 	}
 
 	v := viper.New()
-	// TODO: Add support for other file types
-	v.SetConfigType("toml")
-	err = loadConfig(hdCfgPath, v)
-
-	return v, err
-}
-
-func Load() error {
-	globalConfigPath, err := getGlobalConfigPath()
-	if err != nil {
-		return ErrHomeDirNotFound
-	}
-
-	configs := []string{globalConfigPath, ".preqcfg"}
-	for _, v := range configs {
-		err = loadConfig(v, viper.GetViper())
-		if err != nil {
-			return err
+	filetypes := []string{"yaml", "json", "toml"}
+	for _, ft := range filetypes {
+		f := filepath.Join(cfgDir, fmt.Sprintf("config.%s", ft))
+		v.SetConfigType(ft)
+		err = loadConfig(f, v)
+		if err == nil {
+			return v, nil
 		}
+		log.Debug().
+			Msgf("config loading failed for type %s, skipping to next filetype", ft)
 	}
 
-	return nil
+	return nil, errors.Wrap(err, "could not load config")
 }
 
 func GetBoolFlagOrDefault(fs FlagSet, flag string, d bool) bool {
@@ -148,8 +152,4 @@ func GetStringFlagOrDefault(fs FlagSet, flag, d string) string {
 	}
 
 	return s
-}
-
-func init() {
-	viper.SetConfigType("toml")
 }

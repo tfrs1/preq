@@ -64,7 +64,7 @@ var getWorkingDir = func(fs fs.Filesystem) (string, error) {
 	return fs.Getwd()
 }
 
-var getRemoteInfoList = func(git *GoGit) ([]*client.Repository, error) {
+var getRemoteInfoList = func(git *GoGit, aliases map[client.RepositoryProvider][]string) ([]*client.Repository, error) {
 	var repos []*client.Repository
 
 	repoURLs, err := git.Git.GetRemoteURLs()
@@ -73,7 +73,7 @@ var getRemoteInfoList = func(git *GoGit) ([]*client.Repository, error) {
 	}
 
 	for _, url := range repoURLs {
-		pRepo, err := parseRepositoryString(url)
+		pRepo, err := parseRepositoryString(url, aliases)
 		if err != nil {
 			return nil, err
 		}
@@ -94,17 +94,17 @@ var extractRepositoryTokens = func(uri string) ([]string, error) {
 	return m[1:], nil
 }
 
-var parseRepositoryProvider = func(p string) (client.RepositoryProvider, error) {
-	return client.ParseRepositoryProvider(p)
+var parseRepositoryProvider = func(p string, aliases map[client.RepositoryProvider][]string) (client.RepositoryProvider, error) {
+	return client.ParseRepositoryProvider(p, aliases)
 }
 
-var parseRepositoryString = func(repoString string) (*client.Repository, error) {
+var parseRepositoryString = func(repoString string, aliases map[client.RepositoryProvider][]string) (*client.Repository, error) {
 	m, err := extractRepositoryTokens(repoString)
 	if err != nil {
 		return nil, err
 	}
 
-	p, err := parseRepositoryProvider(m[0])
+	p, err := parseRepositoryProvider(m[0], aliases)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,9 @@ type GitUtilsClient interface {
 	// GetClosestBranch documentation
 	// TODO: Find a better name
 	GetClosestBranch(branches []string) (string, error)
-	GetRemoteInfo() (*client.Repository, error)
+	GetRemoteInfo(
+		aliases map[client.RepositoryProvider][]string,
+	) (*client.Repository, error)
 	GetCurrentCommitMessage() (string, error)
 	GetCurrentBranch() (string, error)
 	GetBranchLastCommitMessage(name string) (string, error)
@@ -220,8 +222,10 @@ func (git *GoGit) GetClosestBranch(branches []string) (string, error) {
 	return walkHistory(c, cSlice, 10)
 }
 
-func (git *GoGit) GetRemoteInfo() (*client.Repository, error) {
-	repos, err := getRemoteInfoList(git)
+func (git *GoGit) GetRemoteInfo(
+	aliases map[client.RepositoryProvider][]string,
+) (*client.Repository, error) {
+	repos, err := getRemoteInfoList(git, aliases)
 	if err != nil {
 		return nil, err
 	}

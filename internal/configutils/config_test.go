@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -117,35 +116,6 @@ func Test_loadConfig(t *testing.T) {
 
 	loadFile = oldLoadFile
 	mergeConfig = oldMergeConfig
-}
-
-func TestLoad(t *testing.T) {
-	oldLoadConfig := loadConfig
-	oldGetGlobalConfigPath := getGlobalConfigPath
-
-	t.Run("", func(t *testing.T) {
-		loadConfig = func(string, *viper.Viper) error { return nil }
-		getGlobalConfigPath = func() (string, error) { return "", nil }
-		err := Load()
-		assert.Equal(t, nil, err)
-	})
-
-	t.Run("", func(t *testing.T) {
-		getGlobalConfigPath = func() (string, error) { return "", errors.New("") }
-		err := Load()
-		assert.EqualError(t, err, ErrHomeDirNotFound.Error())
-	})
-
-	t.Run("", func(t *testing.T) {
-		vErr := errors.New("load err")
-		loadConfig = func(string, *viper.Viper) error { return vErr }
-		getGlobalConfigPath = func() (string, error) { return "", nil }
-		err := Load()
-		assert.EqualError(t, err, vErr.Error())
-	})
-
-	loadConfig = oldLoadConfig
-	getGlobalConfigPath = oldGetGlobalConfigPath
 }
 
 func TestGetStringFlagOrDefault(t *testing.T) {

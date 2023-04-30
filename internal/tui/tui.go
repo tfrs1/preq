@@ -38,7 +38,8 @@ func loadConfig(
 ) (client.Client, *client.Repository, error) {
 	config, err := configutils.DefaultConfig()
 	if err != nil {
-		// TODO: Do something
+		log.Error().Err(err).Msgf("error while loading default confg")
+		return nil, nil, err
 	}
 
 	err = configutils.MergeLocalConfig(config, repoInfo.Path)

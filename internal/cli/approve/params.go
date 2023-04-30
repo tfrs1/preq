@@ -32,21 +32,6 @@ func parseArgs(args []string) *cmdArgs {
 	return &cmdArgs{ID: id}
 }
 
-func fillDefaultDeclineCmdParams(params *cmdParams) {
-	git, err := getWorkingDirectoryRepo()
-	if err != nil {
-		return
-	}
-
-	defaultRepo, err := git.GetRemoteInfo()
-	if err != nil {
-		return
-	}
-
-	params.Repository = defaultRepo.Name
-	params.Provider = defaultRepo.Provider
-}
-
 func fillFlagDeclineCmdParams(flags paramutils.FlagRepo, params *cmdParams) {
 	var (
 		repo     = flags.GetStringOrDefault("repository", "")

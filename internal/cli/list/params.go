@@ -17,21 +17,6 @@ type listCmdParams struct {
 
 var getWorkingDirectoryRepo = gitutils.GetWorkingDirectoryRepo
 
-func fillDefaultListCmdParams(params *listCmdParams) {
-	git, err := getWorkingDirectoryRepo()
-	if err != nil {
-		return
-	}
-
-	defaultRepo, err := git.GetRemoteInfo()
-	if err != nil {
-		return
-	}
-
-	params.Repository.Name = defaultRepo.Name
-	params.Repository.Provider = defaultRepo.Provider
-}
-
 func fillFlagListCmdParams(cmd *cobra.Command, params *listCmdParams) error {
 	var (
 		repo = configutils.GetStringFlagOrDefault(

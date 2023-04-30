@@ -38,7 +38,6 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		params := &paramutils.RepositoryParams{}
 		flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
-		paramutils.FillDefaultRepositoryParams(params)
 		paramutils.FillFlagRepositoryParams(flags, params)
 
 		global, err := cmd.Flags().GetBool("global")

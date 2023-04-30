@@ -2,13 +2,9 @@ package client
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"strings"
 	"time"
-
-	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 )
 
 var (
@@ -57,23 +53,26 @@ var RepositoryProviderEnum = &list{
 	GITHUB:    RepositoryProvider("github"),
 }
 
-func ParseRepositoryProvider(s string) (RepositoryProvider, error) {
+func ParseRepositoryProvider(
+	s string,
+	aliases map[RepositoryProvider][]string,
+) (RepositoryProvider, error) {
 	switch s {
 	case "bitbucket.org", "bitbucket":
 		return RepositoryProviderEnum.BITBUCKET, nil
 	case "github.com", "github":
 		return RepositoryProviderEnum.GITHUB, nil
 	default:
-		aliases := viper.GetStringSlice("bitbucket.aliases")
-		if aliases == nil {
-			log.Warn().
-				Msg(fmt.Sprintf("Parsing unknown provider: %v. Add repository info to local preq configuration (.preqcfg)", s))
-			break
+		providers := []RepositoryProvider{
+			RepositoryProviderEnum.BITBUCKET,
+			RepositoryProviderEnum.GITHUB,
 		}
 
-		for _, a := range aliases {
-			if a == s {
-				return RepositoryProviderEnum.BITBUCKET, nil
+		for _, p := range providers {
+			for _, alias := range aliases[p] {
+				if alias == s {
+					return p, nil
+				}
 			}
 		}
 	}

@@ -1,6 +1,7 @@
 package paramutils
 
 import (
+	"fmt"
 	"os"
 	"preq/internal/clientutils"
 	"preq/internal/configutils"
@@ -11,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 )
 
 type RepositoryParams struct {
@@ -54,42 +54,9 @@ func (fs *PFlagSetWrapper) GetBoolOrDefault(flag string, d bool) bool {
 	return s
 }
 
-type paramsFiller interface {
-	Fill(params *RepositoryParams)
-}
-
 type localRepositoryParamsFiller struct{}
 
-func (pf *localRepositoryParamsFiller) Fill(params *RepositoryParams) {
-	git, err := gitutils.GetWorkingDirectoryRepo()
-	if err != nil {
-		return
-	}
-
-	defaultRepo, err := git.GetRemoteInfo()
-	if err != nil {
-		return
-	}
-
-	params.Name = defaultRepo.Name
-	params.Provider = defaultRepo.Provider
-}
-
 type viperConfigParamsFiller struct{}
-
-func (pf *viperConfigParamsFiller) Fill(params *RepositoryParams) {
-	if dp := viper.GetString("default.provider"); dp != "" {
-		provider, err := client.ParseRepositoryProvider(dp)
-
-		if err == nil {
-			params.Provider = provider
-		}
-	}
-
-	if dr := viper.GetString("default.repository"); dr != "" {
-		params.Name = dr
-	}
-}
 
 func GetRepoPath(flagSet *pflag.FlagSet) (string, error) {
 	flags := NewFlagRepo(flagSet)
@@ -119,7 +86,9 @@ func GetRepoPath(flagSet *pflag.FlagSet) (string, error) {
 	return path, nil
 }
 
-func GetRepoUtilsAndParams(flagSet *pflag.FlagSet) (gitutils.GitUtilsClient, *RepositoryParams, error) {
+func GetRepoUtilsAndParams(
+	flagSet *pflag.FlagSet,
+) (gitutils.GitUtilsClient, *RepositoryParams, error) {
 	path, err := GetRepoPath(flagSet)
 	params := &RepositoryParams{}
 
@@ -128,7 +97,24 @@ func GetRepoUtilsAndParams(flagSet *pflag.FlagSet) (gitutils.GitUtilsClient, *Re
 		return nil, nil, err
 	}
 
-	info, err := git.GetRemoteInfo()
+	config, err := configutils.LoadConfigForPath(path)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	aliases := make(map[client.RepositoryProvider][]string)
+	providers := []client.RepositoryProvider{
+		client.RepositoryProviderEnum.BITBUCKET,
+		client.RepositoryProviderEnum.GITHUB,
+	}
+	for _, p := range providers {
+		pa := config.GetStringSlice(fmt.Sprintf("%s.aliases", p))
+		for _, a := range pa {
+			aliases[p] = append(aliases[p], a)
+		}
+	}
+
+	info, err := git.GetRemoteInfo(aliases)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -139,27 +125,44 @@ func GetRepoUtilsAndParams(flagSet *pflag.FlagSet) (gitutils.GitUtilsClient, *Re
 	return git, params, nil
 }
 
-func GetClientAndRepoParams(flagSet *pflag.FlagSet) (client.Client, *RepositoryParams, error) {
-	path, err := GetRepoPath(flagSet)
+func GetClientAndRepoParams(
+	flagSet *pflag.FlagSet,
+) (client.Client, *RepositoryParams, error) {
 	params := &RepositoryParams{}
+	path, err := GetRepoPath(flagSet)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	config, err := configutils.LoadConfigForPath(path)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	aliases := make(map[client.RepositoryProvider][]string)
+	providers := []client.RepositoryProvider{
+		client.RepositoryProviderEnum.BITBUCKET,
+		client.RepositoryProviderEnum.GITHUB,
+	}
+	for _, p := range providers {
+		pa := config.GetStringSlice(fmt.Sprintf("%s.aliases", p))
+		for _, a := range pa {
+			aliases[p] = append(aliases[p], a)
+		}
+	}
 
 	git, err := gitutils.GetRepo(path)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	info, err := git.GetRemoteInfo()
+	info, err := git.GetRemoteInfo(aliases)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	params.Provider = info.Provider
 	params.Name = info.Name
-
-	config, err := configutils.LoadConfigForPath(path)
-	if err != nil {
-		return nil, nil, err
-	}
 
 	cl, err := clientutils.ClientFactory{}.NewClient(
 		params.Provider,
@@ -170,17 +173,6 @@ func GetClientAndRepoParams(flagSet *pflag.FlagSet) (client.Client, *RepositoryP
 	}
 
 	return cl, params, nil
-}
-
-func FillDefaultRepositoryParams(params *RepositoryParams) {
-	paramsFillers := []paramsFiller{
-		&viperConfigParamsFiller{},
-		&localRepositoryParamsFiller{},
-	}
-
-	for _, pf := range paramsFillers {
-		pf.Fill(params)
-	}
 }
 
 func FillFlagRepositoryParams(flags FlagRepo, params *RepositoryParams) {
