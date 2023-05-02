@@ -1,10 +1,11 @@
 # `preq` - command-line utility for all your pull request needs
 
-<font size="7">ALPHA</font>
+> __Note__  
+> ALPHA Please use with caution
 
-`preq` is a command line utility for working with pull requests. It tries to be useful and quick by leveraging information from local Git repositories. Parameters can be also be explicitly set using flags.
+`preq` is a command line utility for working with pull requests. It tries to be useful and quick by leveraging information from local Git repositories. Parameters can also be explicitly set using flags.
 
-The application is in alpha state and only recommended for evaluation.
+The application is in alpha state and only recommended for evaluation and only supports Bitbucket cloud currently.
 
 ## Installation
 
@@ -21,7 +22,7 @@ Linux builds can be found in [releases](https://github.com/tfrs1/preq/releases).
 
 ## Usage
 
-`preq` is meant to be used in synthesis with Git. `preq` determines many parameters from the working directory if it is also a Git repository. Of course, all parameters can be explicitly defined if needed.
+`preq` is meant to be used in synthesis with Git. `preq` determines many parameters from the working directory (or parents) if it is also a Git repository. Of course, all parameters can be explicitly defined if needed.
 
 For example, `preq` can find out the Git origin provider, the repository name, and the source branch for the `create` command.
 
@@ -31,7 +32,7 @@ The following global flags can be used with any `preq` command.
 
 ### Terminal UI
 
-`preq` is a TUI application as well as a CLI application. To start the TUI you can either run `preq` or `preq -g`, with the latter asking `preq` to display information about all known Git repositories. `preq` keeps a history of all local repositories previously seen by `preq`.
+`preq` is a TUI application as well as a CLI application. To start the TUI you can either run `preq` for the Git repository in the working directory or `preq -g` for all known Git repositories. `preq` keeps a history of all local repositories previously seen by `preq`.
 
 > __Note__  
 > Currently the only supported provider is Bitbucket cloud.
@@ -58,7 +59,7 @@ Default reviewers will be automatically added to the pull requests created with 
 
 ## Configuration
 
-`preq` reads the configuration from 2 places. From global `~/.config/preq/config.toml`, and from `.preqcfg` if it is found in the working directory.
+It is possible to define the configuration in 3 formats, TOML, YAML and JSON. Global configuration file should be located in `~/.config/preq/config.toml` (or `config.yaml`, `config.json` for alternative formats). And per-repository configuration should be defined in `.preqcfg` file (any format) located in the root directory of a local Git repository (i.e. with the .git directory)
 
 ### Example config
 ```toml
@@ -75,9 +76,12 @@ To use Bitbucket cloud you must create an app password from the personal setting
 
 * `aliases` - A list of hostname aliases for Bitbucket service. For example when using multiple accounts with different SSH keys.
 
-## Future additions
+## Roadmap
 
-- Add other providers (GitHub, GitLab, etc.)
+- [ ] Add other provider
+  - [ ] GitHub
+  - [ ] GitLab
+- [ ] Nerd font icons
 - etc.
 
 ## Contributing
