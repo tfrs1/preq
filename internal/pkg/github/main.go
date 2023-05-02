@@ -195,7 +195,7 @@ func unmarshalPR(data []byte) (*preqClient.PullRequest, error) {
 	}
 
 	return &preqClient.PullRequest{
-		ID:    string(pr.Number),
+		ID:    fmt.Sprint(pr.Number),
 		Title: pr.Title,
 		URL:   pr.Links.HTML.Href,
 		State: preqClient.PullRequestState(pr.State),

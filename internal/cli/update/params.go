@@ -3,7 +3,6 @@ package update
 import (
 	"preq/internal/configutils"
 	"preq/internal/errcodes"
-	"preq/internal/gitutils"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -16,21 +15,6 @@ type updateCmdParams struct {
 	DisableDraft             bool
 	EnableCloseSourceBranch  bool
 	DisableCloseSourceBranch bool
-}
-
-func fillDefaultUpdateCmdParams(params *updateCmdParams) {
-	git, err := gitutils.GetWorkingDirectoryRepo()
-	if err != nil {
-		return
-	}
-
-	defaultRepo, err := git.GetRemoteInfo()
-	if err != nil {
-		return
-	}
-
-	params.Repository = defaultRepo.Name
-	params.Provider = string(defaultRepo.Provider)
 }
 
 func fillFlagUpdateCmdParams(
