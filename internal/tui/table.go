@@ -314,7 +314,7 @@ func (prt *pullRequestTable) drawTable() {
 
 		addEmptyRow(prt.View, offset)
 		setRowStyle(prt.View, offset, headerStyle)
-		prt.setRowSelectable(offset, false)
+		// prt.setRowSelectable(offset, false)
 		prt.View.GetCell(offset, 0).SetText("REPO")
 		prt.View.GetCell(offset, 1).SetText(data.Name)
 
@@ -325,7 +325,7 @@ func (prt *pullRequestTable) drawTable() {
 				offset,
 				i,
 				tview.NewTableCell(headers[i]).
-					SetSelectable(false).
+					// SetSelectable(false).
 					SetStyle(headerStyle),
 			)
 		}
@@ -453,9 +453,10 @@ func (prt *pullRequestTable) addRow(
 }
 
 func (prt *pullRequestTable) setRowSelectable(rowId int, selectable bool) {
-	for i := 0; i < prt.View.GetColumnCount(); i++ {
-		prt.View.GetCell(rowId, i).SetSelectable(selectable)
-	}
+	return
+	// for i := 0; i < prt.View.GetColumnCount(); i++ {
+	// 	prt.View.GetCell(rowId, i).SetSelectable(selectable)
+	// }
 }
 
 func (prt *pullRequestTable) colorRow(rowId int, color tcell.Color) {
@@ -471,9 +472,11 @@ func (prt *pullRequestTable) SelectCurrentRow() {
 	if err != nil {
 		// TODO: Log error?
 	}
-	pr.Selected = !pr.Selected
 
-	prt.redraw()
+	if pr != nil {
+		pr.Selected = !pr.Selected
+		prt.redraw()
+	}
 }
 
 func (prt *pullRequestTable) Filter(input string) {

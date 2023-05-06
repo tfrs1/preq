@@ -237,50 +237,52 @@ func Run(
 	table.View.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlD:
-			count := len(table.GetSelectedRows())
-			declineConfirmationModal.
-				SetText(
-					fmt.Sprintf(
-						"Are you sure you want to decline %v pull requests?",
-						count,
-					),
-				)
-			pages.ShowPage(PAGE_DECLINE_CONFIRMATION_MODAL)
+			if count := len(table.GetSelectedRows()); count > 0 {
+				declineConfirmationModal.
+					SetText(
+						fmt.Sprintf(
+							"Are you sure you want to decline %v pull requests?",
+							count,
+						),
+					)
+				pages.ShowPage(PAGE_DECLINE_CONFIRMATION_MODAL)
+			}
 			return event
 		case tcell.KeyCtrlA:
-			count := len(table.GetSelectedRows())
-
-			approveConfirmationModal.
-				SetText(
-					fmt.Sprintf(
-						"Are you sure you want to approve %v pull requests?",
-						count,
-					),
-				)
-			pages.ShowPage(PAGE_APPROVE_CONFIRMATION_MODAL)
+			if count := len(table.GetSelectedRows()); count > 0 {
+				approveConfirmationModal.
+					SetText(
+						fmt.Sprintf(
+							"Are you sure you want to approve %v pull requests?",
+							count,
+						),
+					)
+				pages.ShowPage(PAGE_APPROVE_CONFIRMATION_MODAL)
+			}
 			return event
 		case tcell.KeyCtrlU:
-			count := len(table.GetSelectedRows())
-
-			unapproveConfirmationModal.
-				SetText(
-					fmt.Sprintf(
-						"Are you sure you want to unapprove %v pull requests?",
-						count,
-					),
-				)
-			pages.ShowPage(PAGE_UNAPPROVE_CONFIRMATION_MODAL)
+			if count := len(table.GetSelectedRows()); count > 0 {
+				unapproveConfirmationModal.
+					SetText(
+						fmt.Sprintf(
+							"Are you sure you want to unapprove %v pull requests?",
+							count,
+						),
+					)
+				pages.ShowPage(PAGE_UNAPPROVE_CONFIRMATION_MODAL)
+			}
 			return event
 		case tcell.KeyCtrlM:
-			count := len(table.GetSelectedRows())
-			mergeConfirmationModal.
-				SetText(
-					fmt.Sprintf(
-						"Are you sure you want to merge %v pull requests?",
-						count,
-					),
-				)
-			pages.ShowPage(PAGE_MERGE_CONFIRMATION_MODAL)
+			if count := len(table.GetSelectedRows()); count > 0 {
+				mergeConfirmationModal.
+					SetText(
+						fmt.Sprintf(
+							"Are you sure you want to merge %v pull requests?",
+							count,
+						),
+					)
+				pages.ShowPage(PAGE_MERGE_CONFIRMATION_MODAL)
+			}
 			return event
 		case tcell.KeyCtrlO:
 			rowId, _ := table.View.GetSelection()
@@ -296,7 +298,7 @@ func Run(
 		case 'o':
 			row, _ := table.View.GetSelection()
 			pr, err := table.GetPullRequest(row)
-			if err == nil {
+			if err == nil && pr != nil {
 				eventBus.Publish("detailsPage:open", pr)
 			}
 			return nil
