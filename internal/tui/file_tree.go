@@ -272,13 +272,14 @@ func (node *FileTreeNode) rebuildStatements() []*ScrollablePageLine {
 			}
 		}
 
+		escapedFilename := escapeString(node.Filename)
 		statements = append(statements, &ScrollablePageLine{
 			Reference: &FileTreeStatementReference{
 				Node: node,
 				Diff: node.reference,
 			},
 			Statements: []*ScrollablePageLineStatement{{
-				Content: fmt.Sprintf("%s%s %s[white::-]%s", indent, icon, decoration, node.Filename),
+				Content: fmt.Sprintf("%s%s %s[white::-]%s", indent, icon, decoration, escapedFilename),
 			}},
 		})
 

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -124,7 +125,14 @@ func Run(
 	})
 
 	eventBus.Subscribe("detailsPage:open", func(input interface{}) {
-		err := details.SetData(input)
+		pr, ok := input.(*PullRequest)
+		if !ok {
+			err := errors.New("cast failed when opening the details page")
+			log.Error().Msg(err.Error())
+			return
+		}
+
+		err := details.SetData(pr)
 		if err != nil {
 			eventBus.Publish("ErrorModal:RequestOpen", err)
 			log.Error().Msg(err.Error())
@@ -195,39 +203,15 @@ func Run(
 		}
 	})
 
-	searchInput := tview.NewInputField().
-		SetLabel(" Filter ").
-		SetLabelColor(tcell.ColorRed).
-		SetPlaceholderTextColor(tcell.ColorLightGray)
-	searchInput.
-		SetPlaceholder(" Filter pull requests").
-		SetChangedFunc(func(text string) {
-			table.Filter(text)
-		})
-
-	searchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEscape:
-			if searchInput.GetText() != "" {
-				searchInput.SetText("")
-			} else {
-				app.SetFocus(table.View)
-			}
-		case tcell.KeyEnter:
-			app.SetFocus(table.View)
-		}
-
-		return event
-	})
-
 	grid := tview.NewGrid().
 		SetRows(0, 1).
 		AddItem(table.View, 0, 0, 1, 1, 0, 0, false).
-		AddItem(searchInput, 1, 0, 1, 1, 0, 0, false)
+		AddItem(tview.NewTextView().SetScrollable(true).SetText("Help: / filter ctrl+u unapprove j/k up/down"), 1, 0, 1, 1, 0, 0, false)
 
 	grid.
 		SetBorders(false).
 		SetBorder(false)
+
 	flex.AddItem(grid, 0, 1, false)
 
 	helpPage := tview.NewBox().
@@ -323,7 +307,14 @@ func Run(
 			app.Stop()
 			return nil
 		case '/':
-			app.SetFocus(searchInput)
+			filterData := []*FilterModalItem{}
+			for _, pr := range table.GetPullRequestList() {
+				filterData = append(filterData, &FilterModalItem{
+					Line: escapeString(pr.PullRequest.Title),
+					Ref:  pr,
+				})
+			}
+			eventBus.Publish("FilterModal:OpenRequested", filterData)
 			return nil
 		case ' ':
 			table.SelectCurrentRow()
@@ -372,6 +363,9 @@ func Run(
 	pages.AddPage("AddCommentModal", addCommentModal, true, false)
 	pages.AddPage("DeleteCommentModal", deleteCommentModal, true, false)
 
+	filterModal := NewFilterModal()
+	pages.AddPage("FilterModal", filterModal, true, false)
+
 	eventBus.Subscribe(
 		"DetailsPage:NewCommentRequested",
 		func(ref interface{}) {
@@ -396,6 +390,30 @@ func Run(
 	eventBus.Subscribe("AddCommentModal:CloseRequested", func(_ interface{}) {
 		pages.HidePage("AddCommentModal")
 		eventBus.Publish("AddCommentModal:Closed", nil)
+	})
+
+	eventBus.Subscribe("FilterModal:OpenRequested", func(input interface{}) {
+		if filterData, ok := input.([]*FilterModalItem); ok {
+			filterModal.Clear()
+			filterModal.SetData(filterData, func(item *FilterModalItem) {
+				eventBus.Publish("FilterModal:CloseRequested", nil)
+
+				if item != nil {
+					if pr, ok := item.Ref.(*PullRequest); ok {
+						eventBus.Publish("detailsPage:open", pr)
+					}
+				}
+			})
+
+			pages.ShowPage("FilterModal")
+			eventBus.Publish("FilterModal:Opened", nil)
+		}
+	})
+
+	eventBus.Subscribe("FilterModal:CloseRequested", func(_ interface{}) {
+		pages.HidePage("FilterModal")
+		app.SetFocus(table.View)
+		eventBus.Publish("FilterModal:Closed", nil)
 	})
 
 	tableData = make([]*tableRepoData, 0)

@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"errors"
 	"fmt"
 	"preq/internal/pkg/client"
 	"time"
@@ -316,14 +315,9 @@ func newDetailsPage() *detailsPage {
 	}
 }
 
-func (dp *detailsPage) SetData(input interface{}) error {
+func (dp *detailsPage) SetData(pr *PullRequest) error {
 	dp.fileTree.Clear()
 	dp.reviewPanel.Clear()
-
-	pr, ok := input.(*PullRequest)
-	if !ok {
-		return errors.New("cast failed when opening the details page")
-	}
 
 	changes, err := pr.GitUtil.GetDiffPatch(
 		pr.PullRequest.Destination.Hash,

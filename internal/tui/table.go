@@ -11,6 +11,10 @@ import (
 	"github.com/rivo/tview"
 )
 
+func escapeString(s string) string {
+	return strings.ReplaceAll(s, "]", "[]")
+}
+
 type tableRepoData struct {
 	Repository *client.Repository
 	Client     client.Client
@@ -77,6 +81,17 @@ func newPullRequestTable() *pullRequestTable {
 func (prt *pullRequestTable) Init(data []*tableRepoData) {
 	prt.tableData = data
 	table.loadPRs(app)
+}
+
+func (prt *pullRequestTable) GetPullRequestList() []*PullRequest {
+	list := []*PullRequest{}
+	for _, data := range state.RepositoryData {
+		for _, pr := range data.PullRequests {
+			list = append(list, pr)
+		}
+	}
+
+	return list
 }
 
 func (prt *pullRequestTable) GetPullRequest(
@@ -419,8 +434,7 @@ func (prt *pullRequestTable) addRow(
 	destination := cropString(v.Destination.Name, maxLen)
 	title := cropString(v.Title, maxLen)
 
-	// Escape the title string
-	title = strings.ReplaceAll(title, "]", "[]")
+	title = escapeString(title)
 
 	values := []string{
 		v.ID,
