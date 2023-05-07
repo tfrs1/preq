@@ -454,6 +454,9 @@ func (prt *pullRequestTable) addRow(
 
 func (prt *pullRequestTable) setRowSelectable(rowId int, selectable bool) {
 	return
+	// TODO: There is a bug in tview.Table that it skips to the begining
+	// when moving up and reaching a non selectable row
+
 	// for i := 0; i < prt.View.GetColumnCount(); i++ {
 	// 	prt.View.GetCell(rowId, i).SetSelectable(selectable)
 	// }

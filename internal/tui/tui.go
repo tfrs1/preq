@@ -246,6 +246,7 @@ func Run(
 						),
 					)
 				pages.ShowPage(PAGE_DECLINE_CONFIRMATION_MODAL)
+				return nil
 			}
 			return event
 		case tcell.KeyCtrlA:
@@ -258,6 +259,7 @@ func Run(
 						),
 					)
 				pages.ShowPage(PAGE_APPROVE_CONFIRMATION_MODAL)
+				return nil
 			}
 			return event
 		case tcell.KeyCtrlU:
@@ -270,18 +272,7 @@ func Run(
 						),
 					)
 				pages.ShowPage(PAGE_UNAPPROVE_CONFIRMATION_MODAL)
-			}
-			return event
-		case tcell.KeyCtrlM:
-			if count := len(table.GetSelectedRows()); count > 0 {
-				mergeConfirmationModal.
-					SetText(
-						fmt.Sprintf(
-							"Are you sure you want to merge %v pull requests?",
-							count,
-						),
-					)
-				pages.ShowPage(PAGE_MERGE_CONFIRMATION_MODAL)
+				return nil
 			}
 			return event
 		case tcell.KeyCtrlO:
@@ -292,9 +283,30 @@ func Run(
 			} else {
 				eventBus.Publish("BrowserUrlOpen", r.PullRequest.URL)
 			}
+			return nil
+		case tcell.KeyEnter:
+			row, _ := table.View.GetSelection()
+			pr, err := table.GetPullRequest(row)
+			if err == nil && pr != nil {
+				eventBus.Publish("detailsPage:open", pr)
+			}
+			return nil
 		}
 
 		switch event.Rune() {
+		case 'm':
+			if count := len(table.GetSelectedRows()); count > 0 {
+				mergeConfirmationModal.
+					SetText(
+						fmt.Sprintf(
+							"Are you sure you want to merge %v pull requests?",
+							count,
+						),
+					)
+				pages.ShowPage(PAGE_MERGE_CONFIRMATION_MODAL)
+				return nil
+			}
+			return event
 		case 'o':
 			row, _ := table.View.GetSelection()
 			pr, err := table.GetPullRequest(row)

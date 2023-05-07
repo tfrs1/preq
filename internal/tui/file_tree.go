@@ -165,7 +165,7 @@ func FilesToTree(items []*FileTreeItem) *FileTreeNode {
 		return items[i].Filename < items[j].Filename
 	})
 
-	root := &FileTreeNode{Filename: "root", Collapsed: false}
+	root := &FileTreeNode{Filename: "Project root", Collapsed: false}
 
 	for _, item := range items {
 		currentNode := root
@@ -213,7 +213,9 @@ func FilesToTree(items []*FileTreeItem) *FileTreeNode {
 		}
 	}
 
-	traverse(root)
+	for _, child := range root.Children {
+		traverse(child)
+	}
 
 	return root
 }
