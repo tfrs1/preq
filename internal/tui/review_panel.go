@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"preq/internal/pkg/client"
+	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -376,7 +377,11 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 			})
 
 			if comments != nil {
-				id := lineCommentListMapId(int(origIdx), int(newIdx))
+				b := 0
+				n := 0
+				b, _ = strconv.Atoi(oldLineNumber)
+				n, _ = strconv.Atoi(newLineNumber)
+				id := lineCommentListMapId(b, n)
 				if c, ok := comments[id]; ok {
 					// FIXME: Sort comments chronologically
 					for _, prc := range c {
