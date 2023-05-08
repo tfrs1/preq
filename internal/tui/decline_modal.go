@@ -7,12 +7,10 @@ import (
 	"github.com/rivo/tview"
 )
 
-var (
-	declineConfirmationModal = tview.NewModal().
-		SetText("Are you sure you want to decline %d pull requests?").
-		AddButtons([]string{"Decline", "Cancel"}).
-		SetDoneFunc(declineConfirmationCallback)
-)
+var declineConfirmationModal = tview.NewModal().
+	SetText("Are you sure you want to decline %d pull requests?").
+	AddButtons([]string{"Decline", "Cancel"}).
+	SetDoneFunc(declineConfirmationCallback)
 
 func declineConfirmationCallback(buttonIndex int, buttonLabel string) {
 	if buttonIndex == 0 {

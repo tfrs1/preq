@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"math"
 	"strings"
 
@@ -51,9 +52,13 @@ func (sp *ScrollablePage) InputHandler() func(event *tcell.EventKey, setFocus fu
 			case 'k':
 				sp.ScrollUp()
 			}
-		case tcell.KeyCtrlD:
+		case tcell.KeyUp:
+			sp.ScrollUp()
+		case tcell.KeyDown:
+			sp.ScrollDown()
+		case tcell.KeyCtrlD, tcell.KeyPgDn:
 			sp.ScrollHalfPageDown()
-		case tcell.KeyCtrlU:
+		case tcell.KeyCtrlU, tcell.KeyPgUp:
 			sp.ScrollHalfPageUp()
 		}
 	})
@@ -68,7 +73,7 @@ func (sp *ScrollablePage) Clear() *ScrollablePage {
 }
 
 func (sp *ScrollablePage) GetSelectedReference() interface{} {
-	if sp.selectedIndex > len(sp.content) {
+	if sp.selectedIndex < 0 || sp.selectedIndex >= len(sp.content) {
 		return nil
 	}
 
@@ -160,7 +165,7 @@ func (sp *ScrollablePage) Draw(screen tcell.Screen) {
 
 		highlightPrefix := ""
 		if i == sp.selectedIndex {
-			highlightPrefix = "[:gray]"
+			highlightPrefix = fmt.Sprintf("[:%s]", "gray")
 		}
 
 		tview.Print(
@@ -170,7 +175,7 @@ func (sp *ScrollablePage) Draw(screen tcell.Screen) {
 			y+offset,
 			sp.width,
 			tview.AlignRight,
-			tcell.ColorWhite,
+			tview.Styles.PrimaryTextColor,
 		)
 
 		for _, s := range cl.Statements {
@@ -181,7 +186,7 @@ func (sp *ScrollablePage) Draw(screen tcell.Screen) {
 				y+offset,
 				sp.width,
 				s.Alignment,
-				tcell.ColorWhite,
+				tview.Styles.PrimaryTextColor,
 			)
 		}
 

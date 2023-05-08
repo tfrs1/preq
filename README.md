@@ -78,10 +78,17 @@ To use Bitbucket cloud you must create an app password from the personal setting
 
 ## Roadmap
 
-- [ ] Add other provider
+- [ ] Review pane improvements
+  - [ ] Review progress
+  - [ ] Mark the review state of individual files
+  - [ ] Show changes since last review visit
+- [ ] Add other providers
   - [ ] GitHub
   - [ ] GitLab
 - [ ] Nerd font icons
+- [ ] Intl support
+- [ ] Keymap configuration
+- [ ] Color configuration
 - etc.
 
 ## Contributing

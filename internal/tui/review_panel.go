@@ -420,7 +420,7 @@ func (ct *ReviewPanel) Draw(screen tcell.Screen) {
 			y,
 			ct.width,
 			tview.AlignLeft,
-			tcell.ColorWhite,
+			tview.Styles.PrimaryTextColor,
 		)
 		return
 	}

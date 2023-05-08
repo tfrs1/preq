@@ -19,12 +19,10 @@ import (
 
 var (
 	app       = tview.NewApplication()
-	flex      = tview.NewFlex()
-	details   = newDetailsPage()
-	table     = newPullRequestTable()
 	eventBus  = NewEventBus()
 	prRepo    *client.Repository
 	tableData []*tableRepoData
+	table     *pullRequestTable
 )
 
 const (
@@ -75,6 +73,27 @@ func Run(
 ) {
 	// app.SetScreen(tcell.NewSimulationScreen("sim"))
 
+	// tview.Styles.TitleColor = tcell.ColorDarkOrange
+	// tview.Styles.BorderColor = tcell.ColorBlack
+
+	tview.Borders.VerticalFocus = '┃'
+	tview.Borders.HorizontalFocus = '━'
+	tview.Borders.TopLeftFocus = '┏'
+	tview.Borders.TopRightFocus = '┓'
+	tview.Borders.BottomLeftFocus = '┗'
+	tview.Borders.BottomRightFocus = '┛'
+
+	var (
+		flex    = tview.NewFlex()
+		details = newDetailsPage()
+	)
+	table = NewPullRequestTable()
+
+	// tview.Borders.TopLeft = '╭'
+	// tview.Borders.TopRight = '╮'
+	// tview.Borders.BottomLeft = '╰'
+	// tview.Borders.BottomRight = '╯'
+
 	pages := tview.NewPages()
 
 	addCommentModal := NewAddCommentModal()
@@ -106,7 +125,7 @@ func Run(
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			if buttonIndex == 0 {
 				pages.HidePage("ErrorModal")
-				app.SetFocus(table.View)
+				app.SetFocus(table)
 			}
 		})
 
@@ -121,7 +140,7 @@ func Run(
 
 	eventBus.Subscribe("detailsPage:close", func(_ interface{}) {
 		pages.HidePage("details_page")
-		app.SetFocus(table.View)
+		app.SetFocus(table)
 	})
 
 	eventBus.Subscribe("detailsPage:open", func(input interface{}) {
@@ -155,22 +174,22 @@ func Run(
 
 	eventBus.Subscribe("mergeModal:closed", func(_ interface{}) {
 		pages.SwitchToPage("main")
-		app.SetFocus(table.View)
+		app.SetFocus(table)
 	})
 
 	eventBus.Subscribe("approveModal:closed", func(_ interface{}) {
 		pages.SwitchToPage("main")
-		app.SetFocus(table.View)
+		app.SetFocus(table)
 	})
 
 	eventBus.Subscribe("unapproveModal:closed", func(_ interface{}) {
 		pages.SwitchToPage("main")
-		app.SetFocus(table.View)
+		app.SetFocus(table)
 	})
 
 	eventBus.Subscribe("declineModal:closed", func(_ interface{}) {
 		pages.SwitchToPage("main")
-		app.SetFocus(table.View)
+		app.SetFocus(table)
 	})
 
 	eventBus.Subscribe("HelpPage:Open", func(_ interface{}) {
@@ -180,7 +199,7 @@ func Run(
 	eventBus.Subscribe("HelpPage:Closed", func(_ interface{}) {
 		pages.HidePage("HelpPage")
 		pages.SwitchToPage("main")
-		app.SetFocus(table.View)
+		app.SetFocus(table)
 	})
 
 	eventBus.Subscribe("BrowserUrlOpen", func(data interface{}) {
@@ -205,7 +224,7 @@ func Run(
 
 	grid := tview.NewGrid().
 		SetRows(0, 1).
-		AddItem(table.View, 0, 0, 1, 1, 0, 0, false).
+		AddItem(table, 0, 0, 1, 1, 0, 0, false).
 		AddItem(tview.NewTextView().SetScrollable(true).SetText("Help: / filter ctrl+u unapprove j/k up/down"), 1, 0, 1, 1, 0, 0, false)
 
 	grid.
@@ -234,7 +253,7 @@ func Run(
 		return event
 	})
 
-	table.View.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlD:
 			if count := len(table.GetSelectedRows()); count > 0 {
@@ -276,8 +295,7 @@ func Run(
 			}
 			return event
 		case tcell.KeyCtrlO:
-			rowId, _ := table.View.GetSelection()
-			r, err := table.GetPullRequest(rowId)
+			r, err := table.GetSelectedPullRequest()
 			if err != nil {
 				// TODO: Log error?
 			} else {
@@ -285,8 +303,7 @@ func Run(
 			}
 			return nil
 		case tcell.KeyEnter:
-			row, _ := table.View.GetSelection()
-			pr, err := table.GetPullRequest(row)
+			pr, err := table.GetSelectedPullRequest()
 			if err == nil && pr != nil {
 				eventBus.Publish("detailsPage:open", pr)
 			}
@@ -308,8 +325,7 @@ func Run(
 			}
 			return event
 		case 'o':
-			row, _ := table.View.GetSelection()
-			pr, err := table.GetPullRequest(row)
+			pr, err := table.GetSelectedPullRequest()
 			if err == nil && pr != nil {
 				eventBus.Publish("detailsPage:open", pr)
 			}
@@ -426,7 +442,7 @@ func Run(
 
 	eventBus.Subscribe("FilterModal:CloseRequested", func(_ interface{}) {
 		pages.HidePage("FilterModal")
-		app.SetFocus(table.View)
+		app.SetFocus(table)
 		eventBus.Publish("FilterModal:Closed", nil)
 	})
 
@@ -455,7 +471,7 @@ func Run(
 	}()
 
 	app.SetRoot(pages, true) //.EnableMouse(true)
-	app.SetFocus(table.View)
+	app.SetFocus(table)
 
 	if err := app.Run(); err != nil {
 		panic(err)

@@ -116,6 +116,7 @@ func newDetailsPage() *detailsPage {
 	grid.AddItem(fileTree, 0, 0, 3, 1, 0, 0, true)
 	grid.AddItem(reviewPanel, 0, 1, 3, 1, 0, 0, true)
 	grid.
+		SetTitle("Review").
 		SetBorder(true).
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Key() {

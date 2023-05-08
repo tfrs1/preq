@@ -32,7 +32,7 @@ type pullRequestTableRow struct {
 }
 
 type pullRequestTable struct {
-	View          *tview.Table
+	*tview.Table
 	totalRowCount int
 	tableData     []*tableRepoData
 }
@@ -43,15 +43,10 @@ var headers = []string{
 	TableHeaderId, TableHeaderTitle, "🛫", "🛬", "📖", "✅", "✋", "💬",
 }
 
-func newPullRequestTable() *pullRequestTable {
+func NewPullRequestTable() *pullRequestTable {
 	table := tview.NewTable()
-	table.SetBackgroundColor(tcell.ColorSlateGray)
-	// // Set box options
-	// table.
-	// 	SetTitle("preq").
-	// 	SetBorder(true)
 	prt := &pullRequestTable{
-		View:          table,
+		Table:         table,
 		totalRowCount: 0,
 		tableData:     make([]*tableRepoData, 0),
 	}
@@ -80,7 +75,7 @@ func newPullRequestTable() *pullRequestTable {
 
 func (prt *pullRequestTable) Init(data []*tableRepoData) {
 	prt.tableData = data
-	table.loadPRs(app)
+	prt.loadPRs(app)
 }
 
 func (prt *pullRequestTable) GetPullRequestList() []*PullRequest {
@@ -92,6 +87,11 @@ func (prt *pullRequestTable) GetPullRequestList() []*PullRequest {
 	}
 
 	return list
+}
+
+func (prt *pullRequestTable) GetSelectedPullRequest() (*PullRequest, error) {
+	row, _ := prt.GetSelection()
+	return prt.GetPullRequest(row)
 }
 
 func (prt *pullRequestTable) GetPullRequest(
@@ -117,6 +117,7 @@ func (prt *pullRequestTable) GetSelectedCount() int {
 			}
 		}
 	}
+
 	return count
 }
 
@@ -132,8 +133,8 @@ func (prt *pullRequestTable) GetSelectedRows() []*PullRequest {
 	}
 
 	if len(rows) == 0 {
-		row, _ := table.View.GetSelection()
-		r, err := table.GetPullRequest(row)
+		row, _ := prt.GetSelection()
+		r, err := prt.GetPullRequest(row)
 		if err == nil {
 			rows = append(rows, r)
 		}
@@ -155,8 +156,7 @@ func (prt *pullRequestTable) GetRowByGlobalID(id string) *PullRequest {
 }
 
 func (prt *pullRequestTable) redraw() {
-	prt.View.Clear()
-
+	prt.Clear()
 	prt.drawTable()
 }
 
@@ -201,7 +201,7 @@ func (prt *pullRequestTable) loadPR(app *tview.Application, data *tableRepoData)
 		})
 		if err != nil {
 			app.QueueUpdateDraw(func() {
-				prt.View.SetCell(0, 0,
+				prt.SetCell(0, 0,
 					tview.
 						NewTableCell(err.Error()).
 						SetAlign(tview.AlignLeft),
@@ -312,16 +312,16 @@ func (prt *pullRequestTable) drawTable() {
 			continue
 		}
 
-		addEmptyRow(prt.View, offset)
-		setRowStyle(prt.View, offset, headerStyle)
+		addEmptyRow(prt.Table, offset)
+		setRowStyle(prt.Table, offset, headerStyle)
 		// prt.setRowSelectable(offset, false)
-		prt.View.GetCell(offset, 0).SetText("REPO")
-		prt.View.GetCell(offset, 1).SetText(data.Name)
+		prt.GetCell(offset, 0).SetText("REPO")
+		prt.GetCell(offset, 1).SetText(data.Name)
 
 		offset += 1
 
 		for i := 0; i < len(headers); i++ {
-			prt.View.SetCell(
+			prt.SetCell(
 				offset,
 				i,
 				tview.NewTableCell(headers[i]).
@@ -333,8 +333,8 @@ func (prt *pullRequestTable) drawTable() {
 		offset += 1
 
 		if data.IsLoading {
-			addEmptyRow(prt.View, offset)
-			prt.View.SetCell(offset, 0, tview.NewTableCell("Loading..."))
+			addEmptyRow(prt.Table, offset)
+			prt.SetCell(offset, 0, tview.NewTableCell("Loading..."))
 			prt.setRowSelectable(offset, false)
 			offset += 1
 			continue
@@ -369,7 +369,7 @@ func (prt *pullRequestTable) drawTable() {
 				} else if pr.Selected {
 					prt.colorRow(offset, tcell.ColorPowderBlue)
 				} else {
-					prt.colorRow(offset, NormalColor)
+					prt.colorRow(offset, tview.Styles.PrimaryTextColor)
 				}
 
 				approvalsText := ""
@@ -378,7 +378,7 @@ func (prt *pullRequestTable) drawTable() {
 				} else if len(pr.PullRequest.Approvals) > 0 {
 					approvalsText = fmt.Sprintf("[%s::]%d[-::]", "green", len(pr.PullRequest.Approvals))
 				}
-				prt.View.GetCell(offset, 5).SetText(approvalsText)
+				prt.GetCell(offset, 5).SetText(approvalsText)
 
 				changesRequestText := ""
 				if pr.IsChangesRequestsLoading {
@@ -386,7 +386,7 @@ func (prt *pullRequestTable) drawTable() {
 				} else if len(pr.PullRequest.ChangesRequests) > 0 {
 					changesRequestText = fmt.Sprintf("[%s::]%d[-::]", "orange", len(pr.PullRequest.ChangesRequests))
 				}
-				prt.View.GetCell(offset, 6).SetText(changesRequestText)
+				prt.GetCell(offset, 6).SetText(changesRequestText)
 
 				commentsText := ""
 				if pr.IsCommentsLoading {
@@ -394,13 +394,13 @@ func (prt *pullRequestTable) drawTable() {
 				} else if pr.PullRequest.CommentCount > 0 {
 					commentsText = fmt.Sprint(pr.PullRequest.CommentCount)
 				}
-				prt.View.GetCell(offset, 7).SetText(commentsText)
+				prt.GetCell(offset, 7).SetText(commentsText)
 
 				offset++
 			}
 		}
 
-		addEmptyRow(prt.View, offset)
+		addEmptyRow(prt.Table, offset)
 		prt.setRowSelectable(offset, false)
 		offset++
 	}
@@ -412,7 +412,7 @@ func (prt *pullRequestTable) updateRowStatus(
 	color tcell.Color,
 	selectable bool,
 ) {
-	prt.View.GetCell(rowId, 4).SetText(text)
+	prt.GetCell(rowId, 4).SetText(text)
 	prt.setRowSelectable(rowId, selectable)
 	prt.colorRow(rowId, color)
 }
@@ -448,7 +448,7 @@ func (prt *pullRequestTable) addRow(
 	}
 
 	for i := 0; i < len(values); i++ {
-		prt.View.SetCell(rowId, i, tview.NewTableCell(values[i]))
+		prt.SetCell(rowId, i, tview.NewTableCell(values[i]))
 	}
 }
 
@@ -463,13 +463,13 @@ func (prt *pullRequestTable) setRowSelectable(rowId int, selectable bool) {
 }
 
 func (prt *pullRequestTable) colorRow(rowId int, color tcell.Color) {
-	for i := 0; i < prt.View.GetColumnCount(); i++ {
-		prt.View.GetCell(rowId, i).SetTextColor(color)
+	for i := 0; i < prt.GetColumnCount(); i++ {
+		prt.GetCell(rowId, i).SetTextColor(color)
 	}
 }
 
 func (prt *pullRequestTable) SelectCurrentRow() {
-	row, _ := prt.View.GetSelection()
+	row, _ := prt.GetSelection()
 
 	pr, err := prt.GetPullRequest(row)
 	if err != nil {
