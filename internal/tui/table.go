@@ -40,7 +40,9 @@ type pullRequestTable struct {
 // TODO: Use a string instead, then it can be configurable
 var headers = []string{
 	// TableHeaderId, TableHeaderTitle, "SOURCE", "DESTINATION", "STATUS", "APPROVED", "CHANGES REQUESTED", "COMMENTS",
-	TableHeaderId, TableHeaderTitle, "🛫", "🛬", "📖", "✅", "✋", "💬",
+	// TableHeaderId, TableHeaderTitle, "🛫", "🛬", "📖", "✅", "✋", "💬",
+	// TableHeaderId, "📖", "✅", "✋", "💬", TableHeaderTitle, "🛫", "🛬",
+	TableHeaderId, "📖", "✅", "✋", "💬", TableHeaderTitle, "AUTHOR", "SOURCE", "DESTINATION",
 }
 
 func NewPullRequestTable() *pullRequestTable {
@@ -316,7 +318,7 @@ func (prt *pullRequestTable) drawTable() {
 		setRowStyle(prt.Table, offset, headerStyle)
 		// prt.setRowSelectable(offset, false)
 		prt.GetCell(offset, 0).SetText("REPO")
-		prt.GetCell(offset, 1).SetText(data.Name)
+		prt.GetCell(offset, 5).SetText(data.Name)
 
 		offset += 1
 
@@ -378,7 +380,7 @@ func (prt *pullRequestTable) drawTable() {
 				} else if len(pr.PullRequest.Approvals) > 0 {
 					approvalsText = fmt.Sprintf("[%s::]%d[-::]", "green", len(pr.PullRequest.Approvals))
 				}
-				prt.GetCell(offset, 5).SetText(approvalsText)
+				prt.GetCell(offset, 2).SetText(approvalsText)
 
 				changesRequestText := ""
 				if pr.IsChangesRequestsLoading {
@@ -386,7 +388,7 @@ func (prt *pullRequestTable) drawTable() {
 				} else if len(pr.PullRequest.ChangesRequests) > 0 {
 					changesRequestText = fmt.Sprintf("[%s::]%d[-::]", "orange", len(pr.PullRequest.ChangesRequests))
 				}
-				prt.GetCell(offset, 6).SetText(changesRequestText)
+				prt.GetCell(offset, 3).SetText(changesRequestText)
 
 				commentsText := ""
 				if pr.IsCommentsLoading {
@@ -394,7 +396,7 @@ func (prt *pullRequestTable) drawTable() {
 				} else if pr.PullRequest.CommentCount > 0 {
 					commentsText = fmt.Sprint(pr.PullRequest.CommentCount)
 				}
-				prt.GetCell(offset, 7).SetText(commentsText)
+				prt.GetCell(offset, 4).SetText(commentsText)
 
 				offset++
 			}
@@ -429,22 +431,23 @@ func (prt *pullRequestTable) addRow(
 	v *client.PullRequest,
 	rowId int,
 ) {
-	maxLen := 40
-	source := cropString(v.Source.Name, maxLen)
-	destination := cropString(v.Destination.Name, maxLen)
+	maxLen := 70
+	source := cropString(v.Source.Name, 40)
+	destination := cropString(v.Destination.Name, 40)
 	title := cropString(v.Title, maxLen)
 
 	title = escapeString(title)
 
 	values := []string{
 		v.ID,
-		title,
-		source,
-		destination,
 		"Open",
 		"⏳",
 		"⏳",
 		"⏳",
+		title,
+		v.User,
+		source,
+		destination,
 	}
 
 	for i := 0; i < len(values); i++ {

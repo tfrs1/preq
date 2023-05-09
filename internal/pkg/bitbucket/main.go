@@ -298,6 +298,7 @@ func (c *BitbucketCloudClient) GetPullRequests(
 			ID:           value.Get("id").String(),
 			CommentCount: int(value.Get("comment_count").Float()),
 			Title:        value.Get("title").String(),
+			User:         value.Get("author.nickname").String(),
 			URL:          value.Get("links.html.href").String(),
 			State:        client.PullRequestState(value.Get("state").String()),
 			Source: client.PullRequestBranch{

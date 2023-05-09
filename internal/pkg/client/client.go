@@ -220,6 +220,7 @@ type PullRequest struct {
 	ID              string
 	CommentCount    int
 	Title           string
+	User            string
 	URL             string
 	State           PullRequestState
 	Source          PullRequestBranch
