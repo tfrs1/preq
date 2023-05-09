@@ -192,16 +192,6 @@ func Run(
 		app.SetFocus(table)
 	})
 
-	eventBus.Subscribe("HelpPage:Open", func(_ interface{}) {
-		pages.ShowPage("HelpPage")
-	})
-
-	eventBus.Subscribe("HelpPage:Closed", func(_ interface{}) {
-		pages.HidePage("HelpPage")
-		pages.SwitchToPage("main")
-		app.SetFocus(table)
-	})
-
 	eventBus.Subscribe("BrowserUrlOpen", func(data interface{}) {
 		url := data.(string)
 		var err error
@@ -232,26 +222,6 @@ func Run(
 		SetBorder(false)
 
 	flex.AddItem(grid, 0, 1, false)
-
-	helpPage := tview.NewBox().
-		SetTitle("Help")
-
-	helpPage.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEsc:
-			eventBus.Publish("HelpPage:Closed", nil)
-			return nil
-		}
-
-		switch event.Rune() {
-		case 'h':
-		case 'q':
-			eventBus.Publish("HelpPage:Closed", nil)
-			return nil
-		}
-
-		return event
-	})
 
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -330,9 +300,6 @@ func Run(
 				eventBus.Publish("detailsPage:open", pr)
 			}
 			return nil
-		case 'h':
-			eventBus.Publish("HelpPage:Open", nil)
-			return nil
 		case 'q':
 			app.Stop()
 			return nil
@@ -386,7 +353,7 @@ func Run(
 		false,
 		false,
 	)
-	pages.AddPage("HelpPage", helpPage, true, false)
+
 	pages.AddPage("FatalErrorModal", fatalErrorModal, false, false)
 	pages.AddPage("ErrorModal", errorModal, false, false)
 
