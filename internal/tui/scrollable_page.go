@@ -26,14 +26,46 @@ type ScrollablePage struct {
 	height                   int
 	pageOffset               int
 	selectedIndex            int
+	focused                  bool
 	content                  []*ScrollablePageLine
 	selectionChangedCallback func(index int)
 }
 
 func NewScrollablePage() *ScrollablePage {
 	sp := &ScrollablePage{
-		Box: tview.NewBox(),
+		Box:     tview.NewBox(),
+		focused: false,
 	}
+
+	sp.Box.
+		SetFocusFunc(sp.onFocusCallback).
+		SetBlurFunc(sp.onBlurCallback)
+
+	return sp
+}
+
+func (sp *ScrollablePage) onFocusCallback() {
+	sp.focused = true
+}
+
+func (sp *ScrollablePage) onBlurCallback() {
+	sp.focused = false
+}
+
+func (sp *ScrollablePage) SetFocusFunc(callback func()) *ScrollablePage {
+	sp.Box.SetFocusFunc(func() {
+		sp.onFocusCallback()
+		callback()
+	})
+
+	return sp
+}
+
+func (sp *ScrollablePage) SetBlurFunc(callback func()) *ScrollablePage {
+	sp.Box.SetBlurFunc(func() {
+		sp.onBlurCallback()
+		callback()
+	})
 
 	return sp
 }
@@ -164,7 +196,7 @@ func (sp *ScrollablePage) Draw(screen tcell.Screen) {
 		cl := sp.content[i]
 
 		highlightPrefix := ""
-		if i == sp.selectedIndex {
+		if i == sp.selectedIndex && sp.focused {
 			highlightPrefix = fmt.Sprintf("[:%s]", "gray")
 		}
 
