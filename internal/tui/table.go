@@ -35,14 +35,7 @@ type pullRequestTable struct {
 	*tview.Table
 	totalRowCount int
 	tableData     []*tableRepoData
-}
-
-// TODO: Use a string instead, then it can be configurable
-var headers = []string{
-	// TableHeaderId, TableHeaderTitle, "SOURCE", "DESTINATION", "STATUS", "APPROVED", "CHANGES REQUESTED", "COMMENTS",
-	// TableHeaderId, TableHeaderTitle, "🛫", "🛬", "📖", "✅", "✋", "💬",
-	// TableHeaderId, "📖", "✅", "✋", "💬", TableHeaderTitle, "🛫", "🛬",
-	TableHeaderId, "📖", "✅", "✋", "💬", TableHeaderTitle, "AUTHOR", "SOURCE", "DESTINATION",
+	headers       []string
 }
 
 func NewPullRequestTable() *pullRequestTable {
@@ -51,6 +44,18 @@ func NewPullRequestTable() *pullRequestTable {
 		Table:         table,
 		totalRowCount: 0,
 		tableData:     make([]*tableRepoData, 0),
+
+		headers: []string{
+			IconsMap["ID"],
+			IconsMap["Status"],
+			fmt.Sprintf("[green::]%s[-:-:-]", IconsMap["Approval"]),
+			fmt.Sprintf("[orange::]%s[-:-:-]", IconsMap["ChangesRequested"]),
+			IconsMap["Comment"],
+			IconsMap["Title"],
+			IconsMap["User"],
+			IconsMap["Branch"],
+			IconsMap["Merge"],
+		},
 	}
 
 	// Set table options
@@ -265,9 +270,9 @@ func (prt *pullRequestTable) loadPR(app *tview.Application, data *tableRepoData)
 	}
 }
 
-func addEmptyRow(table *tview.Table, offset int) {
-	for i := 0; i < len(headers); i++ {
-		table.SetCell(
+func addEmptyRow(prt *pullRequestTable, offset int) {
+	for i := 0; i < len(prt.headers); i++ {
+		prt.SetCell(
 			offset,
 			i,
 			tview.NewTableCell(""),
@@ -275,8 +280,8 @@ func addEmptyRow(table *tview.Table, offset int) {
 	}
 }
 
-func setRowStyle(table *tview.Table, offset int, style tcell.Style) {
-	for i := 0; i < len(headers); i++ {
+func setRowStyle(table *pullRequestTable, offset int, style tcell.Style) {
+	for i := 0; i < len(table.headers); i++ {
 		table.GetCell(
 			offset,
 			i,
@@ -314,19 +319,19 @@ func (prt *pullRequestTable) drawTable() {
 			continue
 		}
 
-		addEmptyRow(prt.Table, offset)
-		setRowStyle(prt.Table, offset, headerStyle)
+		addEmptyRow(prt, offset)
+		setRowStyle(prt, offset, headerStyle)
 		// prt.setRowSelectable(offset, false)
 		prt.GetCell(offset, 0).SetText("REPO")
 		prt.GetCell(offset, 5).SetText(data.Name)
 
 		offset += 1
 
-		for i := 0; i < len(headers); i++ {
+		for i := 0; i < len(prt.headers); i++ {
 			prt.SetCell(
 				offset,
 				i,
-				tview.NewTableCell(headers[i]).
+				tview.NewTableCell(prt.headers[i]).
 					// SetSelectable(false).
 					SetStyle(headerStyle),
 			)
@@ -335,7 +340,7 @@ func (prt *pullRequestTable) drawTable() {
 		offset += 1
 
 		if data.IsLoading {
-			addEmptyRow(prt.Table, offset)
+			addEmptyRow(prt, offset)
 			prt.SetCell(offset, 0, tview.NewTableCell("Loading..."))
 			prt.setRowSelectable(offset, false)
 			offset += 1
@@ -402,7 +407,7 @@ func (prt *pullRequestTable) drawTable() {
 			}
 		}
 
-		addEmptyRow(prt.Table, offset)
+		addEmptyRow(prt, offset)
 		prt.setRowSelectable(offset, false)
 		offset++
 	}

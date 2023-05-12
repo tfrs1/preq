@@ -15,6 +15,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -25,6 +26,8 @@ var (
 	table     *pullRequestTable
 )
 
+var IconsMap map[string]string
+
 const (
 	PAGE_APPROVE_CONFIRMATION_MODAL   = "page_approve_confirmation_modal"
 	PAGE_UNAPPROVE_CONFIRMATION_MODAL = "aage_unapprove_confirmation_modal"
@@ -32,18 +35,27 @@ const (
 	PAGE_DECLINE_CONFIRMATION_MODAL   = "confirmation_modal"
 )
 
-func loadConfig(
-	repoInfo *persistance.PersistanceRepoInfo,
-) (client.Client, *client.Repository, error) {
+func loadDefaultConfig() (*viper.Viper, error) {
 	config, err := configutils.DefaultConfig()
 	if err != nil {
 		log.Error().Err(err).Msgf("error while loading default confg")
-		return nil, nil, err
+		return nil, err
 	}
+
+	IconsMap = initIconsMap(config)
+
+	return config, nil
+}
+
+func loadConfig(
+	repoInfo *persistance.PersistanceRepoInfo,
+) (client.Client, *client.Repository, error) {
+	config, err := loadDefaultConfig()
 
 	err = configutils.MergeLocalConfig(config, repoInfo.Path)
 	if err != nil {
-		// TODO: Do something
+		log.Error().Err(err).Msgf("error while merging default confg")
+		return nil, nil, err
 	}
 
 	c, err := clientutils.ClientFactory{}.NewClient(
@@ -64,6 +76,8 @@ func loadConfig(
 		return nil, nil, err
 	}
 
+	IconsMap = initIconsMap(config)
+
 	return c, r, nil
 }
 
@@ -71,6 +85,7 @@ func Run(
 	params *paramutils.RepositoryParams,
 	repos []*persistance.PersistanceRepoInfo,
 ) {
+	loadDefaultConfig()
 	// app.SetScreen(tcell.NewSimulationScreen("sim"))
 
 	// tview.Styles.TitleColor = tcell.ColorDarkOrange
