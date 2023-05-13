@@ -30,6 +30,10 @@ func initIconsMap(config *viper.Viper) map[string]string {
 		"Approval":         "✅",
 		"Branch":           "🛫",
 		"Merge":            "🛬",
+		"GitAdded":         "A",
+		"GitRenamed":       "R",
+		"GitRemoved":       "D",
+		"GitModified":      "M",
 	}
 
 	if config.GetBool("general.useNerdFontIcons") {
@@ -43,6 +47,10 @@ func initIconsMap(config *viper.Viper) map[string]string {
 			"Approval":         "󰱒",
 			"Branch":           "",
 			"Merge":            "",
+			"GitAdded":         "",
+			"GitRenamed":       "",
+			"GitRemoved":       "",
+			"GitModified":      "",
 		}
 
 		for k := range nerdIconsMaps {

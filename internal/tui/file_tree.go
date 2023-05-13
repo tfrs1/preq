@@ -176,7 +176,7 @@ func FilesToTree(items []*FileTreeItem) *FileTreeNode {
 
 			globalDecorations := []string{}
 			if item.hasComments {
-				globalDecorations = append(globalDecorations, "[green::b]💬")
+				globalDecorations = append(globalDecorations, fmt.Sprintf("[white::]%s[-:-:-]", IconsMap["Comment"]))
 			}
 
 			child := findNode(currentNode.Children, v)

@@ -105,7 +105,7 @@ func (ct *ReviewPanel) SetData(pr *PullRequest, changes []byte, commentsMap map[
 			ct.files[id] = &diffFile{
 				DiffId: id,
 				Title:  newName,
-				Type:   DiffFileTypeUpdated,
+				Type:   DiffFileTypeModified,
 				Hunks:  d.Hunks,
 			}
 		}

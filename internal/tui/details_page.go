@@ -42,7 +42,7 @@ const (
 	DiffFileTypeAdded DiffFileType = iota
 	DiffFileTypeRemoved
 	DiffFileTypeRenamed
-	DiffFileTypeUpdated
+	DiffFileTypeModified
 )
 
 type detailsPage struct {
@@ -363,13 +363,13 @@ func (dp *detailsPage) SetData(pr *PullRequest) error {
 
 			switch v.Type {
 			case DiffFileTypeAdded:
-				item.SetDecoration("[green::]A")
+				item.SetDecoration(fmt.Sprintf("[green::]%s", IconsMap["GitAdded"]))
 			case DiffFileTypeRenamed:
-				item.SetDecoration("[white::]R")
+				item.SetDecoration(fmt.Sprintf("[white::]%s", IconsMap["GitRenamed"]))
 			case DiffFileTypeRemoved:
-				item.SetDecoration("[red::]D")
-			case DiffFileTypeUpdated:
-				item.SetDecoration("[green::]U")
+				item.SetDecoration(fmt.Sprintf("[red::]%s", IconsMap["GitRemoved"]))
+			case DiffFileTypeModified:
+				item.SetDecoration(fmt.Sprintf("[orange::]%s", IconsMap["GitModified"]))
 			}
 
 			if dp.commentsMap[f] != nil {
