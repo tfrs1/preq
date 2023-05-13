@@ -227,7 +227,7 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 
 		words := []string{}
 		if comment.Deleted {
-			words = []string{"[gray::s]This comment has been deleted.[::]"}
+			words = []string{"[gray::s]This comment has been deleted.[-:-:-]"}
 		} else {
 			words = strings.Split(comment.Content, " ")
 		}

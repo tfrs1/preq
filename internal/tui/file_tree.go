@@ -261,12 +261,11 @@ func (node *FileTreeNode) rebuildStatements() []*ScrollablePageLine {
 		decoration := ""
 
 		if len(node.Children) > 0 {
-			// TODO: Add nerd font icons
-			// decoration = "[blue::][white::b]"
-			decoration = ""
+			decoration = fmt.Sprintf("[blue::]%s[-::]", IconsMap["OpenDirectory"])
 
 			if node.Collapsed == true {
 				icon = ""
+				decoration = fmt.Sprintf("[blue::]%s[-::]", IconsMap["ClosedDirectory"])
 			}
 		} else {
 			if node.Decoration != "" {
@@ -281,7 +280,7 @@ func (node *FileTreeNode) rebuildStatements() []*ScrollablePageLine {
 				Diff: node.reference,
 			},
 			Statements: []*ScrollablePageLineStatement{{
-				Content: fmt.Sprintf("%s%s %s[white::-]%s", indent, icon, decoration, escapedFilename),
+				Content: fmt.Sprintf("%s%s %s [white::-]%s", indent, icon, decoration, escapedFilename),
 			}},
 		})
 
