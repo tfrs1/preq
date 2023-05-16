@@ -96,6 +96,15 @@ func (sp *ScrollablePage) InputHandler() func(event *tcell.EventKey, setFocus fu
 	})
 }
 
+func (sp *ScrollablePage) addLine(line string, ref interface{}) {
+	sp.content = append(sp.content, &ScrollablePageLine{
+		Statements: []*ScrollablePageLineStatement{
+			{Content: line},
+		},
+		Reference: ref,
+	})
+}
+
 func (sp *ScrollablePage) Clear() *ScrollablePage {
 	sp.pageOffset = 0
 	sp.selectedIndex = 0
