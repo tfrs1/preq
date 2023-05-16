@@ -269,7 +269,7 @@ func (node *FileTreeNode) rebuildStatements() []*ScrollablePageLine {
 			}
 		} else {
 			if node.Decoration != "" {
-				decoration = strings.Trim(node.Decoration, " ") + " "
+				decoration = strings.Trim(node.Decoration, " ")
 			}
 		}
 
