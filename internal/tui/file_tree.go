@@ -90,10 +90,14 @@ func (sp *FileTree) GetSelectedNode() (*FileTreeNode, error) {
 	return node.Node, nil
 }
 
+func (ft *FileTree) Rerender() {
+	ft.content = ft.root.rebuildStatements()
+}
+
 func (ft *FileTree) Draw(screen tcell.Screen) {
 	ft.DrawForSubclass(screen, ft.ScrollablePage)
 
-	ft.content = ft.root.rebuildStatements()
+	ft.Rerender()
 
 	ft.ScrollablePage.Draw(screen)
 }
@@ -149,6 +153,7 @@ type FileTreeNode struct {
 	Decoration        string
 	GlobalDecorations []string
 	reference         interface{}
+	isRoot            bool
 }
 
 func FilesToTree(items []*FileTreeItem) *FileTreeNode {
@@ -165,7 +170,7 @@ func FilesToTree(items []*FileTreeItem) *FileTreeNode {
 		return items[i].Filename < items[j].Filename
 	})
 
-	root := &FileTreeNode{Filename: "Project root", Collapsed: false}
+	root := &FileTreeNode{Filename: "Project root", Collapsed: false, isRoot: true}
 
 	for _, item := range items {
 		currentNode := root
@@ -227,6 +232,10 @@ type FileTreeStatementReference struct {
 
 func (node *FileTreeNode) IsLeaf() bool {
 	return len(node.Children) == 0
+}
+
+func (node *FileTreeNode) IsRoot() bool {
+	return node.isRoot
 }
 
 func (node *FileTreeNode) dfs(level int, callback func(node *FileTreeNode)) {

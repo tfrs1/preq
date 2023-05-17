@@ -118,17 +118,9 @@ func (ct *ReviewPanel) rerenderContent() {
 	ct.prerenderContent(ct.currentDiffId)
 }
 
-func (ct *ReviewPanel) prerenderContent(diffId string) {
-	ct.Clear()
-	ct.currentDiffId = diffId
-	ct.currentDiff = ct.files[diffId]
-
-	if ct.currentDiff == nil {
-		return
-	}
-
-	content := make([]*ScrollablePageLine, 0)
+func (ct *ReviewPanel) handleComment(comment *client.PullRequestComment) (int, error) {
 	prevIndent := 0
+
 	printComment := func(comment *client.PullRequestComment, indent int) error {
 		commentBoxWidth := ct.width - indent
 
@@ -146,7 +138,7 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 		}
 
 		if indent > 0 {
-			line := content[len(content)-1]
+			line := ct.content[len(ct.content)-1]
 			line.Reference = nil
 			line.Statements = append(line.Statements,
 				&ScrollablePageLineStatement{
@@ -164,7 +156,7 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 			if commentBoxWidth > 3 {
 				padding = strings.Repeat(horizontalBorder, commentBoxWidth-3)
 			}
-			content = append(content, &ScrollablePageLine{
+			ct.content = append(ct.content, &ScrollablePageLine{
 				Reference: comment,
 				Statements: []*ScrollablePageLineStatement{
 					{
@@ -220,7 +212,7 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 			}
 		}
 
-		content = append(content, &ScrollablePageLine{
+		ct.content = append(ct.content, &ScrollablePageLine{
 			Reference:  comment,
 			Statements: statements,
 		})
@@ -248,7 +240,7 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 		}
 		commentLines = append(commentLines, strings.Join(line, " "))
 		for _, line := range commentLines {
-			content = append(content, &ScrollablePageLine{
+			ct.content = append(ct.content, &ScrollablePageLine{
 				Reference: comment,
 				Statements: []*ScrollablePageLineStatement{
 					{
@@ -267,7 +259,7 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 		if commentBoxWidth > 2 {
 			padding = strings.Repeat(horizontalBorder, commentBoxWidth-2)
 		}
-		content = append(content, &ScrollablePageLine{
+		ct.content = append(ct.content, &ScrollablePageLine{
 			Reference: comment,
 			Statements: []*ScrollablePageLineStatement{
 				{
@@ -301,10 +293,69 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 		return 0, nil
 	}
 
+	return handleComment(comment, 0)
+}
+
+func (ct *ReviewPanel) renderStatusPage() {
+	ct.Clear()
+
+	ct.addLine("[::b]Description[::-]", nil)
+	desc := ct.pullRequest.PullRequest.Description
+	if len(desc) > 0 {
+		for _, line := range strings.Split(desc, "\n") {
+			ct.addLine(line, nil)
+		}
+	} else {
+		ct.addLine("[gray::i]no description[-::-]", nil)
+	}
+
+	topLevelComments := []*client.PullRequestComment{}
+	for _, c := range ct.pullRequest.PullRequest.Comments {
+		if c.Type == client.CommentTypeGlobal {
+			topLevelComments = append(topLevelComments, c)
+		}
+	}
+	if len(topLevelComments) > 0 {
+		ct.addLine("", nil)
+		ct.addLine("[::b]Comments[::-]", nil)
+		for _, c := range topLevelComments {
+			ct.handleComment(c)
+		}
+	}
+
+	outdatedComments := []*client.PullRequestComment{}
+	// TODO: Add outdated member to comment struct
+	// for _, c := range ct.pullRequest.PullRequest.Comments {
+	// 	if c.Outdated {
+	// 		outdateComments = append(outdateComments, c)
+	// 	}
+	// }
+	// FIXME: Add outdated and file level comments together with diff (shortcut to show hide the comments)
+	// collapse/expand inline comments in diff?
+	if len(outdatedComments) > 0 {
+		ct.addLine("", nil)
+		ct.addLine("[::b]Outdated comments[::-]", nil)
+		for _, c := range outdatedComments {
+			ct.handleComment(c)
+		}
+	}
+}
+
+func (ct *ReviewPanel) prerenderContent(diffId string) {
+	ct.Clear()
+	ct.currentDiffId = diffId
+	ct.currentDiff = ct.files[diffId]
+
+	if ct.currentDiff == nil {
+		return
+	}
+
+	ct.content = make([]*ScrollablePageLine, 0)
+
 	d := ct.currentDiff
 	comments := ct.commentMap[ct.currentDiffId]
 
-	content = append(content, &ScrollablePageLine{
+	ct.content = append(ct.content, &ScrollablePageLine{
 		Statements: []*ScrollablePageLineStatement{{Content: d.Title}},
 	})
 
@@ -357,7 +408,7 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 				lineNumber = newIdx
 			}
 
-			content = append(content, &ScrollablePageLine{
+			ct.content = append(ct.content, &ScrollablePageLine{
 				Reference: &diffLine{
 					FilePath:   d.DiffId,
 					LineNumber: int(lineNumber),
@@ -385,10 +436,9 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 				if c, ok := comments[id]; ok {
 					// FIXME: Sort comments chronologically
 					for _, prc := range c {
-						handleComment(prc, 0)
+						ct.handleComment(prc)
 					}
 				}
-
 			}
 
 			if isAddedLine || isCommonLine {
@@ -401,13 +451,11 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 		}
 
 		if i < len(d.Hunks)-1 {
-			content = append(content, &ScrollablePageLine{
+			ct.content = append(ct.content, &ScrollablePageLine{
 				Statements: []*ScrollablePageLineStatement{{Content: ""}},
 			})
 		}
 	}
-
-	ct.content = content
 }
 
 func (ct *ReviewPanel) Draw(screen tcell.Screen) {
@@ -436,13 +484,4 @@ func (ct *ReviewPanel) Draw(screen tcell.Screen) {
 	}
 
 	ct.ScrollablePage.Draw(screen)
-
-	return
-
-	topLevelComments := []*client.PullRequestComment{}
-	for _, prc := range ct.pullRequest.PullRequest.Comments {
-		if prc.ParentID == "" {
-			topLevelComments = append(topLevelComments, prc)
-		}
-	}
 }

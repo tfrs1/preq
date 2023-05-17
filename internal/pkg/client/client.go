@@ -196,6 +196,15 @@ type PullRequestChangesRequest struct {
 	User    string
 }
 
+type CommentType int
+
+const (
+	CommentTypeInline = iota + 1
+	CommentTypeGlobal
+	CommentTypeFile
+	CommentTypeReply
+)
+
 type PullRequestComment struct {
 	ID               string
 	Created          time.Time
@@ -204,6 +213,7 @@ type PullRequestComment struct {
 	IsBeingStored    bool
 	IsBeingDeleted   bool
 	User             string
+	Type             CommentType
 	Content          string
 	ParentID         string
 	BeforeLineNumber uint
@@ -217,6 +227,7 @@ type PullRequestBranch struct {
 }
 
 type PullRequest struct {
+	Description     string
 	ID              string
 	CommentCount    int
 	Title           string

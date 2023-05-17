@@ -68,15 +68,16 @@ func newDetailsPage() *detailsPage {
 	reviewPanel := NewReviewPanel()
 
 	eventBus.Subscribe("DetailsPage:LoadingFinished", func(data interface{}) {
-		ref := fileTree.GetSelectedReference()
-		if ref != nil {
-			eventBus.Publish("DetailsPage:OnFileChanged", ref)
+		n, err := fileTree.GetSelectedNode()
+		if err == nil && n != nil {
+			eventBus.Publish("DetailsPage:OnFileChanged", &FileTreeStatementReference{
+				Node: n,
+			})
 		}
 	})
 
 	reviewPanel.
 		SetBorder(true).
-		SetTitle("Diff").
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Rune() {
 			case 'c':
@@ -146,6 +147,7 @@ func newDetailsPage() *detailsPage {
 	eventBus.Subscribe("DeleteCommendModal:DeleteCancelled", func(_ interface{}) {
 		app.SetFocus(reviewPanel)
 	})
+
 	eventBus.Subscribe("DeleteCommendModal:DeleteConfirmed", func(input interface{}) {
 		comment, ok := input.(*client.PullRequestComment)
 		if !ok {
@@ -296,6 +298,11 @@ func newDetailsPage() *detailsPage {
 			return
 		}
 
+		if rr.Node.IsRoot() {
+			reviewPanel.renderStatusPage()
+			return
+		}
+
 		if rr.Diff == nil {
 			return
 		}
@@ -382,6 +389,8 @@ func (dp *detailsPage) SetData(pr *PullRequest) error {
 
 		app.QueueUpdateDraw(func() {
 			dp.reviewPanel.SetData(pr, dp.changes, dp.commentsMap)
+			dp.fileTree.Rerender()
+			eventBus.Publish("DetailsPage:LoadingFinished", nil)
 		})
 	}()
 

@@ -238,8 +238,23 @@ func (c *BitbucketCloudClient) GetComments(
 				options.ID,
 			),
 			Parse: func(key, value gjson.Result) (*client.PullRequestComment, error) {
+				var typ client.CommentType = client.CommentTypeInline
+
+				if value.Get("parent").Exists() {
+					typ = client.CommentTypeReply
+				} else if !value.Get("inline").Exists() {
+					typ = client.CommentTypeGlobal
+				} else {
+					from := value.Get("inline.from").Value()
+					to := value.Get("inline.to").Value()
+					if from == nil && to == nil {
+						typ = client.CommentTypeFile
+					}
+				}
+
 				return &client.PullRequestComment{
 					ID:       value.Get("id").String(),
+					Type:     typ,
 					ParentID: value.Get("parent.id").String(),
 					Deleted:  value.Get("deleted").Bool(),
 					// TODO: Outdated: value.Get("comment.inline.outdated").Bool(),
@@ -295,6 +310,7 @@ func (c *BitbucketCloudClient) GetPullRequests(
 	result := parsed.Get("values")
 	result.ForEach(func(key, value gjson.Result) bool {
 		pr.Values = append(pr.Values, &client.PullRequest{
+			Description:  value.Get("description").String(),
 			ID:           value.Get("id").String(),
 			CommentCount: int(value.Get("comment_count").Float()),
 			Title:        value.Get("title").String(),
