@@ -44,10 +44,10 @@ func NewFileTree() *FileTree {
 				return nil
 			}
 		case tcell.KeyEnter:
-			if !node.IsLeaf() {
-				eventBus.Publish("FileTree:ToggleExpandCollapseRequest", info.selectedIndex)
-			} else {
+			if node.IsLeaf() || node.IsRoot() {
 				eventBus.Publish("FileTree:FileSelectionRequested", info.selectedIndex)
+			} else {
+				eventBus.Publish("FileTree:ToggleExpandCollapseRequest", info.selectedIndex)
 			}
 			return nil
 		}
