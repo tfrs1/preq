@@ -355,10 +355,22 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 	d := ct.currentDiff
 	comments := ct.commentMap[ct.currentDiffId]
 
-	ct.content = append(ct.content, &ScrollablePageLine{
-		Statements: []*ScrollablePageLineStatement{{Content: d.Title}},
-	})
+	ct.addLine(fmt.Sprintf("[::b]File: %s[::-]", d.Title), nil)
+	printedCommentsTitle := false
+	for _, comment := range ct.pullRequest.PullRequest.Comments {
+		if comment.Type == client.CommentTypeFile && comment.ParentID == "" {
+			if !printedCommentsTitle {
+				ct.addLine("", nil)
+				ct.addLine("[::b]File comments[::-]", nil)
+				printedCommentsTitle = true
+			}
 
+			ct.handleComment(comment)
+		}
+	}
+
+	ct.addLine("", nil)
+	ct.addLine("[::b]Diff[::-]", nil)
 	for i, h := range d.Hunks {
 		origIdx := h.OrigStartLine
 		newIdx := h.NewStartLine
