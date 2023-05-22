@@ -356,15 +356,35 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 	comments := ct.commentMap[ct.currentDiffId]
 
 	ct.addLine(fmt.Sprintf("[::b]File: %s[::-]", d.Title), nil)
-	printedCommentsTitle := false
+	fileComments := []*client.PullRequestComment{}
+	outdatedComments := []*client.PullRequestComment{}
 	for _, comment := range ct.pullRequest.PullRequest.Comments {
-		if comment.Type == client.CommentTypeFile && comment.ParentID == "" {
-			if !printedCommentsTitle {
-				ct.addLine("", nil)
-				ct.addLine("[::b]File comments[::-]", nil)
-				printedCommentsTitle = true
-			}
+		if comment.ParentID != "" {
+			// Not a top level comment, skip
+			continue
+		}
 
+		if comment.Type == client.CommentTypeFile {
+			fileComments = append(fileComments, comment)
+		} else if comment.IsOutdated(ct.pullRequest.PullRequest.Source.Hash) {
+			outdatedComments = append(outdatedComments, comment)
+		}
+	}
+
+	if len(fileComments) > 0 {
+		ct.addLine("", nil)
+		ct.addLine("[::b]File comments[::-]", nil)
+
+		for _, comment := range fileComments {
+			ct.handleComment(comment)
+		}
+	}
+
+	if len(outdatedComments) > 0 {
+		ct.addLine("", nil)
+		ct.addLine("[::b]Outdated comments[::-]", nil)
+
+		for _, comment := range outdatedComments {
 			ct.handleComment(comment)
 		}
 	}
@@ -447,8 +467,10 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 				id := lineCommentListMapId(b, n)
 				if c, ok := comments[id]; ok {
 					// FIXME: Sort comments chronologically
-					for _, prc := range c {
-						ct.handleComment(prc)
+					for _, comment := range c {
+						if !comment.IsOutdated(ct.pullRequest.PullRequest.Source.Hash) {
+							ct.handleComment(comment)
+						}
 					}
 				}
 			}

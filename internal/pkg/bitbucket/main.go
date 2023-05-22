@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"preq/internal/pkg/client"
+	"regexp"
 	"strings"
 	"time"
 
@@ -252,12 +253,27 @@ func (c *BitbucketCloudClient) GetComments(
 					}
 				}
 
+				// "links.code.href" is in
+				// "https://api.bitbucket.org/2.0/repositories/{workspace}/{repo}/diff/{workspace}/{repo}:{sourceHash}..{destHash}?path={filename}"
+				// format. We want to extract `sourceHash` as that is the commit the comment has been
+				// written on. This value can used to determine whether a comment is outdated or not.
+				matches := regexp.
+					MustCompile(`.*?:([a-fA-F0-9]+)\.\..*`).
+					FindStringSubmatch(
+						value.Get("links.code.href").String(),
+					)
+
+				if len(matches) != 2 {
+					return nil, errors.New("unable to the comments commit hash location")
+				}
+
+				commitHash := matches[1]
+
 				return &client.PullRequestComment{
-					ID:       value.Get("id").String(),
-					Type:     typ,
-					ParentID: value.Get("parent.id").String(),
-					Deleted:  value.Get("deleted").Bool(),
-					// TODO: Outdated: value.Get("comment.inline.outdated").Bool(),
+					ID:               value.Get("id").String(),
+					Type:             typ,
+					ParentID:         value.Get("parent.id").String(),
+					Deleted:          value.Get("deleted").Bool(),
 					Content:          value.Get("content.raw").String(),
 					Created:          value.Get("created_on").Time(),
 					Updated:          value.Get("updated_on").Time(),
@@ -266,6 +282,7 @@ func (c *BitbucketCloudClient) GetComments(
 					AfterLineNumber:  uint(value.Get("inline.to").Uint()),
 					// Check which name it when the file is renamed
 					FilePath:       value.Get("inline.path").String(),
+					CommitHash:     commitHash,
 					IsBeingStored:  false,
 					IsBeingDeleted: false,
 				}, nil

@@ -219,6 +219,11 @@ type PullRequestComment struct {
 	BeforeLineNumber uint
 	AfterLineNumber  uint
 	FilePath         string
+	CommitHash       string
+}
+
+func (prc PullRequestComment) IsOutdated(sourceHash string) bool {
+	return prc.CommitHash != sourceHash
 }
 
 type PullRequestBranch struct {
