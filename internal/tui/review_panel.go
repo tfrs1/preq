@@ -174,7 +174,7 @@ func (ct *ReviewPanel) handleComment(comment *client.PullRequestComment) (int, e
 		if comment.IsBeingStored {
 			statements = []*ScrollablePageLineStatement{
 				{
-					Content: fmt.Sprintf("[%s]%s⏳ %s", borderColor, verticalBorder, "Sending..."),
+					Content: fmt.Sprintf("[%s]%s%s %s", borderColor, verticalBorder, IconsMap["Working"], "Sending..."),
 					Indent:  indent,
 				},
 				{
@@ -185,7 +185,7 @@ func (ct *ReviewPanel) handleComment(comment *client.PullRequestComment) (int, e
 		} else if comment.IsBeingDeleted {
 			statements = []*ScrollablePageLineStatement{
 				{
-					Content: fmt.Sprintf("[%s]%s⏳ %s", borderColor, verticalBorder, "Deleting..."),
+					Content: fmt.Sprintf("[%s]%s%s %s", borderColor, verticalBorder, IconsMap["Working"], "Deleting..."),
 					Indent:  indent,
 				},
 				{

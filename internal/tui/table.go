@@ -381,7 +381,7 @@ func (prt *pullRequestTable) drawTable() {
 
 				approvalsText := ""
 				if pr.IsApprovalsLoading {
-					approvalsText = "⏳"
+					approvalsText = IconsMap["Working"]
 				} else if len(pr.PullRequest.Approvals) > 0 {
 					approvalsText = fmt.Sprintf("[%s::]%d[-::]", "green", len(pr.PullRequest.Approvals))
 				}
@@ -389,7 +389,7 @@ func (prt *pullRequestTable) drawTable() {
 
 				changesRequestText := ""
 				if pr.IsChangesRequestsLoading {
-					changesRequestText = "⏳"
+					changesRequestText = IconsMap["Working"]
 				} else if len(pr.PullRequest.ChangesRequests) > 0 {
 					changesRequestText = fmt.Sprintf("[%s::]%d[-::]", "orange", len(pr.PullRequest.ChangesRequests))
 				}
@@ -397,7 +397,7 @@ func (prt *pullRequestTable) drawTable() {
 
 				commentsText := ""
 				if pr.IsCommentsLoading {
-					commentsText = "⏳"
+					commentsText = IconsMap["Working"]
 				} else if pr.PullRequest.CommentCount > 0 {
 					commentsText = fmt.Sprint(pr.PullRequest.CommentCount)
 				}
@@ -446,9 +446,9 @@ func (prt *pullRequestTable) addRow(
 	values := []string{
 		v.ID,
 		"Open",
-		"⏳",
-		"⏳",
-		"⏳",
+		IconsMap["Working"],
+		IconsMap["Working"],
+		IconsMap["Working"],
 		title,
 		v.User,
 		source,
