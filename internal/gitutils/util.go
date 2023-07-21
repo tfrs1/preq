@@ -7,6 +7,7 @@ import (
 	"preq/internal/pkg/client"
 	"preq/internal/pkg/fs"
 	"regexp"
+	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -14,6 +15,7 @@ import (
 )
 
 var (
+	ErrCommitHashNotFound       = errors.New("commit hash not found")
 	ErrCannotGetLocalRepository = errors.New(
 		"cannot get local repository",
 	)
@@ -199,7 +201,11 @@ func (git *GoGit) GetDiffPatch(fromHash string, toHash string) ([]byte, error) {
 	// Capture the output of the command
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, err
+		value := string(output)
+		if strings.Contains(value, "unknown revision") {
+			return nil, ErrCommitHashNotFound
+		}
+		return nil, errors.Wrap(err, value)
 	}
 
 	return output, nil

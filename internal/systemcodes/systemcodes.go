@@ -1,5 +1,3 @@
 package systemcodes
 
-var (
-	ErrorCodeGeneric = 103
-)
+var ErrorCodeGeneric = 103

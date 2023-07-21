@@ -8,6 +8,7 @@ import (
 	"preq/internal/cli/paramutils"
 	"preq/internal/clientutils"
 	"preq/internal/configutils"
+	"preq/internal/gitutils"
 	"preq/internal/persistance"
 	"preq/internal/pkg/client"
 	"runtime"
@@ -168,13 +169,35 @@ func Run(
 
 		err := details.SetData(pr)
 		if err != nil {
-			eventBus.Publish("ErrorModal:RequestOpen", err)
-			log.Error().Msg(err.Error())
+			if errors.Is(err, gitutils.ErrCommitHashNotFound) {
+				info, err := persistance.GetDefault().GetInfo(pr.Repository.Name, string(pr.Repository.Provider))
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+
+				go gitFetchModal.StartGitFetch(info.Path)
+
+				eventBus.Publish("GitFetchModal:RequestOpen", nil)
+			} else {
+				log.Error().Msg(err.Error())
+				eventBus.Publish("ErrorModal:RequestOpen", err)
+			}
+
 			return
 		}
 
 		pages.ShowPage("details_page")
 		app.SetFocus(details)
+	})
+
+	eventBus.Subscribe("GitFetchModal:RequestOpen", func(err interface{}) {
+		pages.ShowPage("GitFetchModal")
+	})
+
+	eventBus.Subscribe("GitFetchModal:RequestClose", func(err interface{}) {
+		pages.SwitchToPage("main")
+		app.SetFocus(table)
 	})
 
 	eventBus.Subscribe("ErrorModal:RequestOpen", func(err interface{}) {
@@ -369,6 +392,7 @@ func Run(
 		false,
 	)
 
+	pages.AddPage("GitFetchModal", gitFetchModal, true, false)
 	pages.AddPage("FatalErrorModal", fatalErrorModal, false, false)
 	pages.AddPage("ErrorModal", errorModal, false, false)
 

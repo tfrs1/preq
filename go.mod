@@ -3,6 +3,7 @@ module preq
 go 1.19
 
 require (
+	github.com/creack/pty v1.1.18
 	github.com/gdamore/tcell/v2 v2.6.0
 	github.com/go-git/go-git/v5 v5.6.1
 	github.com/go-resty/resty/v2 v2.3.0
