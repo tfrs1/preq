@@ -8,6 +8,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"github.com/rs/zerolog/log"
 	"github.com/sourcegraph/go-diff/diff"
 )
 
@@ -323,20 +324,18 @@ func (ct *ReviewPanel) renderStatusPage() {
 		}
 	}
 
-	outdatedComments := []*client.PullRequestComment{}
-	// TODO: Add outdated member to comment struct
-	// for _, c := range ct.pullRequest.PullRequest.Comments {
-	// 	if c.Outdated {
-	// 		outdateComments = append(outdateComments, c)
-	// 	}
-	// }
-	// FIXME: Add outdated and file level comments together with diff (shortcut to show hide the comments)
+	// TODO: Add outdated and file level comments together with diff (shortcut to show hide the comments)
 	// collapse/expand inline comments in diff?
+
+	outdatedComments := []*client.PullRequestComment{}
 	if len(outdatedComments) > 0 {
 		ct.addLine("", nil)
 		ct.addLine("[::b]Outdated comments[::-]", nil)
 		for _, c := range outdatedComments {
-			ct.handleComment(c)
+			_, err := ct.handleComment(c)
+			if err != nil {
+				log.Error().Err(err).Msg("Error while handling outdated file comment")
+			}
 		}
 	}
 }
@@ -361,6 +360,12 @@ func (ct *ReviewPanel) prerenderContent(diffId string) {
 	for _, comment := range ct.pullRequest.PullRequest.Comments {
 		if comment.ParentID != "" {
 			// Not a top level comment, skip
+			continue
+		}
+
+		// FIXME: Comapring file path with title to determine whether
+		// a comment belongs to a file seems unintuitive
+		if comment.FilePath != d.Title {
 			continue
 		}
 
@@ -502,6 +507,7 @@ func (ct *ReviewPanel) Draw(screen tcell.Screen) {
 	if ct.loadingError != nil {
 		tview.Print(
 			screen,
+			// FIXME: Hardcoded error message will not always reflect the actual error
 			"Could not find the commit hash locally. Please pull.",
 			x,
 			y,

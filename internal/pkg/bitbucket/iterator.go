@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/rs/zerolog/log"
 	"github.com/tidwall/gjson"
 )
 
@@ -86,6 +87,7 @@ func (i *bitbucketIterator[T]) parse(parsed gjson.Result) ([]T, error) {
 	result.ForEach(func(key, value gjson.Result) bool {
 		obj, err := i.Parse(key, value)
 		if err != nil {
+			log.Error().Err(err).Msg("Error while parsing values")
 			return false
 		}
 

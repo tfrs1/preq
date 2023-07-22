@@ -257,17 +257,21 @@ func (c *BitbucketCloudClient) GetComments(
 				// "https://api.bitbucket.org/2.0/repositories/{workspace}/{repo}/diff/{workspace}/{repo}:{sourceHash}..{destHash}?path={filename}"
 				// format. We want to extract `sourceHash` as that is the commit the comment has been
 				// written on. This value can used to determine whether a comment is outdated or not.
-				matches := regexp.
-					MustCompile(`.*?:([a-fA-F0-9]+)\.\..*`).
-					FindStringSubmatch(
-						value.Get("links.code.href").String(),
-					)
+				commitHash := ""
+				codeHref := value.Get("links.code.href").String()
+				if codeHref != "" {
+					matches := regexp.
+						MustCompile(`.*?:([a-fA-F0-9]+)\.\..*`).
+						FindStringSubmatch(
+							value.Get("links.code.href").String(),
+						)
 
-				if len(matches) != 2 {
-					return nil, errors.New("unable to the comments commit hash location")
+					if len(matches) != 2 {
+						return nil, errors.New("unable to the comments commit hash location")
+					}
+
+					commitHash = matches[1]
 				}
-
-				commitHash := matches[1]
 
 				return &client.PullRequestComment{
 					ID:               value.Get("id").String(),
