@@ -198,6 +198,7 @@ func Run(
 	eventBus.Subscribe("GitFetchModal:RequestClose", func(err interface{}) {
 		pages.SwitchToPage("main")
 		app.SetFocus(table)
+		app.Draw()
 	})
 
 	eventBus.Subscribe("ErrorModal:RequestOpen", func(err interface{}) {

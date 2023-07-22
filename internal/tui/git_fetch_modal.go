@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"io"
 	"os/exec"
 
@@ -31,21 +32,36 @@ func (m *GitFetchModal) StartGitFetch(path string) {
 	if err != nil {
 		panic(err)
 	}
-	defer func() {
-		// FIXME: Handle errors
-		_ = ptmx.Close()
-		_ = pw.Close()
-		_ = pr.Close()
-	}()
 
-	// Create an InputField for entering commands
+	cleanup := func() {
+		// FIXME: Handle errors
+		err := ptmx.Close()
+		if err != nil {
+			log.Error().Err(err).Msg("Error while closing pty")
+		}
+
+		err = pw.Close()
+		if err != nil {
+			log.Error().Err(err).Msg("Error while closing fetch pipe writer")
+		}
+
+		err = pr.Close()
+		if err != nil {
+			log.Error().Err(err).Msg("Error while closing fetch pipe reader")
+		}
+	}
+
+	defer cleanup()
+
+	// TODO: Is this how you use context?
+	ctx, cancelCtx := context.WithCancel(context.TODO())
 	m.input.
 		SetDoneFunc(func(key tcell.Key) {
 			if key == tcell.KeyEnter {
 				ptmx.WriteString(m.input.GetText() + "\n")
 				m.input.SetText("")
 			} else if key == tcell.KeyEscape {
-				eventBus.Publish("GitFetchModal:RequestClose", nil)
+				cancelCtx()
 			}
 		})
 
@@ -58,18 +74,30 @@ func (m *GitFetchModal) StartGitFetch(path string) {
 				log.Error().Err(err)
 				break
 			}
+
 			output += string(bfr[:n])
 			m.output.SetText(output)
 		}
 	}()
 
-	_, _ = io.Copy(pw, ptmx)
+	go func() {
+		_, err = io.Copy(pw, ptmx)
+		if err != nil {
+			log.Error().Err(err).Msg("Error while coping from pty")
+		}
+
+		cancelCtx()
+	}()
+
+	select {
+	case <-ctx.Done():
+		// wait
+	}
 
 	eventBus.Publish("GitFetchModal:RequestClose", nil)
 }
 
 func NewGitFetchModal() *GitFetchModal {
-	// Create a TextView to display the terminal output
 	outputView := tview.NewTextView().
 		SetWrap(true).
 		SetChangedFunc(func() {
@@ -78,21 +106,18 @@ func NewGitFetchModal() *GitFetchModal {
 
 	inputField := tview.NewInputField().
 		SetFieldBackgroundColor(tcell.ColorBlack).
-		SetFieldTextColor(tcell.ColorWhite).
-		SetMaskCharacter('✱')
-
+		SetMaskCharacter('*')
 	inputField.SetBorder(true)
-	outputView.SetBorder(true)
 
 	f := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(tview.NewTextView().SetText("Git fetch"), 1, 0, false).
 		AddItem(outputView, 0, 1, false).
 		AddItem(inputField, 3, 0, true)
+	f.SetTitle(" Git fetch ").SetBorder(true)
 
 	grid := tview.NewGrid().
-		SetColumns(0, 50, 0).
-		SetRows(0, 20, 0).
+		SetColumns(0, 80, 0).
+		SetRows(0, 15, 0).
 		AddItem(f, 1, 1, 1, 1, 0, 0, true)
 
 	return &GitFetchModal{
